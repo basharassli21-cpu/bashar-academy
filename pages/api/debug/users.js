@@ -1,39 +1,41 @@
-import { list } from '@vercel/blob'
+import { put, list } from '@vercel/blob'
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end()
-  // Admin-only via secret param
   if (req.query.secret !== 'bashar2024debug') return res.status(403).end()
 
-  const results = { blobToken: !!process.env.BLOB_READ_WRITE_TOKEN, blobs: [], users: null, error: null }
+  const out = { blobToken: !!process.env.BLOB_READ_WRITE_TOKEN, step: '', error: null, users: null, blobUrl: null }
 
   try {
-    const { blobs } = await list({ prefix: 'users-db.json' })
-    results.blobs = blobs.map(b => ({ pathname: b.pathname, uploadedAt: b.uploadedAt, size: b.size, downloadUrl: b.downloadUrl?.substring(0, 60) + '...' }))
+    // Step 1: Write test
+    out.step = 'write'
+    const testData = { _test: true, ts: Date.now() }
+    const blob = await put('cba-test.json', JSON.stringify(testData), { access: 'public', contentType: 'application/json', addRandomSuffix: false })
+    out.blobUrl = blob.url
+    out.writeOk = true
 
-    if (blobs.length > 0) {
-      const sorted = [...blobs].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+    // Step 2: Read test
+    out.step = 'read'
+    const r = await fetch(blob.url)
+    out.readStatus = r.status
+    out.readOk = r.ok
 
-      // Try without auth header
-      let fetchRes = await fetch(sorted[0].downloadUrl)
-      results.fetchStatus1 = fetchRes.status
+    // Step 3: List users blob
+    out.step = 'list'
+    const { blobs } = await list({ prefix: 'cba-users-v2.json' })
+    out.usersBlobs = blobs.map(b => ({ pathname: b.pathname, uploadedAt: b.uploadedAt, size: b.size, url: b.url }))
 
-      // Try with auth header
-      if (!fetchRes.ok) {
-        fetchRes = await fetch(sorted[0].downloadUrl, {
-          headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` }
-        })
-        results.fetchStatus2 = fetchRes.status
-      }
-
-      if (fetchRes.ok) {
-        const data = await fetchRes.json()
-        results.users = Object.keys(data).map(u => ({ username: u, role: data[u].role, allowedCourse: data[u].allowedCourse }))
+    if (blobs.length) {
+      const r2 = await fetch(blobs[0].url)
+      if (r2.ok) {
+        const data = await r2.json()
+        out.users = Object.keys(data).map(u => ({ username: u, role: data[u].role, course: data[u].allowedCourse }))
       }
     }
+
+    out.step = 'done'
   } catch (err) {
-    results.error = err.message
+    out.error = err.message
   }
 
-  return res.status(200).json(results)
+  return res.status(200).json(out)
 }
