@@ -542,13 +542,13 @@ export default function Dashboard({ initialUser }) {
 export async function getServerSideProps({ req }) {
   const { parse } = await import('cookie')
   const { verifyToken } = await import('../lib/auth')
-  const { USERS } = await import('../lib/db')
+  const { getUser } = await import('../lib/users-store')
   const cookies = parse(req.headers.cookie || '')
   const token = cookies['ba_session']
   if (!token) return { redirect: { destination: '/', permanent: false } }
   const session = verifyToken(token)
   if (!session) return { redirect: { destination: '/', permanent: false } }
-  const user = USERS[session.username]
+  const user = await getUser(session.username)
   if (!user || user.role !== 'student') {
     if (user?.role === 'admin') return { redirect: { destination: '/admin', permanent: false } }
     return { redirect: { destination: '/', permanent: false } }

@@ -248,15 +248,17 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 export async function getServerSideProps({ req }) {
   const { parse } = await import('cookie')
   const { verifyToken } = await import('../lib/auth')
-  const { USERS, LESSONS } = await import('../lib/db')
+  const { getUser, getAllUsers } = await import('../lib/users-store')
+  const { LESSONS } = await import('../lib/db')
   const cookies = parse(req.headers.cookie || '')
   const token = cookies['ba_session']
   if (!token) return { redirect: { destination: '/', permanent: false } }
   const session = verifyToken(token)
   if (!session) return { redirect: { destination: '/', permanent: false } }
-  const user = USERS[session.username]
+  const user = await getUser(session.username)
   if (!user || user.role !== 'admin') return { redirect: { destination: '/', permanent: false } }
-  const students = Object.entries(USERS)
+  const allUsers = await getAllUsers()
+  const students = Object.entries(allUsers)
     .filter(([, u]) => u.role === 'student')
     .map(([username, u]) => ({ username, name: u.name, avatar: u.avatar, progress: u.progress || {}, quizScores: u.quizScores || {}, allowedCourse: u.allowedCourse || null, joinedAt: u.joinedAt || '' }))
   const lessons = LESSONS.map(({ id, title, duration, free }) => ({ id, title, duration, free }))
