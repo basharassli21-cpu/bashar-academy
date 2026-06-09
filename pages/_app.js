@@ -1,5 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { Cairo } from 'next/font/google'
 import '../styles/globals.css'
+
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  weight: ['400', '600', '700', '900'],
+  display: 'swap',
+  variable: '--font-cairo',
+})
 
 export const LangContext = createContext({ lang: 'ar', setLang: () => {} })
 
@@ -75,7 +83,7 @@ export default function App({ Component, pageProps }) {
 
   return (
     <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
-      <div dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ minHeight: '100vh', position: 'relative' }}>
+      <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cairo.className} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'Cairo, Tajawal, sans-serif' }}>
         <MouseGlow />
         <Component {...pageProps} />
       </div>
