@@ -116,7 +116,7 @@ export default function LandingPage() {
         .hero{position:relative;padding:170px 0 90px;overflow:hidden}
         .hero-glow{position:absolute;top:-10%;left:-10%;width:55%;height:120%;
           background:radial-gradient(circle,rgba(202,162,83,.12),transparent 62%);filter:blur(20px);pointer-events:none}
-        .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:64px;align-items:center;position:relative}
+        .hero-grid{display:grid;grid-template-columns:1fr;gap:0;align-items:center;position:relative;max-width:800px}
         .eyebrow{display:inline-flex;align-items:center;gap:11px;font-size:13px;letter-spacing:.26em;color:var(--gold);
           text-transform:uppercase;font-weight:600;margin-bottom:26px}
         .eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
@@ -163,7 +163,7 @@ export default function LandingPage() {
 
         /* ── about ── */
         .about{background:var(--bg2);border-block:1px solid var(--line-soft)}
-        .about-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:64px;align-items:center}
+        .about-grid{display:grid;grid-template-columns:1fr;gap:0;align-items:center;max-width:800px}
         .about-img{position:relative}
         .about-img .img-wrap{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:3/4;border:1px solid var(--line)}
         .about-img .img-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
@@ -450,16 +450,6 @@ export default function LandingPage() {
                 <div className="stat"><div className="n"><span className="gold">18</span></div><div className="l">{tx('عمر انطلاق الرحلة', 'Age the journey began')}</div></div>
               </div>
             </div>
-            <div className="hero-portrait reveal">
-              <div className="frame" />
-              <div className="img-wrap">
-                <img src="/bashar-portrait.jpg" alt={tx('بشار العسلي — الكوتش', 'Bashar Al-Asali — Coach')} />
-              </div>
-              <div className="tag">
-                <div className="tn">eBay</div>
-                <div className="tl">Top Rated Seller ✦</div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -475,12 +465,6 @@ export default function LandingPage() {
         {/* ── ABOUT ── */}
         <section className="sec about" id="about">
           <div className="wrap about-grid">
-            <div className="about-img reveal">
-              <div className="img-wrap">
-                <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} />
-              </div>
-              <div className="quote">{tx('«قضيت مئات الساعات في التجربة حتى لا يضيعها طلابي.»', '"I spent hundreds of hours testing — so my students don\'t have to."')}</div>
-            </div>
             <div className="about-body reveal">
               <span className="kicker">{tx('من هو الكوتش بشار', 'Who is Coach Bashar')}</span>
               <h2>{tx('رحلة بدأت في عمر الثامنة عشرة', 'A journey that began at eighteen')}</h2>
