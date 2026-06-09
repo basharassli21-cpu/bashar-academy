@@ -1156,7 +1156,7 @@ export default function Dashboard({ initialUser }) {
                       <video
                         src={videoUrl}
                         controls
-                        controlsList="nodownload nofullscreen noremoteplayback"
+                        controlsList="nodownload noremoteplayback"
                         disablePictureInPicture
                         disableRemotePlayback
                         onContextMenu={e => e.preventDefault()}
