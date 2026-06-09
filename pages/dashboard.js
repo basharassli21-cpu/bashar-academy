@@ -730,6 +730,15 @@ export default function Dashboard({ initialUser }) {
     import('../lib/db').then(m => setCoursesData(m.COURSES))
   }, [])
 
+  // ── منع تنزيل الصفحة والفيديو عبر الكيبورد ──
+  useEffect(() => {
+    const block = e => {
+      if ((e.ctrlKey || e.metaKey) && ['s','S','u','U'].includes(e.key)) e.preventDefault()
+    }
+    document.addEventListener('keydown', block)
+    return () => document.removeEventListener('keydown', block)
+  }, [])
+
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/')
@@ -1132,7 +1141,10 @@ export default function Dashboard({ initialUser }) {
             {view === 'lesson' && activeLesson && (
               <div style={{ maxWidth: '780px', margin: '0 auto' }} className="fade-in">
                 <button onClick={() => setView('lessons')} style={{ ...BTN.back, marginBottom: '16px' }}>{t(lang, 'backBtn')}</button>
-                <div style={{ position: 'relative', background: '#000', aspectRatio: '16/9', borderRadius: '16px', overflow: 'hidden', border: `1px solid ${C.g15}` }}>
+                <div
+                  style={{ position: 'relative', background: '#000', aspectRatio: '16/9', borderRadius: '16px', overflow: 'hidden', border: `1px solid ${C.g15}` }}
+                  onContextMenu={e => e.preventDefault()}
+                >
                   {videoLoading && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.w40, fontSize: '14px', gap: '10px' }}>
                       <div style={VID.spinner} />{t(lang, 'loadingVideo')}
@@ -1140,8 +1152,57 @@ export default function Dashboard({ initialUser }) {
                   )}
                   {videoUrl && (
                     <>
-                      <video src={videoUrl} controls controlsList="nodownload" onContextMenu={e => e.preventDefault()} style={{ width: '100%', height: '100%', display: 'block' }} />
-                      <div style={VID.watermark}>{user.username}</div>
+                      {/* ── Video player ── */}
+                      <video
+                        src={videoUrl}
+                        controls
+                        controlsList="nodownload nofullscreen noremoteplayback"
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        onContextMenu={e => e.preventDefault()}
+                        onKeyDown={e => { if((e.ctrlKey||e.metaKey) && ['s','S','u','U'].includes(e.key)) e.preventDefault() }}
+                        style={{ width: '100%', height: '100%', display: 'block' }}
+                      />
+
+                      {/* ── Transparent overlay (blocks right-click save on video element) ── */}
+                      <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none' }} />
+
+                      {/* ── Watermark grid ── */}
+                      <div style={{ position:'absolute', inset:0, zIndex:2, pointerEvents:'none', overflow:'hidden', userSelect:'none' }}>
+                        {/* Diagonal repeating watermark */}
+                        {[
+                          { top:'15%',  left:'5%',  rotate:'-25deg' },
+                          { top:'15%',  left:'55%', rotate:'-25deg' },
+                          { top:'42%',  left:'28%', rotate:'-25deg' },
+                          { top:'65%',  left:'5%',  rotate:'-25deg' },
+                          { top:'65%',  left:'55%', rotate:'-25deg' },
+                          { top:'85%',  left:'30%', rotate:'-25deg' },
+                        ].map((pos, i) => (
+                          <div key={i} style={{
+                            position:'absolute',
+                            top: pos.top, left: pos.left,
+                            transform: `rotate(${pos.rotate})`,
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            fontFamily: 'monospace',
+                            color: 'rgba(255,255,255,0.13)',
+                            whiteSpace: 'nowrap',
+                            letterSpacing: '0.08em',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          }}>
+                            {user.username} · بشار أكاديمي
+                          </div>
+                        ))}
+                        {/* Fixed corner watermark */}
+                        <div style={{
+                          position:'absolute', bottom:'52px', right:'10px',
+                          fontSize:'11px', fontFamily:'monospace', fontWeight:'700',
+                          color:'rgba(255,255,255,0.18)', letterSpacing:'0.06em',
+                          textShadow:'0 1px 3px rgba(0,0,0,0.7)',
+                        }}>
+                          {user.username}
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -1277,7 +1338,7 @@ const VID = {
   },
   watermark: {
     position: 'absolute', bottom: '50px', left: '14px',
-    fontSize: '10px', color: 'rgba(255,255,255,0.1)',
+    fontSize: '11px', color: 'rgba(255,255,255,0.15)',
     pointerEvents: 'none', userSelect: 'none', zIndex: 2, fontFamily: 'monospace',
   }
 }
