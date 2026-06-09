@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { useLang } from './_app'
@@ -90,8 +90,11 @@ function Sidebar({ user, view, setView, onLogout, lang }) {
       {/* User + Logout */}
       <div style={{ padding: '12px 12px 16px', borderTop: `1px solid ${C.g20}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', marginBottom: '6px' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.g20, border: `1px solid ${C.g30}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ color: C.gold, fontSize: '12px', fontWeight: '700' }}>{user.avatar}</span>
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.g20, border: `1px solid ${C.g30}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+            {user.photo
+              ? <img src={user.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ color: C.gold, fontSize: '12px', fontWeight: '700' }}>{user.avatar}</span>
+            }
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ color: C.white, fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name.split(' ')[0]}</p>
@@ -221,29 +224,124 @@ function ProgressMilestones({ progress, lang }) {
 }
 
 // ─── Profile View ──────────────────────────────────────────────────────────
-function ProfileView({ user, lang, COURSES_DATA }) {
+function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
+  const [photo,   setPhoto]   = useState(user.photo   || '')
+  const [name,    setName]    = useState(user.name    || '')
+  const [phone,   setPhone]   = useState(user.phone   || '')
+  const [gender,  setGender]  = useState(user.gender  || '')
+  const [saving,  setSaving]  = useState(false)
+  const [saved,   setSaved]   = useState(false)
+  const [error,   setError]   = useState('')
+  const fileRef = useRef(null)
+
   const courseIds = COURSES_DATA?.[user.allowedCourse]?.lessons || []
   const completed = courseIds.filter(id => user.progress[id]).length
-  const courseName = COURSES_DATA?.[user.allowedCourse]
-  const cName = courseName ? (lang === 'ar' ? courseName.nameAr : courseName.nameEn) : '—'
+  const courseMeta = COURSES_DATA?.[user.allowedCourse]
+  const cName = courseMeta ? (lang === 'ar' ? courseMeta.nameAr : courseMeta.nameEn) : '—'
+
+  function handleFileChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 8 * 1024 * 1024) {
+      setError(lang === 'ar' ? 'الصورة كبيرة جداً (الحد الأقصى 8MB)' : 'Image too large (max 8MB)')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const SIZE = 220
+        canvas.width = SIZE; canvas.height = SIZE
+        const ctx = canvas.getContext('2d')
+        // Square center-crop
+        const min = Math.min(img.width, img.height)
+        const sx = (img.width  - min) / 2
+        const sy = (img.height - min) / 2
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE)
+        setPhoto(canvas.toDataURL('image/jpeg', 0.78))
+        setError('')
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function handleSave() {
+    setSaving(true); setError(''); setSaved(false)
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, gender, photo }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || (lang === 'ar' ? 'حدث خطأ' : 'Error')); return }
+      setSaved(true)
+      onUserUpdate({ name, phone, gender, photo })
+      setTimeout(() => setSaved(false), 3000)
+    } catch {
+      setError(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputStyle = {
+    width: '100%', background: C.navy, border: `1px solid ${C.lk30}`,
+    borderRadius: '12px', padding: '12px 16px', color: C.white,
+    fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    transition: 'border 0.2s',
+  }
+
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Header card */}
+
+      {/* ── Header card ── */}
       <div style={{ background: C.surface, borderRadius: '20px', padding: '32px', border: `1px solid ${C.g20}`, textAlign: 'center' }}>
+        {/* Avatar */}
         <div style={{ position: 'relative', display: 'inline-block', marginBottom: '16px' }}>
-          <div style={{ width: '88px', height: '88px', borderRadius: '50%', background: C.g20, border: `4px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', margin: '0 auto' }}>
-            👤
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{
+              width: '100px', height: '100px', borderRadius: '50%',
+              background: C.g20, border: `3px solid ${C.gold}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto', cursor: 'pointer', overflow: 'hidden',
+              boxShadow: `0 0 20px rgba(201,168,76,0.25)`,
+            }}
+          >
+            {photo
+              ? <img src={photo} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '40px' }}>{gender === 'female' ? '👩' : '👨'}</span>
+            }
           </div>
+          {/* Edit badge */}
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{
+              position: 'absolute', bottom: 0, left: 0,
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: C.gold, border: `2px solid ${C.surface}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: '13px',
+            }}
+          >✎</div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
-        <h2 style={{ fontSize: '22px', fontWeight: '900', color: C.white, marginBottom: '6px' }}>{user.name}</h2>
-        <p style={{ color: C.silver, fontSize: '13px', marginBottom: '24px' }}>
-          {lang === 'ar' ? `دورة: ${cName}` : `Course: ${cName}`}
+
+        <p style={{ color: C.silver, fontSize: '12px', marginBottom: '16px' }}>
+          {lang === 'ar' ? 'اضغط على الصورة لتغييرها' : 'Click image to change it'}
         </p>
+
+        <h2 style={{ fontSize: '22px', fontWeight: '900', color: C.white, marginBottom: '4px' }}>{user.name}</h2>
+        <p style={{ color: C.silver, fontSize: '13px', marginBottom: '20px' }}>{cName}</p>
+
         <div style={{ display: 'flex', justifyContent: 'center', gap: '32px' }}>
           {[
-            [String(completed), lang === 'ar' ? 'دروس مكتملة' : 'Lessons Done'],
-            ['🔥 1',            lang === 'ar' ? 'يوم متتالي'   : 'Day Streak'],
-            ['1',               lang === 'ar' ? 'دورة نشطة'    : 'Active Course'],
+            [String(completed), lang === 'ar' ? 'دروس مكتملة' : 'Lessons'],
+            ['🔥 1',            lang === 'ar' ? 'يوم متتالي'   : 'Streak'],
+            ['1',               lang === 'ar' ? 'دورة نشطة'    : 'Course'],
           ].map(([val, lbl], i) => (
             <div key={i} style={{ textAlign: 'center' }}>
               <p style={{ color: C.gold, fontWeight: '900', fontSize: '20px', marginBottom: '4px' }}>{val}</p>
@@ -252,28 +350,126 @@ function ProfileView({ user, lang, COURSES_DATA }) {
           ))}
         </div>
       </div>
-      {/* Account info */}
+
+      {/* ── Edit Form ── */}
       <div style={{ background: C.surface, borderRadius: '20px', padding: '24px', border: `1px solid ${C.g20}` }}>
-        <h3 style={{ color: C.white, fontWeight: '800', fontSize: '15px', marginBottom: '20px' }}>{lang === 'ar' ? 'معلومات الحساب' : 'Account Info'}</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'اسم المستخدم' : 'Username'}</label>
-            <div style={{ background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px' }}>{user.username}</div>
+        <h3 style={{ color: C.white, fontWeight: '800', fontSize: '15px', marginBottom: '20px' }}>
+          {lang === 'ar' ? 'تعديل المعلومات' : 'Edit Information'}
+        </h3>
+
+        {error && (
+          <div style={{ background: 'rgba(252,129,129,0.1)', border: '1px solid rgba(252,129,129,0.3)', borderRadius: '10px', padding: '10px 14px', color: C.red, fontSize: '13px', marginBottom: '16px' }}>
+            ⚠️ {error}
           </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* Username (read-only) */}
           <div>
-            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'الاسم الكامل' : 'Full Name'}</label>
-            <div style={{ background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px' }}>{user.name}</div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'اسم المستخدم' : 'Username'}
+            </label>
+            <div style={{ ...inputStyle, color: C.silver, cursor: 'not-allowed', border: `1px solid rgba(74,85,104,0.2)` }}>
+              {user.username}
+            </div>
           </div>
+
+          {/* Full Name */}
           <div>
-            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'الدورة المفعّلة' : 'Active Course'}</label>
-            <div style={{ background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '12px', padding: '12px 16px', color: C.gold, fontSize: '14px', fontWeight: '700' }}>{cName}</div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'الاسم الكامل' : 'Full Name'}
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              style={{ ...inputStyle, direction: 'rtl' }}
+              placeholder={lang === 'ar' ? 'اكتب اسمك الكامل' : 'Enter your full name'}
+            />
           </div>
+
+          {/* Phone */}
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              style={{ ...inputStyle, direction: 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}
+              placeholder="+962 7X XXX XXXX"
+            />
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '10px' }}>
+              {lang === 'ar' ? 'الجنس' : 'Gender'}
+            </label>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              {[
+                { value: 'male',   ar: 'ذكر',  en: 'Male',   icon: '👨' },
+                { value: 'female', ar: 'أنثى', en: 'Female', icon: '👩' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGender(opt.value)}
+                  style={{
+                    flex: 1, padding: '14px', borderRadius: '14px', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                    background: gender === opt.value ? C.g15 : C.navy,
+                    border: `2px solid ${gender === opt.value ? C.gold : C.lk30}`,
+                    color: gender === opt.value ? C.gold : C.silver,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span style={{ fontSize: '28px' }}>{opt.icon}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                    {lang === 'ar' ? opt.ar : opt.en}
+                  </span>
+                  {gender === opt.value && (
+                    <span style={{ fontSize: '11px', color: C.gold }}>✓ {lang === 'ar' ? 'محدد' : 'Selected'}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
-        <div style={{ marginTop: '16px', padding: '14px', background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '12px', textAlign: 'center' }}>
-          <p style={{ color: C.silver, fontSize: '12px' }}>
-            {lang === 'ar' ? 'لتغيير كلمة المرور أو البيانات تواصل مع المدرب' : 'To change password or data, contact the coach'}
+
+        {/* Save button */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
+            background: saved
+              ? `linear-gradient(135deg, ${C.emerald}, #27ae60)`
+              : `linear-gradient(135deg, ${C.gold}, ${C.goldD})`,
+            color: saved ? '#fff' : C.navy,
+            fontSize: '15px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer',
+            marginTop: '20px', opacity: saving ? 0.75 : 1, transition: 'all 0.3s',
+            boxShadow: `0 4px 20px ${saved ? 'rgba(46,204,113,0.3)' : 'rgba(201,168,76,0.25)'}`,
+          }}
+        >
+          {saving
+            ? (lang === 'ar' ? '⏳ جاري الحفظ...' : '⏳ Saving...')
+            : saved
+            ? (lang === 'ar' ? '✅ تم الحفظ بنجاح!' : '✅ Saved!')
+            : (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes')
+          }
+        </button>
+
+        {/* Contact note */}
+        <div style={{ marginTop: '16px', padding: '12px', background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '12px', textAlign: 'center' }}>
+          <p style={{ color: C.silver, fontSize: '12px', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'لتغيير كلمة المرور تواصل مع المدرب' : 'To change password, contact the coach'}
           </p>
-          <a href="https://wa.me/00962790360675" target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '8px', color: C.gold, fontSize: '13px', fontWeight: '700', textDecoration: 'none' }}>
+          <a href="https://wa.me/00962790360675" target="_blank" rel="noreferrer"
+            style={{ color: C.gold, fontSize: '13px', fontWeight: '700', textDecoration: 'none' }}>
             💬 {lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}
           </a>
         </div>
@@ -513,6 +709,10 @@ export default function Dashboard({ initialUser }) {
   }
 
   const courseData = COURSES_DATA?.[selectedCourse]
+
+  function handleUserUpdate(updates) {
+    setUser(u => ({ ...u, ...updates }))
+  }
 
   // Breadcrumb label
   const breadcrumb = view === 'profile'
@@ -840,7 +1040,7 @@ export default function Dashboard({ initialUser }) {
 
             {/* ── PROFILE VIEW ── */}
             {view === 'profile' && (
-              <ProfileView user={user} lang={lang} COURSES_DATA={COURSES_DATA} />
+              <ProfileView user={user} lang={lang} COURSES_DATA={COURSES_DATA} onUserUpdate={handleUserUpdate} />
             )}
 
           </div>
@@ -870,7 +1070,10 @@ export async function getServerSideProps({ req }) {
       initialUser: {
         username: session.username, name: user.name, avatar: user.avatar,
         role: user.role, progress: user.progress || {}, quizScores: user.quizScores || {},
-        allowedCourse: user.allowedCourse || 'basic'
+        allowedCourse: user.allowedCourse || 'basic',
+        phone:  user.phone  || '',
+        gender: user.gender || '',
+        photo:  user.photo  || '',
       }
     }
   }
