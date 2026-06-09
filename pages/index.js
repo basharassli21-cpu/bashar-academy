@@ -396,7 +396,7 @@ export default function LandingPage() {
               <li><a href="#steps">{tx('كيف تبدأ', 'How it works')}</a></li>
               <li><a href="#courses">{tx('الدورات', 'Courses')}</a></li>
               <li><a href="#faq">{tx('الأسئلة', 'FAQ')}</a></li>
-              <li><a href="#testimonials">{tx('آراء الطلاب', 'Reviews')}</a></li>
+              <li><a href="#results">{tx('نتائج الطلاب', 'Results')}</a></li>
             </ul>
           </nav>
           <div className="nav-cta">
@@ -450,7 +450,7 @@ export default function LandingPage() {
             </div>
             <div className="hero-portrait reveal">
               <div className="frame" />
-              <img src="/bashar-portrait.jpg" alt={tx('بشار العسلي — الكوتش', 'Bashar Al-Asali — Coach')} />
+              <img src="/bashar-portrait.jpg" alt={tx('بشار العسلي — الكوتش', 'Bashar Al-Asali — Coach')} style={{aspectRatio:'4/5',objectFit:'cover',objectPosition:'top'}} />
               <div className="tag">
                 <div className="tn">eBay</div>
                 <div className="tl">Top Rated Seller ✦</div>
@@ -472,7 +472,7 @@ export default function LandingPage() {
         <section className="sec about" id="about">
           <div className="wrap about-grid">
             <div className="about-img reveal">
-              <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} />
+              <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} style={{aspectRatio:'3/4',objectFit:'cover'}} />
               <div className="quote">{tx('«قضيت مئات الساعات في التجربة حتى لا يضيعها طلابي.»', '"I spent hundreds of hours testing — so my students don\'t have to."')}</div>
             </div>
             <div className="about-body reveal">
@@ -492,18 +492,19 @@ export default function LandingPage() {
         {/* ── INTRO VIDEO ── */}
         <section className="video-band" id="intro">
           <div className="wrap reveal">
-            <div className="video-outer" onClick={() => YT_ID && setPlaying(true)}>
+            <div className="video-outer" onClick={() => YT_ID ? setPlaying(true) : window.open('https://www.youtube.com/@coachbasharalasali','_blank')}>
               <span className="video-label">{tx('فيديو تعريفي — الكوتش بشار', 'Intro video — Coach Bashar')}</span>
               {playing && YT_ID
                 ? <iframe src={`https://www.youtube.com/embed/${YT_ID}?autoplay=1`} allow="autoplay; fullscreen" allowFullScreen title="intro" />
                 : (
                   <div className="video-overlay">
                     <div className="glow" />
-                    <div className="bigplay" role="button" tabIndex={0}>
+                    <img src="/bashar-portrait.jpg" alt="بشار" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',opacity:0.18,pointerEvents:'none'}} />
+                    <div className="bigplay" role="button" tabIndex={0} style={{zIndex:2}}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     </div>
-                    <h3>{tx('تعرّف على بشار في 90 ثانية', 'Meet Bashar in 90 seconds')}</h3>
-                    <p style={{position:'relative'}}>{tx('قصتك وكيف بدأت على eBay', '2 - My story and how I started on eBay')}</p>
+                    <h3 style={{position:'relative',zIndex:2}}>{tx('تعرّف على بشار في 90 ثانية', 'Meet Bashar in 90 seconds')}</h3>
+                    <p style={{position:'relative',zIndex:2}}>{tx('قصتي وكيف بدأت على eBay', 'My story and how I started on eBay')}</p>
                   </div>
                 )
               }
@@ -652,29 +653,6 @@ export default function LandingPage() {
                   <p>{tx('إجمالي مبيعات 90 يوم — 27 طلباً مباعاً — رسالة طالب حقيقي', '90-day total — 27 sold — real student message')}</p>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── TESTIMONIALS ── */}
-        <section className="sec" id="testimonials">
-          <div className="wrap">
-            <div className="sec-head reveal">
-              <span className="kicker">{tx('قصص نجاح', 'Success stories')}</span>
-              <h2>{tx('طلاب بدؤوا من الصفر… ووصلوا', 'Students who started from zero… and arrived')}</h2>
-            </div>
-            <div className="tst-grid">
-              {[
-                { text:tx('بدأت بدون أي خلفية. الفرق أن بشار يتابعك خطوة بخطوة، ولا يتركك أمام الأخطاء التي تعلّق الحساب. أول أرباحي كانت خلال أسابيع.','I started with no background. The difference is that Bashar follows you step by step. My first profits came within weeks.'), name:tx('عبدالله الرشيد','Abdullah Al-Rashid'), loc:tx('طالب جامعي · الأردن','University student · Jordan') },
-                { text:tx('المحتوى عملي بالكامل. لا حشو ولا تنظير — تفتح الدرس وتطبّق مباشرة. الاشتراك الشهري ومجتمع الطلاب أكثر ما أفادني.','The content is entirely practical. No filler, no theory — you open the lesson and apply right away.'), name:tx('سارة منصور','Sara Mansour'), loc:tx('رائدة أعمال · السعودية','Entrepreneur · Saudi Arabia') },
-                { text:tx('جرّبت دورات كثيرة قبلها. هذه أول مرة أشعر أن المدرب فعلاً جرّب ما يقوله. التسعير وحماية الحساب غيّرا نتائجي تماماً.','I tried many courses before. This is the first time I feel the trainer actually did what he teaches.'), name:tx('محمد العتيبي','Mohammed Al-Otaibi'), loc:tx('موظف · الإمارات','Employee · UAE') },
-              ].map((t,i)=>(
-                <div className="tst-card reveal" key={i}>
-                  <div className="qm">"</div>
-                  <p>{t.text}</p>
-                  <div className="tst-person"><div className="av"/><div><b>{t.name}</b><small>{t.loc}</small></div></div>
-                </div>
-              ))}
             </div>
           </div>
         </section>
