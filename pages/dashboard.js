@@ -223,6 +223,125 @@ function ProgressMilestones({ progress, lang }) {
   )
 }
 
+// ─── Lesson Notes ─────────────────────────────────────────────────────────
+function LessonNotes({ lessonId, lang }) {
+  const [note,    setNote]    = useState('')
+  const [saved,   setSaved]   = useState('')   // '' | 'saving' | 'ok' | 'error'
+  const [loading, setLoading] = useState(true)
+  const [open,    setOpen]    = useState(false)
+  const saveTimer = useRef(null)
+
+  // جلب الملاحظة عند فتح القسم
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    fetch(`/api/lessons/${lessonId}/notes`)
+      .then(r => r.json())
+      .then(d => { setNote(d.note || ''); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [lessonId, open])
+
+  // حفظ تلقائي بعد 1.5 ثانية من التوقف عن الكتابة
+  function handleChange(val) {
+    setNote(val)
+    setSaved('')
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => saveNote(val), 1500)
+  }
+
+  async function saveNote(val) {
+    setSaved('saving')
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: val }),
+      })
+      setSaved(res.ok ? 'ok' : 'error')
+      if (res.ok) setTimeout(() => setSaved(''), 2500)
+    } catch {
+      setSaved('error')
+    }
+  }
+
+  const statusColor = saved === 'ok' ? C.emerald : saved === 'error' ? C.red : C.silver
+  const statusText  = saved === 'saving'
+    ? (lang === 'ar' ? '⏳ جاري الحفظ...' : '⏳ Saving...')
+    : saved === 'ok'
+    ? (lang === 'ar' ? '✅ تم الحفظ' : '✅ Saved')
+    : saved === 'error'
+    ? (lang === 'ar' ? '❌ فشل الحفظ' : '❌ Save failed')
+    : (lang === 'ar' ? 'يُحفظ تلقائياً' : 'Auto-saved')
+
+  return (
+    <div style={{ marginTop: '24px', borderRadius: '16px', border: `1px solid ${C.g20}`, overflow: 'hidden', background: C.surface }}>
+      {/* Header — toggle */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 18px', background: 'transparent', border: 'none', cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '18px' }}>📝</span>
+          <span style={{ color: C.white, fontSize: '14px', fontWeight: '700' }}>
+            {lang === 'ar' ? 'ملاحظاتي على هذا الدرس' : 'My Notes for This Lesson'}
+          </span>
+          <span style={{ fontSize: '11px', color: C.silver, background: C.g10, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${C.g20}` }}>
+            {lang === 'ar' ? 'خاصة بك فقط' : 'Private to you'}
+          </span>
+        </div>
+        <span style={{ color: C.silver, fontSize: '18px', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}>
+          ▾
+        </span>
+      </button>
+
+      {/* Body */}
+      {open && (
+        <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${C.g15}` }}>
+          {loading ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: C.silver, fontSize: '13px' }}>
+              ⏳ {lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={note}
+                onChange={e => handleChange(e.target.value)}
+                placeholder={lang === 'ar'
+                  ? 'اكتب ملاحظاتك هنا... (تُحفظ تلقائياً)'
+                  : 'Write your notes here... (auto-saved)'}
+                rows={6}
+                style={{
+                  width: '100%', marginTop: '14px',
+                  background: C.navy, border: `1px solid ${C.g20}`,
+                  borderRadius: '12px', padding: '14px 16px',
+                  color: C.white, fontSize: '14px', lineHeight: '1.7',
+                  resize: 'vertical', outline: 'none',
+                  direction: 'rtl', fontFamily: 'inherit',
+                  boxSizing: 'border-box', transition: 'border 0.2s',
+                  minHeight: '120px',
+                }}
+                onFocus={e => e.target.style.borderColor = C.gold}
+                onBlur={e  => e.target.style.borderColor = C.g20}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
+                <span style={{ fontSize: '11px', color: statusColor, transition: 'color 0.3s' }}>
+                  {statusText}
+                </span>
+                <span style={{ fontSize: '11px', color: C.silver }}>
+                  {note.length} / 5000
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Profile View ──────────────────────────────────────────────────────────
 function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
   const [photo,   setPhoto]   = useState(user.photo   || '')
@@ -1037,6 +1156,7 @@ export default function Dashboard({ initialUser }) {
                     ? <button onClick={markComplete} style={BTN.complete}>{t(lang, 'finishLesson')}</button>
                     : <div style={BTN.doneLabel}>{t(lang, 'lessonAlreadyDone')}</div>
                   }
+                  <LessonNotes lessonId={activeLesson.id} lang={lang} />
                 </div>
               </div>
             )}
