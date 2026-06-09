@@ -135,8 +135,9 @@ export default function LandingPage() {
         .stat .n{font-family:'El Messiri',serif;font-size:38px;font-weight:700;color:var(--ink);line-height:1}
         .stat .l{font-size:14px;color:var(--muted);margin-top:7px}
         .hero-portrait{position:relative}
-        .hero-portrait img{width:100%;height:auto;border-radius:8px;display:block;border:1px solid var(--line)}
-        .hero-portrait .frame{position:absolute;inset:-14px;border:1px solid var(--line);border-radius:14px;pointer-events:none}
+        .hero-portrait .img-wrap{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:4/5;border:1px solid var(--line)}
+        .hero-portrait .img-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+        .hero-portrait .frame{position:absolute;inset:-14px;border:1px solid var(--line);border-radius:16px;pointer-events:none}
         .hero-portrait .tag{position:absolute;bottom:24px;right:-24px;background:var(--bg2);border:1px solid var(--line);
           border-radius:12px;padding:16px 22px;box-shadow:0 24px 60px -24px #000}
         .hero-portrait .tag .tn{font-family:'El Messiri';font-size:26px;font-weight:700;color:var(--gold)}
@@ -164,7 +165,8 @@ export default function LandingPage() {
         .about{background:var(--bg2);border-block:1px solid var(--line-soft)}
         .about-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:64px;align-items:center}
         .about-img{position:relative}
-        .about-img img{width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
+        .about-img .img-wrap{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:3/4;border:1px solid var(--line)}
+        .about-img .img-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
         .about-img .quote{position:absolute;left:-30px;bottom:40px;max-width:300px;background:var(--bg3);
           border:1px solid var(--line);border-right:3px solid var(--gold);border-radius:10px;padding:22px 24px;
           font-family:'El Messiri';font-size:19px;line-height:1.6;box-shadow:0 30px 70px -30px #000}
@@ -450,7 +452,9 @@ export default function LandingPage() {
             </div>
             <div className="hero-portrait reveal">
               <div className="frame" />
-              <img src="/bashar-portrait.jpg" alt={tx('بشار العسلي — الكوتش', 'Bashar Al-Asali — Coach')} style={{aspectRatio:'4/5',objectFit:'cover',objectPosition:'top'}} />
+              <div className="img-wrap">
+                <img src="/bashar-portrait.jpg" alt={tx('بشار العسلي — الكوتش', 'Bashar Al-Asali — Coach')} />
+              </div>
               <div className="tag">
                 <div className="tn">eBay</div>
                 <div className="tl">Top Rated Seller ✦</div>
@@ -472,7 +476,9 @@ export default function LandingPage() {
         <section className="sec about" id="about">
           <div className="wrap about-grid">
             <div className="about-img reveal">
-              <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} style={{aspectRatio:'3/4',objectFit:'cover'}} />
+              <div className="img-wrap">
+                <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} />
+              </div>
               <div className="quote">{tx('«قضيت مئات الساعات في التجربة حتى لا يضيعها طلابي.»', '"I spent hundreds of hours testing — so my students don\'t have to."')}</div>
             </div>
             <div className="about-body reveal">
