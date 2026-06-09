@@ -1,30 +1,33 @@
-import { put, list } from '@vercel/blob'
+import { get } from '@vercel/blob'
 
 export default async function handler(req, res) {
   if (req.query.secret !== 'bashar2024debug') return res.status(403).end()
 
-  const out = { blobToken: !!process.env.BLOB_READ_WRITE_TOKEN, writeOk: false, readOk: false, users: null, error: null }
-  const authH = { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` }
+  const out = {
+    blobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+    readOk: false,
+    users: null,
+    userCount: 0,
+    error: null
+  }
 
   try {
-    // Test write
-    await put('cba-users-v3.json', JSON.stringify({ _ping: Date.now() }), {
-      access: 'private', contentType: 'application/json', addRandomSuffix: false
-    })
-    out.writeOk = true
-
-    // Test list + read
-    const { blobs } = await list({ prefix: 'cba-users-v3.json' })
-    out.blobCount = blobs.length
-    if (blobs.length) {
-      const newest = [...blobs].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))[0]
-      const r = await fetch(newest.downloadUrl, { headers: authH })
-      out.readStatus = r.status
-      out.readOk = r.ok
-      if (r.ok) out.content = await r.json()
+    const result = await get('cba-users-v3.json', { access: 'private' })
+    if (result?.stream) {
+      const text = await new Response(result.stream).text()
+      const data = JSON.parse(text)
+      out.readOk = true
+      out.userCount = Object.keys(data).length
+      out.users = Object.entries(data).map(([username, u]) => ({
+        username,
+        role: u.role,
+        name: u.name,
+        allowedCourse: u.allowedCourse || null,
+        joinedAt: u.joinedAt
+      }))
     }
   } catch (err) {
-    out.error = err.message
+    out.error = `${err.name}: ${err.message}`
   }
 
   return res.status(200).json(out)

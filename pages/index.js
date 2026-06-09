@@ -114,13 +114,16 @@ export default function LoginPage() {
 export async function getServerSideProps({ req }) {
   const { parse } = await import('cookie')
   const { verifyToken } = await import('../lib/auth')
-  const { USERS } = await import('../lib/db')
+  const { getUser } = await import('../lib/users-store')
   const cookies = parse(req.headers.cookie || '')
   const token = cookies['ba_session']
   if (token) {
     const session = verifyToken(token)
-    if (session && USERS[session.username]) {
-      return { redirect: { destination: session.role === 'admin' ? '/admin' : '/dashboard', permanent: false } }
+    if (session) {
+      const user = await getUser(session.username)
+      if (user) {
+        return { redirect: { destination: user.role === 'admin' ? '/admin' : '/dashboard', permanent: false } }
+      }
     }
   }
   return { props: {} }
