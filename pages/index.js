@@ -216,20 +216,28 @@ export default function LandingPage() {
         .step p{font-size:15px;color:var(--muted);line-height:1.7}
 
         /* ── courses ── */
-        .courses-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
-        .course-card{background:var(--bg2);border:1px solid var(--line-soft);border-radius:16px;padding:42px;
-          position:relative;transition:.4s;overflow:hidden}
-        .course-card:hover{border-color:var(--line);transform:translateY(-4px)}
+        .courses-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px;align-items:stretch}
+        .course-card{background:var(--bg2);border:1px solid var(--line-soft);border-radius:20px;padding:38px 34px;
+          position:relative;transition:.4s;overflow:hidden;display:flex;flex-direction:column}
+        .course-card:hover{border-color:var(--line);transform:translateY(-5px);box-shadow:0 30px 60px -20px rgba(0,0,0,.5)}
         .course-card::before{content:"";position:absolute;top:0;right:0;left:0;height:3px;
           background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:.4s}
-        .course-card:hover::before{opacity:1}
-        .course-card.feat{background:linear-gradient(180deg,rgba(202,162,83,.07),var(--bg2))}
-        .course-badge{display:inline-flex;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
-          border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-weight:600;margin-bottom:22px}
-        .course-card h3{font-size:27px;margin-bottom:10px}
-        .course-card .sub{color:var(--muted);font-size:16px;margin-bottom:26px}
-        .course-list{list-style:none;display:flex;flex-direction:column;gap:13px;margin-bottom:30px}
-        .course-list li{display:flex;gap:13px;font-size:15.5px;color:var(--ink);align-items:flex-start;line-height:1.5}
+        .course-card:hover::before,.course-card.feat::before{opacity:1}
+        .course-card.feat{background:linear-gradient(160deg,rgba(202,162,83,.10),var(--bg2) 60%);border-color:rgba(202,162,83,.35)}
+        .course-card.feat .course-badge{background:linear-gradient(105deg,var(--gold-2),var(--gold));color:#1a1407;border:none}
+        .course-badge{display:inline-flex;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
+          border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-weight:700;margin-bottom:20px}
+        .course-emoji{font-size:30px;margin-bottom:14px;display:block}
+        .course-tier{font-size:12px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-weight:600;margin-bottom:6px}
+        .course-card h3{font-size:24px;margin-bottom:8px}
+        .course-price{display:flex;align-items:baseline;gap:8px;margin:16px 0 20px}
+        .course-price .amt{font-family:'El Messiri',serif;font-size:38px;font-weight:700;color:var(--gold);line-height:1}
+        .course-price .cur{font-size:16px;color:var(--muted);font-weight:500}
+        .course-price .alt{font-size:14px;color:var(--muted2);margin-right:4px}
+        .course-card .sub{color:var(--muted);font-size:15px;margin-bottom:22px;line-height:1.6}
+        .course-list{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:28px;flex:1}
+        .course-list li{display:flex;gap:11px;font-size:14.5px;color:var(--ink);align-items:flex-start;line-height:1.5}
+        .course-list li::before{content:"✔";color:var(--gold);font-size:13px;flex-shrink:0;margin-top:2px}
         .course-list li::before{content:"";width:7px;height:7px;border:1px solid var(--gold);transform:rotate(45deg);
           margin-top:8px;flex-shrink:0;background:rgba(202,162,83,.2)}
         .course-foot{display:flex;align-items:center;justify-content:space-between;padding-top:24px;
@@ -360,6 +368,7 @@ export default function LandingPage() {
           .hero-grid,.about-grid,.booking-grid{grid-template-columns:1fr;gap:44px}
           .hero-portrait{max-width:440px}
           .courses-grid,.why-grid,.tst-grid,.results-grid{grid-template-columns:1fr}
+          .course-price .amt{font-size:32px}
           .steps-grid{grid-template-columns:1fr 1fr}
           .foot-grid{grid-template-columns:1fr 1fr}
           .nav ul{display:none}
@@ -540,53 +549,81 @@ export default function LandingPage() {
         <section className="sec" id="courses">
           <div className="wrap">
             <div className="sec-head reveal">
-              <span className="kicker">{tx('البرامج التدريبية', 'Training programs')}</span>
-              <h2>{tx('دورتان… طريق واحد نحو الاحتراف', 'Two programs… one path to mastery')}</h2>
+              <span className="kicker">{tx('البرامج التدريبية', 'Training Programs')}</span>
+              <h2>{tx('ثلاثة برامج… طريق واحد نحو الاحتراف', 'Three programs… one path to mastery')}</h2>
               <p>{tx('محتوى مبني على التطبيق العملي والمتابعة المباشرة، يأخذك من الصفر حتى مشروع مستدام.', 'Content built on practical application and direct mentorship — from zero to a sustainable business.')}</p>
             </div>
             <div className="courses-grid">
-              <div className="course-card feat reveal">
-                <span className="course-badge">{tx('الأكثر طلباً', 'Most popular')}</span>
-                <h3>{tx(<>الدورة الشاملة على <span className="en">eBay</span></>, <>The complete <span className="en">eBay</span> course</>)}</h3>
-                <p className="sub">{tx('برنامج تدريبي متكامل من الحساب الأول حتى التوسع.', 'A full program from your first account to scaling up.')}</p>
-                <ul className="course-list">
-                  {[tx('إنشاء حساب eBay بشكل صحيح وآمن','Setting up your eBay account correctly and safely'),tx('اختيار المنتجات المناسبة وطرق البحث عن الرابحة','Choosing the right products and finding winning ones'),tx('إنشاء وتحسين العروض الاحترافية','Creating and optimizing professional listings'),tx('استراتيجيات التسعير وتحقيق الأرباح','Pricing strategies and profit'),tx('إدارة الطلبات وخدمة العملاء','Order management and customer service'),tx('تجنّب مشاكل وتعليق الحسابات','Avoiding account issues and suspensions'),tx('التوسّع وبناء مشروع مستدام','Scaling and building a sustainable business')].map((item,i)=><li key={i}>{item}</li>)}
-                </ul>
-                <div className="course-foot">
-                  <div className="price"><span className="amt">{tx('برنامج كامل','Full program')}</span> <span className="per">{tx('وصول مدى الحياة','Lifetime access')}</span></div>
-                  <a className="btn btn-gold" href="#booking">{tx('سجّل في الدورة', 'Enroll now')}</a>
-                </div>
-              </div>
+
+              {/* ── Starter ── */}
               <div className="course-card reveal">
-                <span className="course-badge">{tx('متابعة مستمرة', 'Ongoing mentorship')}</span>
-                <h3>{tx('الاشتراك الشهري', 'Monthly subscription')}</h3>
-                <p className="sub">{tx('برنامج متابعة يبقيك على المسار ويطوّر نتائجك شهراً بعد شهر.', 'A mentorship program that keeps you on track and improves your results month after month.')}</p>
+                <span className="course-badge">🚀 {tx('باقة التنفيذ', 'Starter Program')}</span>
+                <div className="course-tier">{tx('Starter Program', 'Starter Program')}</div>
+                <h3>{tx('باقة التنفيذ', 'Starter Package')}</h3>
+                <p className="sub">{tx('البرنامج المناسب للمبتدئين الذين يريدون دخول عالم التجارة الإلكترونية على eBay والبدء بالطريقة الصحيحة.', 'Perfect for beginners who want to enter the eBay e-commerce world and start the right way.')}</p>
+                <div className="course-price">
+                  <span className="amt">40</span>
+                  <span className="cur">{tx('دينار', 'JD')}</span>
+                </div>
                 <ul className="course-list">
-                  {[tx('الوصول الكامل إلى محتوى الدورة','Full access to the course content'),tx('تحديثات واستراتيجيات جديدة بشكل دوري','New strategies and updates regularly'),tx('جلسات متابعة وإجابات على الأسئلة','Follow-up sessions and Q&A'),tx('دعم عملي مباشر أثناء التطبيق','Hands-on support during application'),tx('مجتمع طلاب للتواصل وتبادل الخبرات','A students community to connect and share')].map((item,i)=><li key={i}>{item}</li>)}
+                  {[
+                    tx('فتح الحسابات بالطريقة الصحيحة','Opening accounts the right way'),
+                    tx('تعلم البحث عن المنتجات الرابحة','Finding winning products'),
+                    tx('الوصول إلى الموردين المناسبين','Accessing the right suppliers'),
+                    tx('تعلم تنزيل المنتجات باحترافية','Listing products professionally'),
+                    tx('شرح آلية الشحن وإدارة الطلبات','Shipping & order management'),
+                    tx('حل المشاكل والعقبات الشائعة','Solving common obstacles'),
+                  ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <div className="course-foot">
-                  <div className="price"><span className="amt">{tx('اشتراك مرن','Flexible plan')}</span> <span className="per">{tx('شهرياً','Monthly')}</span></div>
-                  <a className="btn btn-ghost" href="#booking">{tx('اشترك الآن', 'Subscribe')}</a>
-                </div>
+                <a className="btn btn-ghost" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
-            </div>
-            <div className="compare reveal">
-              <div className="compare-head">
-                <span className="q">؟</span>
-                <h4>{tx('أيهما يناسبك؟', 'Which one fits you?')}</h4>
-              </div>
-              <div className="compare-body">
-                <div className="compare-col">
-                  <div className="ct">{tx('الدورة الشاملة','The complete course')}</div>
-                  <div className="cs">{tx('للبداية القوية والمنظّمة','For a strong, structured start')}</div>
-                  <p>{tx('الأنسب إن كنت تبدأ من الصفر وتريد المنهج كاملاً خطوة بخطوة، بوصول دائم لكل الوحدات.','Best if you are starting fresh and want the full method, step by step, with lifetime access to every unit.')}</p>
+
+              {/* ── Professional ── */}
+              <div className="course-card reveal">
+                <span className="course-badge">⚡ {tx('الباقة المتوسطة', 'Professional Program')}</span>
+                <div className="course-tier">{tx('Professional Program', 'Professional Program')}</div>
+                <h3>{tx('الباقة المتوسطة', 'Professional Package')}</h3>
+                <p className="sub">{tx('للأشخاص الذين يريدون تسريع النتائج والحصول على دعم مباشر أثناء التطبيق.', 'For those who want faster results and direct support during implementation.')}</p>
+                <div className="course-price">
+                  <span className="amt">75</span>
+                  <span className="cur">{tx('دينار', 'JD')}</span>
                 </div>
-                <div className="compare-col">
-                  <div className="ct">{tx('الاشتراك الشهري','Monthly subscription')}</div>
-                  <div className="cs">{tx('للاستمرارية والمتابعة','For continuity & momentum')}</div>
-                  <p>{tx('الأنسب إن أردت متابعة مستمرة واستراتيجيات جديدة وجلسات أسئلة ومجتمعاً نشطاً أثناء التطبيق.','Best if you want ongoing mentorship, fresh strategies, live Q&A and an active community while you apply.')}</p>
-                </div>
+                <ul className="course-list">
+                  <li style={{color:'var(--gold)',fontWeight:600}}>{tx('كل ما في باقة Starter، بالإضافة إلى:', 'Everything in Starter, plus:')}</li>
+                  {[
+                    tx('متابعة خاصة يومية على الواتساب','Daily private follow-up on WhatsApp'),
+                    tx('إجابات مباشرة على الأسئلة والاستفسارات','Direct answers to all your questions'),
+                    tx('المساعدة أثناء التطبيق العملي','Help during real-world application'),
+                    tx('توجيه مستمر لتجنب الأخطاء المكلفة','Guidance to avoid costly mistakes'),
+                  ].map((item,i)=><li key={i}>{item}</li>)}
+                </ul>
+                <a className="btn btn-ghost" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
+
+              {/* ── Elite ── */}
+              <div className="course-card feat reveal">
+                <span className="course-badge">👑 {tx('الباقة الكاملة', 'Elite Program')}</span>
+                <div className="course-tier">{tx('Elite Program', 'Elite Program')}</div>
+                <h3>{tx('الباقة الكاملة', 'Elite Package')}</h3>
+                <p className="sub">{tx('أقوى برنامج تدريبي متكامل — مصمم للجادين الذين يريدون بناء مشروع احترافي واختصار سنوات من التجربة.', 'The most powerful program — designed for serious people who want to build a professional business and skip years of trial and error.')}</p>
+                <div className="course-price">
+                  <span className="amt">100</span>
+                  <span className="cur">{tx('دينار', 'JD')}</span>
+                  <span className="alt">/ 140$</span>
+                </div>
+                <ul className="course-list">
+                  <li style={{color:'var(--gold)',fontWeight:600}}>{tx('كل ما في Professional، بالإضافة إلى:', 'Everything in Professional, plus:')}</li>
+                  {[
+                    tx('استراتيجيات الذكاء الاصطناعي (AI) للتطوير والتوسع','AI strategies for growth and scaling'),
+                    tx('بناء البراند والهوية التجارية','Brand building and business identity'),
+                    tx('أساليب متقدمة للنمو وزيادة المبيعات','Advanced methods to grow sales'),
+                    tx('متابعة خاصة يومية على الواتساب','Daily private WhatsApp follow-up'),
+                    tx('الوصول إلى المنهج الكامل من الصفر حتى الاحتراف','Full curriculum from zero to mastery'),
+                  ].map((item,i)=><li key={i}>{item}</li>)}
+                </ul>
+                <a className="btn btn-gold" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
+              </div>
+
             </div>
           </div>
         </section>
