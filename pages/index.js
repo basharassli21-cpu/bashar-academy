@@ -116,7 +116,7 @@ export default function LandingPage() {
         .hero{position:relative;padding:170px 0 90px;overflow:hidden}
         .hero-glow{position:absolute;top:-10%;left:-10%;width:55%;height:120%;
           background:radial-gradient(circle,rgba(202,162,83,.12),transparent 62%);filter:blur(20px);pointer-events:none}
-        .hero-grid{display:grid;grid-template-columns:1fr 420px;gap:80px;align-items:center;position:relative}
+        .hero-grid{display:grid;grid-template-columns:1fr;gap:0;align-items:center;position:relative;max-width:800px}
         .eyebrow{display:inline-flex;align-items:center;gap:11px;font-size:13px;letter-spacing:.26em;color:var(--gold);
           text-transform:uppercase;font-weight:600;margin-bottom:26px}
         .eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
@@ -357,8 +357,7 @@ export default function LandingPage() {
         /* ── mobile ── */
         @media(max-width:980px){
           .wrap{padding:0 24px}
-          .hero-grid{grid-template-columns:1fr;gap:44px}
-          .about-grid,.booking-grid{grid-template-columns:1fr;gap:44px}
+          .hero-grid,.about-grid,.booking-grid{grid-template-columns:1fr;gap:44px}
           .hero-portrait{max-width:440px}
           .courses-grid,.why-grid,.tst-grid,.results-grid{grid-template-columns:1fr}
           .steps-grid{grid-template-columns:1fr 1fr}
@@ -449,17 +448,6 @@ export default function LandingPage() {
                 <div className="stat"><div className="n">+<span className="gold">200</span></div><div className="l">{tx('طالب تم تدريبهم', 'Students trained')}</div></div>
                 <div className="stat"><div className="n"><span className="gold">39</span></div><div className="l">{tx('طلباً في يوم واحد', 'Orders in one day')}</div></div>
                 <div className="stat"><div className="n"><span className="gold">18</span></div><div className="l">{tx('عمر انطلاق الرحلة', 'Age the journey began')}</div></div>
-              </div>
-            </div>
-            {/* Portrait */}
-            <div className="hero-portrait reveal">
-              <div className="img-wrap">
-                <img src="/bashar-portrait.jpg" alt="بشار العسلي" />
-              </div>
-              <div className="frame" />
-              <div className="tag">
-                <div className="tn">+200</div>
-                <div className="tl">{tx('طالب تم تدريبهم', 'Students trained')}</div>
               </div>
             </div>
           </div>
