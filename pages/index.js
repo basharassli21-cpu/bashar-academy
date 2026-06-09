@@ -564,6 +564,7 @@ export default function LandingPage() {
                 <div className="course-price">
                   <span className="amt">40</span>
                   <span className="cur">{tx('دينار', 'JD')}</span>
+                  <span className="alt">/ 60$</span>
                 </div>
                 <ul className="course-list">
                   {[
@@ -587,6 +588,7 @@ export default function LandingPage() {
                 <div className="course-price">
                   <span className="amt">75</span>
                   <span className="cur">{tx('دينار', 'JD')}</span>
+                  <span className="alt">/ 110$</span>
                 </div>
                 <ul className="course-list">
                   <li style={{color:'var(--gold)',fontWeight:600}}>{tx('كل ما في باقة Starter، بالإضافة إلى:', 'Everything in Starter, plus:')}</li>
