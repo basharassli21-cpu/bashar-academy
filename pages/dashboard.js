@@ -888,6 +888,54 @@ export default function Dashboard({ initialUser }) {
                       </a>
                     ))}
                   </div>
+
+                  {/* Social Media */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                    <a href="https://www.instagram.com/basharalasali/" target="_blank" rel="noreferrer" style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '14px',
+                      background: 'linear-gradient(135deg, rgba(131,58,180,0.15), rgba(253,29,29,0.15), rgba(252,176,69,0.15))',
+                      border: '1px solid rgba(253,29,29,0.25)',
+                      borderRadius: '14px', textDecoration: 'none', transition: 'all 0.2s',
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                        <defs>
+                          <linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#f09433"/>
+                            <stop offset="25%" stopColor="#e6683c"/>
+                            <stop offset="50%" stopColor="#dc2743"/>
+                            <stop offset="75%" stopColor="#cc2366"/>
+                            <stop offset="100%" stopColor="#bc1888"/>
+                          </linearGradient>
+                        </defs>
+                        <rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/>
+                        <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
+                        <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+                      </svg>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: C.white, marginBottom: '3px' }}>
+                          {lang === 'ar' ? 'إنستجرام' : 'Instagram'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: C.w40 }}>@basharalasali</div>
+                      </div>
+                    </a>
+
+                    <a href="https://www.youtube.com/@coachbasharalasali" target="_blank" rel="noreferrer" style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '14px',
+                      background: 'rgba(255,0,0,0.08)',
+                      border: '1px solid rgba(255,0,0,0.2)',
+                      borderRadius: '14px', textDecoration: 'none', transition: 'all 0.2s',
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF0000" style={{ flexShrink: 0 }}>
+                        <path d="M21.8 8s-.2-1.4-.8-2c-.8-.8-1.6-.8-2-.9C16.6 5 12 5 12 5s-4.6 0-7 .1c-.4.1-1.2.1-2 .9-.6.6-.8 2-.8 2S2 9.6 2 11.2v1.5c0 1.6.2 3.2.2 3.2s.2 1.4.8 2c.8.8 1.8.8 2.3.9C6.8 19 12 19 12 19s4.6 0 7-.2c.4-.1 1.2-.1 2-.9.6-.6.8-2 .8-2s.2-1.6.2-3.2v-1.5C22 9.6 21.8 8 21.8 8zM9.7 14.5V9.4l5.5 2.6-5.5 2.5z"/>
+                      </svg>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: C.white, marginBottom: '3px' }}>
+                          {lang === 'ar' ? 'يوتيوب' : 'YouTube'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: C.w40 }}>@coachbasharalasali</div>
+                      </div>
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
