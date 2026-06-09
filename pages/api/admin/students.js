@@ -14,10 +14,14 @@ async function handler(req, res) {
         username,
         name: u.name,
         avatar: u.avatar,
+        photo: u.photo || '',
+        gender: u.gender || '',
+        phone: u.phone || '',
         progress: u.progress || {},
         quizScores: u.quizScores || {},
+        notes: u.notes || {},
         allowedCourse: u.allowedCourse || null,
-        joinedAt: u.joinedAt
+        joinedAt: u.joinedAt || '',
       }))
     return res.status(200).json({ students })
   }
