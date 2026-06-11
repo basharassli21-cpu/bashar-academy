@@ -87,6 +87,179 @@ function buildTopLessons(students, lessons) {
     .slice(0, 10)
 }
 
+// ─── Export: CSV ────────────────────────────────────────────────────────────
+function exportStudentsCSV(students, lessons, lang) {
+  const totalLessons = lessons.length
+  const headers = lang === 'ar'
+    ? ['الاسم', 'اسم المستخدم', 'الهاتف', 'الدورة', 'نسبة التقدم', 'الدروس المكتملة', 'تاريخ الانضمام']
+    : ['Name', 'Username', 'Phone', 'Course', 'Progress %', 'Lessons Done', 'Joined At']
+
+  const rows = students.map(s => {
+    const done = Object.values(s.progress || {}).filter(Boolean).length
+    const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
+    const cm   = COURSE_OPTIONS.find(c => c.value === s.allowedCourse)
+    const courseLabel = cm ? (lang === 'ar' ? cm.labelAr : cm.labelEn) : '-'
+    // منع تحويل رقم الهاتف إلى صيغة علمية في Excel
+    const phone = s.phone ? `="${s.phone}"` : ''
+    return [s.name, s.username, phone, courseLabel, `${pct}%`, `${done}/${totalLessons}`, s.joinedAt || '']
+  })
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n')
+
+  // BOM لدعم العربية في Excel
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = `students-${new Date().toISOString().split('T')[0]}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ─── Export: PDF Report (via window.print) ─────────────────────────────────
+function exportStudentsPDF(students, lessons, lang) {
+  const totalLessons = lessons.length
+  const total = students.length
+  const active = students.filter(s => Object.values(s.progress || {}).some(Boolean)).length
+  const completed = students.filter(s => totalLessons > 0 && Object.values(s.progress || {}).filter(Boolean).length === totalLessons).length
+  const avgProgress = total ? Math.round(students.reduce((a, s) => a + Object.values(s.progress || {}).filter(Boolean).length, 0) / total / (totalLessons || 1) * 100) : 0
+  const totalNotes = students.reduce((a, s) => a + Object.keys(s.notes || {}).length, 0)
+  const newThisMonth = students.filter(s => daysSince(s.joinedAt) <= 30).length
+  const inactive = students.filter(s => daysSince(s.joinedAt) >= 14 && Object.values(s.progress || {}).filter(Boolean).length === 0).length
+
+  const kpis = [
+    [lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students', total],
+    [lang === 'ar' ? 'طلاب نشطون' : 'Active Students', active],
+    [lang === 'ar' ? 'أكملوا الدورة' : 'Completed', completed],
+    [lang === 'ar' ? 'متوسط التقدم' : 'Avg Progress', `${avgProgress}%`],
+    [lang === 'ar' ? 'انضموا هذا الشهر' : 'New This Month', newThisMonth],
+    [lang === 'ar' ? 'غير نشطين' : 'Inactive', inactive],
+    [lang === 'ar' ? 'ملاحظات الطلاب' : 'Student Notes', totalNotes],
+  ]
+
+  const rows = students.map(s => {
+    const done = Object.values(s.progress || {}).filter(Boolean).length
+    const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
+    const cm   = COURSE_OPTIONS.find(c => c.value === s.allowedCourse)
+    const courseLabel = cm ? (lang === 'ar' ? cm.labelAr : cm.labelEn) : '-'
+    const color = pct >= 70 ? '#2ECC71' : pct >= 40 ? '#C9A84C' : '#FC8181'
+    return `<tr>
+      <td>${s.name}</td>
+      <td>@${s.username}</td>
+      <td>${courseLabel}</td>
+      <td>${done}/${totalLessons}</td>
+      <td><span style="color:${color};font-weight:800">${pct}%</span></td>
+      <td>${s.joinedAt || '-'}</td>
+    </tr>`
+  }).join('')
+
+  const dateStr = new Date().toLocaleDateString(lang === 'ar' ? 'ar' : 'en', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const html = `<!DOCTYPE html><html dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8" />
+  <title>${lang === 'ar' ? 'تقرير الطلاب' : 'Students Report'}</title>
+  <style>
+    *{box-sizing:border-box;font-family:'Tajawal',Arial,sans-serif}
+    body{padding:32px;color:#16213E}
+    h1{color:#A67C32;font-size:22px;margin-bottom:4px}
+    .sub{color:#888;font-size:13px;margin-bottom:24px}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+    .kpi{border:1px solid #eee;border-radius:10px;padding:12px;text-align:center}
+    .kpi b{display:block;font-size:22px;color:#A67C32}
+    .kpi span{font-size:11px;color:#777}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{border:1px solid #eee;padding:8px 10px;text-align:${lang === 'ar' ? 'right' : 'left'}}
+    th{background:#16213E;color:#fff}
+    tr:nth-child(even){background:#fafafa}
+    @media print{ body{padding:10px} }
+  </style></head><body>
+    <h1>📊 ${lang === 'ar' ? 'تقرير الطلاب الشهري' : 'Monthly Students Report'}</h1>
+    <p class="sub">COACH BASHAR ALASALI · ${dateStr}</p>
+    <div class="kpis">${kpis.map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    <table><thead><tr>
+      <th>${lang === 'ar' ? 'الاسم' : 'Name'}</th>
+      <th>${lang === 'ar' ? 'المستخدم' : 'Username'}</th>
+      <th>${lang === 'ar' ? 'الدورة' : 'Course'}</th>
+      <th>${lang === 'ar' ? 'الدروس' : 'Lessons'}</th>
+      <th>${lang === 'ar' ? 'التقدم' : 'Progress'}</th>
+      <th>${lang === 'ar' ? 'الانضمام' : 'Joined'}</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+  </body></html>`
+
+  const win = window.open('', '_blank')
+  if (!win) { alert(lang === 'ar' ? 'يرجى السماح بالنوافذ المنبثقة' : 'Please allow popups'); return }
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
+
+// ─── Certificate generator ──────────────────────────────────────────────────
+function openCertificate(student, lessons, lang) {
+  const totalLessons = lessons.length
+  const done = Object.values(student.progress || {}).filter(Boolean).length
+  const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
+  const isComplete = pct === 100
+  const dateStr = new Date().toLocaleDateString(lang === 'ar' ? 'ar' : 'en', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const title = isComplete
+    ? (lang === 'ar' ? 'شهادة إتمام' : 'Certificate of Completion')
+    : (lang === 'ar' ? 'شهادة مشاركة وتقدير' : 'Certificate of Participation')
+
+  const body = isComplete
+    ? (lang === 'ar'
+        ? `تشهد أكاديمية الكوتش بشار العسلي بأن الطالب/ة المذكور أعلاه قد أكمل بنجاح برنامج التدريب الكامل على التجارة الإلكترونية عبر منصة eBay.`
+        : `This certifies that the above student has successfully completed the full eBay e-commerce training program at Coach Bashar Al-Asali Academy.`)
+    : (lang === 'ar'
+        ? `تشهد أكاديمية الكوتش بشار العسلي بأن الطالب/ة المذكور أعلاه قد شارك في برنامج التدريب على التجارة الإلكترونية عبر منصة eBay، بنسبة إنجاز ${pct}%.`
+        : `This certifies that the above student participated in the eBay e-commerce training program at Coach Bashar Al-Asali Academy, completing ${pct}% of the curriculum.`)
+
+  const html = `<!DOCTYPE html><html dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8" />
+  <title>${title} — ${student.name}</title>
+  <style>
+    *{box-sizing:border-box;font-family:'Tajawal',Arial,sans-serif}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f4f0e6}
+    .cert{
+      width:1000px;max-width:96vw;aspect-ratio:1.41/1;
+      background:linear-gradient(135deg,#16213E,#0D0D1A);
+      border:10px solid #C9A84C;outline:2px solid #C9A84C;outline-offset:-22px;
+      border-radius:18px;color:#F0EAF5;padding:60px;text-align:center;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+      position:relative;
+    }
+    .cert::before,.cert::after{content:"✦";position:absolute;color:#C9A84C;font-size:28px;top:34px}
+    .cert::before{${lang === 'ar' ? 'right' : 'left'}:34px}
+    .cert::after{${lang === 'ar' ? 'left' : 'right'}:34px}
+    .brand{color:#C9A84C;letter-spacing:4px;font-size:13px;font-weight:700}
+    h1{font-size:34px;color:#E8C96A;margin:6px 0}
+    .name{font-size:30px;font-weight:900;color:#fff;border-bottom:2px solid #C9A84C;padding-bottom:8px;margin:10px 0}
+    p.body{max-width:680px;line-height:1.9;color:#A0AEC0;font-size:15px}
+    .pct{font-size:13px;color:#C9A84C;font-weight:800}
+    .footer{display:flex;justify-content:space-between;width:100%;max-width:680px;margin-top:24px;font-size:12px;color:#A0AEC0}
+    @media print{ body{background:#fff} .cert{outline:none} @page{size:landscape} }
+  </style></head><body>
+    <div class="cert">
+      <div class="brand">COACH BASHAR ALASALI · EBAY ACADEMY</div>
+      <h1>🏆 ${title}</h1>
+      <div class="name">${student.name}</div>
+      <p class="body">${body}</p>
+      ${!isComplete ? `<div class="pct">${lang === 'ar' ? `نسبة الإنجاز: ${pct}%` : `Progress: ${pct}%`}</div>` : ''}
+      <div class="footer">
+        <span>${lang === 'ar' ? 'التاريخ' : 'Date'}: ${dateStr}</span>
+        <span>Coach Bashar Al-Asali — ✦ Signature ✦</span>
+      </div>
+    </div>
+  </body></html>`
+
+  const win = window.open('', '_blank')
+  if (!win) { alert(lang === 'ar' ? 'يرجى السماح بالنوافذ المنبثقة' : 'Please allow popups'); return }
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
+
 // ─── Custom Tooltip ────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -456,6 +629,126 @@ function NotesModal({ student, lessons, lang, onClose }) {
   )
 }
 
+// ─── Student Detail Modal ───────────────────────────────────────────────────
+function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, onDelete }) {
+  const totalLessons = lessons.length
+  const done = Object.values(student.progress || {}).filter(Boolean).length
+  const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
+  const cm   = COURSE_OPTIONS.find(c => c.value === student.allowedCourse)
+  const noteEntries = Object.entries(student.notes || {}).filter(([, v]) => v?.trim())
+  const days = daysSince(student.joinedAt)
+
+  const stat = (icon, label, value, color) => (
+    <div style={{ background: C.navy, borderRadius: '14px', padding: '14px', border: `1px solid ${C.g15}`, textAlign: 'center' }}>
+      <div style={{ fontSize: '18px', marginBottom: '6px' }}>{icon}</div>
+      <div style={{ fontSize: '18px', fontWeight: '900', color: color || C.white }}>{value}</div>
+      <div style={{ fontSize: '10px', color: C.silver, marginTop: '3px' }}>{label}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,26,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '680px', maxHeight: '88vh', overflowY: 'auto', boxShadow: `0 0 60px rgba(201,168,76,0.1)` }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: C.g15, border: `2px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            {student.photo ? <img src={student.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '20px', fontWeight: '700' }}>{student.avatar}</span>}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+              <span style={{ fontWeight: '900', fontSize: '18px', color: C.white }}>{student.name}</span>
+              {student.gender && <span style={{ fontSize: '15px' }}>{student.gender === 'female' ? '👩' : '👨'}</span>}
+              {pct === 100 && <span style={{ fontSize: '11px', background: C.g10, color: C.gold, padding: '2px 10px', borderRadius: '20px', border: `1px solid ${C.g20}` }}>🏆 {lang === 'ar' ? 'أكمل الدورة' : 'Completed'}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '12px', color: C.silver }}>
+              <span>@{student.username}</span>
+              {student.phone && <span>📞 {student.phone}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: C.lk20, border: 'none', borderRadius: '10px', padding: '8px 14px', color: C.silver, cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</button>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ marginBottom: '18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: C.silver, marginBottom: '6px' }}>
+            <span>{lang === 'ar' ? 'التقدم العام' : 'Overall Progress'}</span>
+            <span style={{ color: C.gold, fontWeight: '800' }}>{pct}% ({done}/{totalLessons})</span>
+          </div>
+          <div style={{ height: '8px', background: C.lk30, borderRadius: '999px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg,${C.goldD},${C.gold})`, borderRadius: '999px', transition: 'width 0.6s' }} />
+          </div>
+        </div>
+
+        {/* Stat cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '20px' }}>
+          {stat('📚', lang === 'ar' ? 'دروس مكتملة' : 'Lessons Done', `${done}/${totalLessons}`, C.gold)}
+          {stat('📅', lang === 'ar' ? 'تاريخ الانضمام' : 'Joined', student.joinedAt || '-')}
+          {stat('⏱', lang === 'ar' ? 'منذ الانضمام' : 'Days Since', `${days} ${lang === 'ar' ? 'يوم' : 'd'}`)}
+          {stat('📝', lang === 'ar' ? 'ملاحظات' : 'Notes', noteEntries.length, noteEntries.length ? C.gold : C.silver)}
+        </div>
+
+        {/* Quick actions */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+          <select value={student.allowedCourse || ''} onChange={e => onChangeCourse(student.username, e.target.value)} style={{ background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '9px 12px', color: C.white, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
+            {COURSE_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.icon} {lang === 'ar' ? c.labelAr : c.labelEn}</option>)}
+          </select>
+          {student.phone && (
+            <a href={`https://wa.me/${student.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '10px', background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', color: C.emerald, fontSize: '12px', fontWeight: '700' }}>
+              💬 {lang === 'ar' ? 'واتساب' : 'WhatsApp'}
+            </a>
+          )}
+          <button onClick={() => openCertificate(student, lessons, lang)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', background: C.g10, border: `1px solid ${C.g20}`, color: C.gold, fontSize: '12px', fontWeight: '700' }}>
+            🏆 {pct === 100 ? (lang === 'ar' ? 'شهادة إتمام' : 'Completion Certificate') : (lang === 'ar' ? 'شهادة مشاركة' : 'Participation Certificate')}
+          </button>
+          <button onClick={() => { onDelete(student.username, student.name); onClose() }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(252,129,129,0.08)', border: '1px solid rgba(252,129,129,0.2)', color: C.red, fontSize: '12px', fontWeight: '700', marginRight: 'auto' }}>
+            🗑 {lang === 'ar' ? 'حذف الطالب' : 'Delete Student'}
+          </button>
+        </div>
+
+        {/* Lessons progress list */}
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ color: C.gold, fontSize: '13px', fontWeight: '800', marginBottom: '10px' }}>📚 {lang === 'ar' ? 'الدروس' : 'Lessons'}</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
+            {lessons.map(l => {
+              const isDone = !!student.progress?.[l.id]
+              const score = student.quizScores?.[l.id]
+              return (
+                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: C.navy, borderRadius: '10px', padding: '8px 12px', border: `1px solid ${C.lk20}` }}>
+                  <span style={{ fontSize: '14px' }}>{isDone ? '✅' : '⬜'}</span>
+                  <span style={{ flex: 1, fontSize: '12px', color: isDone ? C.white : C.silver, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.id}. {l.title}</span>
+                  {score != null && <span style={{ fontSize: '11px', color: C.purple, fontWeight: '700' }}>📝 {score}%</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <h4 style={{ color: C.gold, fontSize: '13px', fontWeight: '800', marginBottom: '10px' }}>📝 {lang === 'ar' ? 'ملاحظات الطالب' : 'Student Notes'}</h4>
+          {noteEntries.length === 0
+            ? <div style={{ textAlign: 'center', padding: '20px', color: C.silver, fontSize: '13px', background: C.navy, borderRadius: '12px' }}>📭 {lang === 'ar' ? 'لا توجد ملاحظات' : 'No notes yet'}</div>
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {noteEntries.map(([lid, text]) => {
+                  const lessonTitle = lessons.find(l => String(l.id) === String(lid))?.title || `${lang === 'ar' ? 'درس' : 'Lesson'} ${lid}`
+                  return (
+                    <div key={lid} style={{ background: C.navy, borderRadius: '12px', padding: '12px 14px', border: `1px solid ${C.g15}` }}>
+                      <p style={{ color: C.gold, fontWeight: '700', fontSize: '11px', marginBottom: '6px' }}>📚 {lessonTitle}</p>
+                      <p style={{ color: C.white, fontSize: '13px', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{text}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────
 export default function AdminPage({ initialStudents, initialLessons, adminUser }) {
   const router = useRouter()
@@ -468,6 +761,8 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const [loading,       setLoading]       = useState(false)
   const [refreshing,    setRefreshing]    = useState(false)
   const [notesStudent,  setNotesStudent]  = useState(null)
+  const [detailStudent, setDetailStudent] = useState(null)
+  const [sidebarOpen,   setSidebarOpen]   = useState(false)
   const [mounted,       setMounted]       = useState(false)
 
   useEffect(() => setMounted(true), [])
@@ -505,6 +800,14 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
     if (res.ok) setStudents(s => s.filter(x => x.username !== username))
   }
 
+  async function changeStudentCourse(username, allowedCourse) {
+    const res = await fetch('/api/admin/students', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, allowedCourse }) })
+    if (res.ok) {
+      setStudents(s => s.map(x => x.username === username ? { ...x, allowedCourse } : x))
+      setDetailStudent(d => d && d.username === username ? { ...d, allowedCourse } : d)
+    }
+  }
+
   const totalLessons   = initialLessons.length
   const activeStudents = students.filter(s => Object.values(s.progress || {}).some(Boolean)).length
   const totalNotes     = students.reduce((a, s) => a + Object.keys(s.notes || {}).length, 0)
@@ -523,29 +826,108 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
       <Head><title>COACHBASHARALASALI — Admin</title><meta name="robots" content="noindex" /></Head>
 
       {notesStudent && <NotesModal student={notesStudent} lessons={initialLessons} lang={lang} onClose={() => setNotesStudent(null)} />}
+      {detailStudent && (
+        <StudentDetailModal
+          student={detailStudent}
+          lessons={initialLessons}
+          lang={lang}
+          onClose={() => setDetailStudent(null)}
+          onChangeCourse={changeStudentCourse}
+          onDelete={deleteStudent}
+        />
+      )}
 
-      <div style={{ minHeight: '100vh', background: C.navy }}>
+      <style jsx global>{`
+        @media (max-width: 880px) {
+          .admin-sidebar {
+            position: fixed; inset: 0 auto 0 0; z-index: 300;
+            transform: translateX(${lang === 'ar' ? '100%' : '-100%'});
+            transition: transform 0.3s;
+          }
+          .admin-sidebar.open { transform: translateX(0); }
+          .mobile-menu-btn { display: flex !important; }
+        }
+      `}</style>
 
-        {/* Nav */}
-        <nav style={{ background: 'rgba(22,33,62,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: C.navy, fontWeight: '900', fontSize: '12px' }}>CB</span>
+      <div style={{ minHeight: '100vh', background: C.navy, display: 'flex' }}>
+
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 299 }} />
+        )}
+
+        {/* ── Sidebar ── */}
+        <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} style={{
+          width: '240px', flexShrink: 0, background: 'rgba(22,33,62,0.95)',
+          borderInlineEnd: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column',
+          height: '100vh', position: 'sticky', top: 0, zIndex: 300,
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '20px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: C.navy, fontWeight: '900', fontSize: '13px' }}>CB</span>
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <p style={{ color: C.gold, fontWeight: '900', fontSize: '13px', letterSpacing: '0.5px' }}>COACH BASHAR</p>
               <p style={{ color: C.silver, fontSize: '10px' }}>{lang === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}</p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <NotificationBell students={students} lang={lang} />
-            <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} style={{ padding: '5px 12px', borderRadius: '8px', border: `1px solid ${C.g30}`, background: 'transparent', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>{lang === 'ar' ? 'EN' : 'AR'}</button>
-            <span style={{ color: C.silver, fontSize: '13px' }}>{adminUser.name}</span>
-            <button onClick={logout} style={{ background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '5px 12px', cursor: 'pointer', fontSize: '12px' }}>🚪 {lang === 'ar' ? 'خروج' : 'Logout'}</button>
-          </div>
-        </nav>
 
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px 20px' }}>
+          {/* Nav items */}
+          <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
+            {tabs.map(tb => (
+              <button key={tb.key} onClick={() => { setTab(tb.key); setSidebarOpen(false) }} style={{
+                display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px',
+                border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
+                borderRadius: '10px', textAlign: lang === 'ar' ? 'right' : 'left', width: '100%',
+                color: tab === tb.key ? C.gold : C.silver,
+                background: tab === tb.key ? C.g10 : 'transparent',
+                transition: 'all 0.2s',
+              }}>
+                <span style={{ fontSize: '16px' }}>{tb.icon}</span><span>{tb.label}</span>
+              </button>
+            ))}
+            <button onClick={refreshStudents} disabled={refreshing} style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', marginTop: '8px',
+              border: `1px solid ${C.g20}`, cursor: 'pointer', fontSize: '12px', fontWeight: '700',
+              borderRadius: '10px', textAlign: lang === 'ar' ? 'right' : 'left', width: '100%',
+              color: C.silver, background: 'transparent', opacity: refreshing ? 0.6 : 1,
+            }}>
+              <span style={{ fontSize: '16px' }}>{refreshing ? '⏳' : '🔄'}</span><span>{lang === 'ar' ? 'تحديث' : 'Refresh'}</span>
+            </button>
+          </div>
+
+          {/* Admin card + logout */}
+          <div style={{ padding: '14px', borderTop: `1px solid ${C.lk20}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: C.g15, border: `2px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ color: C.gold, fontWeight: '700', fontSize: '12px' }}>{adminUser.name?.[0]}</span>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ color: C.white, fontSize: '12px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adminUser.name}</p>
+                <p style={{ color: C.gold, fontSize: '10px' }}>{lang === 'ar' ? 'مدير المنصة ✦' : 'Platform Admin ✦'}</p>
+              </div>
+            </div>
+            <button onClick={logout} style={{ width: '100%', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '8px 12px', cursor: 'pointer', fontSize: '12px' }}>🚪 {lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}</button>
+          </div>
+        </aside>
+
+        {/* ── Main content ── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+
+          {/* Topbar */}
+          <nav style={{ background: 'rgba(22,33,62,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn" style={{ display: 'none', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '7px 10px', cursor: 'pointer', fontSize: '15px' }}>☰</button>
+              <span style={{ color: C.white, fontWeight: '800', fontSize: '14px' }}>{tabs.find(t => t.key === tab)?.icon} {tabs.find(t => t.key === tab)?.label}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <NotificationBell students={students} lang={lang} />
+              <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} style={{ padding: '5px 12px', borderRadius: '8px', border: `1px solid ${C.g30}`, background: 'transparent', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>{lang === 'ar' ? 'EN' : 'AR'}</button>
+            </div>
+          </nav>
+
+          <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px 20px' }}>
 
           {/* Top stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '28px' }}>
@@ -563,28 +945,19 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
             ))}
           </div>
 
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: '6px', borderBottom: `1px solid ${C.lk20}`, marginBottom: '24px', flexWrap: 'wrap' }}>
-            {tabs.map(tb => (
-              <button key={tb.key} onClick={() => setTab(tb.key)} style={{
-                display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px',
-                border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
-                borderRadius: '10px 10px 0 0', transition: 'all 0.2s',
-                color:      tab === tb.key ? C.gold    : C.silver,
-                background: tab === tb.key ? C.g10     : 'transparent',
-                borderBottom: `2px solid ${tab === tb.key ? C.gold : 'transparent'}`,
-              }}>
-                <span>{tb.icon}</span><span>{tb.label}</span>
-              </button>
-            ))}
-            <button onClick={refreshStudents} disabled={refreshing} style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: `1px solid ${C.g20}`, background: 'transparent', color: C.silver, fontSize: '12px', cursor: 'pointer', opacity: refreshing ? 0.6 : 1 }}>
-              {refreshing ? '⏳' : '🔄'} {lang === 'ar' ? 'تحديث' : 'Refresh'}
-            </button>
-          </div>
-
           {/* ── STUDENTS ── */}
           {tab === 'students' && (
             <div>
+              {/* Export buttons */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <button onClick={() => exportStudentsCSV(students, initialLessons, lang)} disabled={!students.length} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: students.length ? 'pointer' : 'not-allowed', background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', color: C.emerald, fontSize: '12px', fontWeight: '700', opacity: students.length ? 1 : 0.5 }}>
+                  📥 {lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
+                </button>
+                <button onClick={() => exportStudentsPDF(students, initialLessons, lang)} disabled={!students.length} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: students.length ? 'pointer' : 'not-allowed', background: C.g10, border: `1px solid ${C.g20}`, color: C.gold, fontSize: '12px', fontWeight: '700', opacity: students.length ? 1 : 0.5 }}>
+                  🖨 {lang === 'ar' ? 'تقرير PDF' : 'PDF Report'}
+                </button>
+              </div>
+
               {students.length === 0
                 ? <div style={{ textAlign: 'center', padding: '48px', color: C.silver }}><div style={{ fontSize: '48px', marginBottom: '12px' }}>👥</div><p>{lang === 'ar' ? 'لا يوجد طلاب' : 'No students yet'}</p></div>
                 : students.map(student => {
@@ -600,7 +973,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: '800', fontSize: '15px', color: C.white }}>{student.name}</span>
+                            <span onClick={() => setDetailStudent(student)} style={{ fontWeight: '800', fontSize: '15px', color: C.white, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'color .2s' }} onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.textDecorationColor = C.gold }} onMouseLeave={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.textDecorationColor = 'transparent' }}>{student.name}</span>
                             {student.gender && <span style={{ fontSize: '14px' }}>{student.gender === 'female' ? '👩' : '👨'}</span>}
                             {cm && <span style={{ fontSize: '11px', background: C.g10, color: C.gold, padding: '2px 10px', borderRadius: '20px', border: `1px solid ${C.g20}` }}>{cm.icon} {lang === 'ar' ? cm.labelAr : cm.labelEn}</span>}
                           </div>
@@ -673,6 +1046,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
             </div>
           )}
 
+          </div>
         </div>
       </div>
     </>
