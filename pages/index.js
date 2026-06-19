@@ -314,6 +314,25 @@ export default function LandingPage() {
         .faq-item[open] .pm{transform:rotate(45deg);background:var(--gold);color:#1a1407;border-color:var(--gold)}
         .faq-item .fa{padding:0 6px 26px;color:var(--muted);font-size:16px;line-height:1.85;max-width:62ch}
 
+        /* ── curriculum ── */
+        .curr-section{background:var(--bg2);border-block:1px solid var(--line-soft)}
+        .curr-wrap{max-width:860px;margin:0 auto}
+        .curr-item{border-bottom:1px solid var(--line-soft)}
+        .curr-item summary{list-style:none;cursor:pointer;padding:22px 6px;display:flex;align-items:center;
+          justify-content:space-between;gap:20px;font-weight:700;font-size:17px;color:var(--ink);transition:color .2s}
+        .curr-item summary::-webkit-details-marker{display:none}
+        .curr-item summary:hover{color:var(--gold)}
+        .curr-pm{width:30px;height:30px;border:1px solid var(--line);border-radius:50%;
+          display:grid;place-items:center;color:var(--gold);flex-shrink:0;transition:.3s;font-size:18px}
+        .curr-item[open] .curr-pm{transform:rotate(45deg);background:var(--gold);color:#1a1407;border-color:var(--gold)}
+        .curr-lessons{padding:0 6px 20px;display:flex;flex-direction:column;gap:8px}
+        .curr-lesson{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:10px;border:1px solid var(--line-soft)}
+        .curr-lesson .cl-num{font-size:11px;color:var(--muted-2);font-weight:700;min-width:28px}
+        .curr-lesson .cl-title{font-size:15px;color:var(--muted);flex:1}
+        .curr-lesson .cl-free{font-size:11px;color:var(--gold);background:rgba(202,162,83,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(202,162,83,.25);white-space:nowrap}
+        .curr-mod-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+        .curr-mod-badge{font-size:11px;color:var(--muted-2);background:var(--bg3);border:1px solid var(--line-soft);padding:3px 10px;border-radius:20px;font-weight:600}
+
         /* ── booking ── */
         .booking{padding:108px 0}
         .booking-grid{display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:center;
@@ -644,6 +663,89 @@ export default function LandingPage() {
                 <a className="btn btn-gold" href="#booking" onClick={() => setSelectedPlan(2)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        {/* ── CURRICULUM ── */}
+        <section className="curr-section sec" id="curriculum">
+          <div className="wrap curr-wrap">
+            <div className="sec-head center reveal" style={{ marginBottom: '36px' }}>
+              <span className="kicker">{tx('ماذا ستتعلم', 'What you will learn')}</span>
+              <h2>{tx('محتوى الدورة', 'Course Curriculum')}</h2>
+              <p style={{ color:'var(--muted)', fontSize:'17px', marginTop:'10px' }}>{tx('٨٦ درساً تأخذك من إنشاء الحساب إلى بناء مشروع مستدام', '86 lessons taking you from account setup to building a sustainable business')}</p>
+            </div>
+            <div className="curr-wrap reveal">
+              {[
+                { mod:'01', title:tx('البداية الصحيحة وإعداد الحساب','Account Setup & Foundation'), count:12, lessons:[
+                  { n:1, t:tx('مقدمة الدورة وخارطة الطريق','Course intro & roadmap'), free:true },
+                  { n:2, t:tx('إنشاء حساب eBay خطوة بخطوة','Creating your eBay account step by step'), free:true },
+                  { n:3, t:tx('إعداد PayPal أو Payoneer بشكل صحيح','Setting up PayPal / Payoneer correctly') },
+                  { n:4, t:tx('قوانين eBay الأساسية وتجنّب الإيقاف','eBay policies & account protection') },
+                  { n:5, t:tx('بناء سمعة الحساب بسرعة وأمان','Building account reputation safely') },
+                ]},
+                { mod:'02', title:tx('البحث عن المنتج المربح','Profitable Product Research'), count:16, lessons:[
+                  { n:13, t:tx('أدوات البحث المجانية والمدفوعة','Free & paid research tools') },
+                  { n:14, t:tx('معايير اختيار المنتج الفائز','Winning product selection criteria') },
+                  { n:15, t:tx('تحليل المنافسين واكتشاف الفجوات','Competitor analysis & gap finding') },
+                  { n:16, t:tx('مصادر المنتجات والموردين الموثوقين','Reliable suppliers & sourcing') },
+                ]},
+                { mod:'03', title:tx('إنشاء القوائم بالاحتراف','Creating Professional Listings'), count:14, lessons:[
+                  { n:29, t:tx('كتابة عنوان يُصنَّف في أعلى نتائج البحث','Writing titles that rank on top') },
+                  { n:30, t:tx('تصوير المنتجات وتحرير الصور','Product photography & editing') },
+                  { n:31, t:tx('وصف المنتج الذي يُحوّل الزوار إلى مشترين','Descriptions that convert visitors to buyers') },
+                  { n:32, t:tx('استراتيجيات التسعير الذكي والمنافسة','Smart pricing & competition strategies') },
+                ]},
+                { mod:'04', title:tx('الشحن وخدمة العملاء','Shipping & Customer Service'), count:18, lessons:[
+                  { n:43, t:tx('أفضل شركات الشحن وأسعارها','Top shipping companies & rates') },
+                  { n:44, t:tx('التوضيب الصحيح وتجنّب الأضرار','Proper packing to avoid damage') },
+                  { n:45, t:tx('التعامل مع المشترين وبناء تقييمات 5 نجوم','Managing buyers & building 5-star feedback') },
+                  { n:46, t:tx('حل النزاعات والمشاكل باحتراف','Resolving disputes professionally') },
+                ]},
+                { mod:'05', title:tx('التسويق والنمو','Marketing & Growth'), count:14, lessons:[
+                  { n:61, t:tx('إعلانات eBay Promoted Listings بفاعلية','eBay Promoted Listings effectively') },
+                  { n:62, t:tx('تحسين الظهور في البحث (SEO)','Improving search visibility (SEO)') },
+                  { n:63, t:tx('استراتيجيات الخصومات والعروض','Discount & offer strategies') },
+                ]},
+                { mod:'06', title:tx('التوسّع والأتمتة','Scaling & Automation'), count:12, lessons:[
+                  { n:75, t:tx('بناء فريق عمل وتفويض المهام','Building a team & delegating') },
+                  { n:76, t:tx('أدوات الأتمتة لتوفير الوقت','Automation tools to save time') },
+                  { n:77, t:tx('فتح متاجر متعددة بأمان','Opening multiple stores safely') },
+                  { n:78, t:tx('من مشروع صغير إلى دخل مستدام','From small project to sustainable income') },
+                ]},
+              ].map((m, mi) => (
+                <details key={mi} className="curr-item" open={mi === 0}>
+                  <summary>
+                    <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
+                      <span style={{ color:'var(--gold)', fontFamily:"'El Messiri'", fontSize:'18px', minWidth:'36px' }}>{m.mod}</span>
+                      <div>
+                        <div>{m.title}</div>
+                        <div className="curr-mod-meta" style={{ marginTop:'4px' }}>
+                          <span className="curr-mod-badge">{m.count} {tx('درس','lessons')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="curr-pm">+</span>
+                  </summary>
+                  <div className="curr-lessons">
+                    {m.lessons.map((l, li) => (
+                      <div key={li} className="curr-lesson">
+                        <span className="cl-num">{String(l.n).padStart(2,'0')}</span>
+                        <span className="cl-title">{l.t}</span>
+                        {l.free && <span className="cl-free">{tx('مجاني','Free')}</span>}
+                      </div>
+                    ))}
+                    {m.count > m.lessons.length && (
+                      <div className="curr-lesson" style={{ justifyContent:'center', color:'var(--muted-2)', fontSize:'13px', border:'1px dashed var(--line)' }}>
+                        + {m.count - m.lessons.length} {tx('دروس أخرى','more lessons')}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              ))}
+              <div style={{ textAlign:'center', marginTop:'36px' }}>
+                <a className="btn btn-gold" href="#booking">{tx('احجز مقعدك للوصول الكامل','Book your seat for full access')}</a>
+              </div>
             </div>
           </div>
         </section>

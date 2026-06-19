@@ -163,14 +163,17 @@ function LearnerStats({ user, lang, COURSES_DATA }) {
   const total      = courseIds.length
   const pct        = total ? Math.round((completed / total) * 100) : 0
   const certs      = total > 0 && courseIds.every(id => user.progress[id]) ? 1 : 0
+  const streakDays = user.lastActiveAt
+    ? (new Date().toISOString().split('T')[0] === user.lastActiveAt ? 1 : Math.max(0, Math.ceil((new Date(user.lastActiveAt) - new Date(user.joinedAt || user.lastActiveAt)) / 86400000)))
+    : 0
   const stats = [
-    { icon: '📊', label: lang==='ar'?'الإنجاز الكلي':'Overall Progress',   value: `${pct}%`,       sub: lang==='ar'?'من الدورة':'of course',            color: C.gold,    bg: C.g10,                     border: C.g20 },
+    { icon: '📊', label: lang==='ar'?'الإنجاز الكلي':'Overall Progress',   value: `${pct}%`,         sub: lang==='ar'?'من الدورة':'of course',            color: C.gold,    bg: C.g10,                     border: C.g20 },
     { icon: '✅', label: lang==='ar'?'دروس مكتملة':'Completed',            value: String(completed), sub: `${lang==='ar'?'من':''} ${total} ${lang==='ar'?'درس':'lessons'}`, color: C.emerald, bg: 'rgba(46,204,113,0.10)',  border: 'rgba(46,204,113,0.20)' },
-    { icon: '🔥', label: lang==='ar'?'سلسلة التعلم':'Streak',              value: '1',             sub: lang==='ar'?'يوم متتالي':'day streak',          color: C.red,     bg: 'rgba(252,129,129,0.10)',   border: 'rgba(252,129,129,0.20)' },
-    { icon: '🏆', label: lang==='ar'?'الشهادات':'Certificates',            value: String(certs),   sub: certs===0?(lang==='ar'?'أكمل دورة للحصول على شهادة':'Complete a course'):(lang==='ar'?'مكتسبة':'Earned'), color: C.purple, bg: 'rgba(183,148,244,0.10)', border: 'rgba(183,148,244,0.20)' },
+    { icon: '🔥', label: lang==='ar'?'سلسلة التعلم':'Streak',              value: streakDays > 0 ? String(streakDays) : '—', sub: lang==='ar'?'يوم نشاط':'active days', color: C.red, bg: 'rgba(252,129,129,0.10)', border: 'rgba(252,129,129,0.20)' },
+    { icon: '🏆', label: lang==='ar'?'الشهادات':'Certificates',            value: String(certs),     sub: certs===0?(lang==='ar'?'أكمل دورة للحصول على شهادة':'Complete a course'):(lang==='ar'?'مكتسبة':'Earned'), color: C.purple, bg: 'rgba(183,148,244,0.10)', border: 'rgba(183,148,244,0.20)' },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '28px' }}>
+    <div className="dash-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '28px' }}>
       {stats.map((s, i) => (
         <div key={i} style={{ background: C.surface, borderRadius: '18px', padding: '18px', border: `1px solid ${s.border}` }}>
           <div style={{ width: '46px', height: '46px', borderRadius: '14px', background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '14px' }}>{s.icon}</div>
@@ -200,7 +203,7 @@ function ProgressMilestones({ progress, lang }) {
       <div style={{ height: '8px', background: C.lk30, borderRadius: '999px', marginBottom: '20px', overflow: 'hidden' }}>
         <div style={{ height: '100%', borderRadius: '999px', width: `${progress}%`, transition: 'width 0.7s ease', background: `linear-gradient(90deg, rgba(201,168,76,0.5), ${C.gold})` }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <div className="dash-milestones" style={{ display: 'flex', justifyContent: 'space-between' }}>
         {milestones.map((m, i) => {
           const done = progress >= m.percent
           return (
@@ -352,6 +355,28 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState('')
   const fileRef = useRef(null)
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew,     setPwNew]     = useState('')
+  const [pwSaving,  setPwSaving]  = useState(false)
+  const [pwMsg,     setPwMsg]     = useState({ text: '', type: '' })
+
+  async function handlePasswordChange(e) {
+    e.preventDefault()
+    setPwSaving(true); setPwMsg({ text: '', type: '' })
+    const res = await fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+    })
+    const data = await res.json()
+    setPwSaving(false)
+    if (res.ok) {
+      setPwMsg({ text: lang === 'ar' ? '✅ تم تغيير كلمة المرور بنجاح' : '✅ Password changed successfully', type: 'success' })
+      setPwCurrent(''); setPwNew('')
+    } else {
+      setPwMsg({ text: data.error || (lang === 'ar' ? 'حدث خطأ' : 'Error'), type: 'error' })
+    }
+  }
 
   const courseIds = COURSES_DATA?.[user.allowedCourse]?.lessons || []
   const completed = courseIds.filter(id => user.progress[id]).length
@@ -459,7 +484,7 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '32px' }}>
           {[
             [String(completed), lang === 'ar' ? 'دروس مكتملة' : 'Lessons'],
-            ['🔥 1',            lang === 'ar' ? 'يوم متتالي'   : 'Streak'],
+            [user.lastActiveAt ? `🔥 ${Math.max(1, Math.ceil((new Date() - new Date(user.lastActiveAt)) / 86400000) <= 1 ? Object.values(user.progress||{}).filter(Boolean).length : 1)}` : '—', lang === 'ar' ? 'يوم نشاط' : 'Streak'],
             ['1',               lang === 'ar' ? 'دورة نشطة'    : 'Course'],
           ].map(([val, lbl], i) => (
             <div key={i} style={{ textAlign: 'center' }}>
@@ -582,16 +607,31 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
           }
         </button>
 
-        {/* Contact note */}
-        <div style={{ marginTop: '16px', padding: '12px', background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '12px', textAlign: 'center' }}>
-          <p style={{ color: C.silver, fontSize: '12px', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'لتغيير كلمة المرور تواصل مع المدرب' : 'To change password, contact the coach'}
-          </p>
-          <a href="https://wa.me/00962790360675" target="_blank" rel="noreferrer"
-            style={{ color: C.gold, fontSize: '13px', fontWeight: '700', textDecoration: 'none' }}>
-            💬 {lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}
-          </a>
-        </div>
+      </div>
+
+      {/* ── Change Password ── */}
+      <div style={{ background: C.surface, borderRadius: '20px', padding: '24px', border: `1px solid ${C.g20}` }}>
+        <h3 style={{ color: C.white, fontWeight: '800', fontSize: '15px', marginBottom: '18px' }}>
+          🔑 {lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
+        </h3>
+        {pwMsg.text && (
+          <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', fontSize: '13px', fontWeight: '600', background: pwMsg.type === 'error' ? 'rgba(252,129,129,0.1)' : 'rgba(46,204,113,0.1)', border: `1px solid ${pwMsg.type === 'error' ? 'rgba(252,129,129,0.3)' : 'rgba(46,204,113,0.3)'}`, color: pwMsg.type === 'error' ? C.red : C.emerald }}>
+            {pwMsg.text}
+          </div>
+        )}
+        <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'كلمة المرور الحالية' : 'Current Password'}</label>
+            <input type="password" value={pwCurrent} required onChange={e => setPwCurrent(e.target.value)} style={{ width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'كلمة المرور الجديدة (6 أحرف على الأقل)' : 'New Password (min 6 characters)'}</label>
+            <input type="password" value={pwNew} required minLength={6} onChange={e => setPwNew(e.target.value)} style={{ width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <button type="submit" disabled={pwSaving} style={{ padding: '12px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '12px', color: C.navy, fontSize: '14px', fontWeight: '900', cursor: pwSaving ? 'not-allowed' : 'pointer', opacity: pwSaving ? 0.7 : 1 }}>
+            {pwSaving ? '⏳...' : (lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password')}
+          </button>
+        </form>
       </div>
     </div>
   )
@@ -715,6 +755,8 @@ export default function Dashboard({ initialUser }) {
   const [activeLesson, setActiveLesson]     = useState(null)
   const [videoUrl, setVideoUrl]             = useState(null)
   const [videoLoading, setVideoLoading]     = useState(false)
+  const [videoSpeed, setVideoSpeed]         = useState(1)
+  const videoRef = useRef(null)
   const [quiz, setQuiz]                     = useState(null)
   const [quizStep, setQuizStep]             = useState(0)
   const [quizAnswers, setQuizAnswers]       = useState([])
@@ -724,6 +766,8 @@ export default function Dashboard({ initialUser }) {
   const [showCertificate, setShowCertificate]   = useState(false)
   const [celebNextIdx, setCelebNextIdx]         = useState(null)
   const [COURSES_DATA, setCoursesData]          = useState(null)
+  const [sidebarOpen, setSidebarOpen]           = useState(false)
+  const [lessonSearch, setLessonSearch]         = useState('')
 
   useEffect(() => {
     fetch('/api/lessons').then(r => r.json()).then(d => setLessons(d.lessons || []))
@@ -879,23 +923,61 @@ export default function Dashboard({ initialUser }) {
         />
       )}
 
+      <style jsx global>{`
+        @media (max-width: 720px) {
+          .dash-sidebar { transform: translateX(100%); transition: transform 0.3s; }
+          .dash-sidebar.open { transform: translateX(0); }
+          .dash-main { margin-right: 0 !important; }
+          .dash-stats-grid { grid-template-columns: 1fr 1fr !important; }
+          .dash-milestones { flex-wrap: wrap; gap: 12px !important; justify-content: center !important; }
+          .dash-hamburger { display: flex !important; }
+          .quiz-opts button { min-height: 52px; }
+          .dash-content-pad { padding: 16px 14px 32px !important; }
+        }
+      `}</style>
+
       {/* Page Layout */}
       <div style={{ minHeight: '100vh', background: C.navy }}>
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 39 }} />
+        )}
+
         {/* Sidebar */}
-        <Sidebar user={user} view={view} setView={(v) => { setView(v); if (v === 'courses') { setSelectedCourse(null) } }} onLogout={logout} lang={lang} />
+        <div className={`dash-sidebar${sidebarOpen ? ' open' : ''}`} style={{ position: 'fixed', right: 0, top: 0, height: '100%', zIndex: 40 }}>
+          <Sidebar user={user} view={view} setView={(v) => { setView(v); setSelectedCourse(v === 'courses' ? null : selectedCourse); setSidebarOpen(false) }} onLogout={logout} lang={lang} />
+        </div>
 
         {/* Main Content — offset right for sidebar */}
-        <div style={{ marginRight: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="dash-main" style={{ marginRight: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+
+          {/* Subscription expiry warning */}
+          {user.subscriptionType === 'monthly' && user.subscriptionExpiry && (() => {
+            const days = Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / 86400000)
+            if (days > 7) return null
+            return (
+              <div style={{ background: days < 0 ? 'rgba(252,129,129,0.12)' : 'rgba(239,159,39,0.12)', borderBottom: `1px solid ${days < 0 ? 'rgba(252,129,129,0.3)' : 'rgba(239,159,39,0.3)'}`, padding: '10px 28px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600' }}>
+                <span>{days < 0 ? '🔴' : '⚠️'}</span>
+                <span style={{ color: days < 0 ? C.red : '#F6AD55' }}>
+                  {days < 0
+                    ? (lang === 'ar' ? 'انتهى اشتراكك — تواصل مع الإدارة للتجديد' : 'Subscription expired — contact admin to renew')
+                    : (lang === 'ar' ? `ينتهي اشتراكك بعد ${days} ${days === 1 ? 'يوم' : 'أيام'} — ${user.subscriptionExpiry}` : `Subscription expires in ${days} day${days !== 1 ? 's' : ''} — ${user.subscriptionExpiry}`)
+                  }
+                </span>
+              </div>
+            )
+          })()}
 
           {/* Top Header */}
           <header style={{
             position: 'sticky', top: 0, zIndex: 30,
             background: 'rgba(13,13,26,0.85)', backdropFilter: 'blur(16px)',
             borderBottom: `1px solid rgba(201,168,76,0.1)`,
-            padding: '0 28px', height: '56px',
+            padding: '0 20px', height: '56px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: C.silver }}>
+              <button className="dash-hamburger" onClick={() => setSidebarOpen(o => !o)} style={{ display: 'none', background: 'none', border: `1px solid ${C.lk30}`, borderRadius: '8px', color: C.gold, padding: '6px 10px', cursor: 'pointer', fontSize: '16px', marginLeft: '6px' }}>☰</button>
               <span style={{ cursor: 'pointer', color: C.silver }} onClick={() => setView('courses')}>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
               <span>/</span>
               <span style={{ color: C.gold, fontWeight: '700' }}>{breadcrumb}</span>
@@ -911,7 +993,7 @@ export default function Dashboard({ initialUser }) {
           </header>
 
           {/* Page Content */}
-          <div style={{ flex: 1, padding: '28px 28px 40px' }}>
+          <div className="dash-content-pad" style={{ flex: 1, padding: '28px 28px 40px' }}>
 
             {/* ── COURSES VIEW ── */}
             {view === 'courses' && COURSES_DATA && (
@@ -1101,9 +1183,22 @@ export default function Dashboard({ initialUser }) {
                   </div>
                 </div>
 
-                <h3 style={{ fontSize: '12px', color: C.w40, margin: '20px 0 12px' }}>{t(lang, 'courseContent')}</h3>
+                {/* Lesson search */}
+                <div style={{ margin: '20px 0 12px', position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={lessonSearch}
+                    onChange={e => setLessonSearch(e.target.value)}
+                    placeholder={lang === 'ar' ? '🔍 ابحث في الدروس...' : '🔍 Search lessons...'}
+                    style={{ width: '100%', background: C.surface, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '10px 16px', color: C.white, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
 
-                {courseLessons.map((lesson, i) => {
+                {courseLessons.map((lesson, i) => ({ lesson, i })).filter(({ lesson }) => {
+                  if (!lessonSearch) return true
+                  const q = lessonSearch.toLowerCase()
+                  return (lesson.title||'').toLowerCase().includes(q) || (lesson.titleEn||'').toLowerCase().includes(q)
+                }).map(({ lesson, i }) => {
                   const completed  = user.progress[lesson.id]
                   const accessible = canAccess(lesson, i)
                   const title    = lang === 'ar' ? (lesson.title || lesson.titleEn) : (lesson.titleEn || lesson.title)
@@ -1160,6 +1255,7 @@ export default function Dashboard({ initialUser }) {
                     <>
                       {/* ── Video player ── */}
                       <video
+                        ref={videoRef}
                         src={videoUrl}
                         controls
                         controlsList="nodownload noremoteplayback"
@@ -1212,6 +1308,18 @@ export default function Dashboard({ initialUser }) {
                     </>
                   )}
                 </div>
+                {/* ── Video speed control ── */}
+                {videoUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 4px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12px', color: C.silver, fontWeight: '600' }}>{lang === 'ar' ? 'سرعة الفيديو:' : 'Speed:'}</span>
+                    {[0.75, 1, 1.25, 1.5, 2].map(s => (
+                      <button key={s} onClick={() => { setVideoSpeed(s); if (videoRef.current) videoRef.current.playbackRate = s }} style={{ padding: '4px 12px', borderRadius: '8px', border: `1px solid ${videoSpeed === s ? C.gold : C.lk30}`, background: videoSpeed === s ? C.g15 : 'transparent', color: videoSpeed === s ? C.gold : C.silver, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
+                        {s}×
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ padding: '20px 0' }}>
                   <h2 style={{ fontSize: '19px', fontWeight: '800', marginBottom: '10px', color: C.white }}>
                     {lang === 'ar' ? (activeLesson.title || activeLesson.titleEn) : (activeLesson.titleEn || activeLesson.title)}
@@ -1256,19 +1364,53 @@ export default function Dashboard({ initialUser }) {
 
             {/* ── QUIZ RESULT ── */}
             {view === 'quizResult' && quizResult && (
-              <div style={{ textAlign: 'center', maxWidth: '500px', margin: '0 auto' }} className="bounce-in">
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>
-                  {quizResult.score >= 80 ? '🏆' : quizResult.score >= 60 ? '👍' : '💪'}
+              <div style={{ maxWidth: '560px', margin: '0 auto' }} className="bounce-in">
+                {/* Score header */}
+                <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                  <div style={{ fontSize: '56px', marginBottom: '8px' }}>
+                    {quizResult.score >= 80 ? '🏆' : quizResult.score >= 60 ? '👍' : '💪'}
+                  </div>
+                  <div style={{ fontSize: '48px', fontWeight: '900', marginBottom: '6px', color: quizResult.score >= 80 ? C.gold : quizResult.score >= 60 ? C.goldL : C.red }}>
+                    {quizResult.score}%
+                  </div>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: C.white, marginBottom: '4px' }}>
+                    {quizResult.score >= 80 ? t(lang, 'excellent') : quizResult.score >= 60 ? t(lang, 'good') : t(lang, 'retry')}
+                  </p>
+                  <p style={{ color: C.w40, fontSize: '13px' }}>{quizResult.correct} {t(lang, 'correctFrom')} {quizResult.total}</p>
                 </div>
-                <div style={{ fontSize: '56px', fontWeight: '900', marginBottom: '8px', color: quizResult.score >= 80 ? C.gold : quizResult.score >= 60 ? C.goldL : C.red }}>
-                  {quizResult.score}%
-                </div>
-                <p style={{ fontSize: '16px', fontWeight: '700', color: C.white, marginBottom: '6px' }}>
-                  {quizResult.score >= 80 ? t(lang, 'excellent') : quizResult.score >= 60 ? t(lang, 'good') : t(lang, 'retry')}
-                </p>
-                <p style={{ color: C.w40, fontSize: '14px', marginBottom: '28px' }}>
-                  {quizResult.correct} {t(lang, 'correctFrom')} {quizResult.total}
-                </p>
+
+                {/* Answer review */}
+                {quizResult.results && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '13px', color: C.silver, fontWeight: '700', marginBottom: '14px', borderBottom: `1px solid ${C.lk30}`, paddingBottom: '8px' }}>
+                      {lang === 'ar' ? '📋 مراجعة الإجابات' : '📋 Answer Review'}
+                    </h4>
+                    {quizResult.results.map((r, i) => (
+                      <div key={i} style={{ background: r.isCorrect ? 'rgba(46,204,113,0.06)' : 'rgba(252,129,129,0.06)', border: `1px solid ${r.isCorrect ? 'rgba(46,204,113,0.2)' : 'rgba(252,129,129,0.2)'}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '10px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: '700', color: C.white, marginBottom: '10px', lineHeight: 1.5 }}>
+                          {i + 1}. {r.question}
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <span style={{ fontSize: '14px', flexShrink: 0 }}>{r.isCorrect ? '✅' : '❌'}</span>
+                            <span style={{ fontSize: '12px', color: r.isCorrect ? C.emerald : C.red }}>
+                              {lang === 'ar' ? 'إجابتك: ' : 'Your answer: '}<strong>{r.yourAnswer}</strong>
+                            </span>
+                          </div>
+                          {!r.isCorrect && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                              <span style={{ fontSize: '14px', flexShrink: 0 }}>✔️</span>
+                              <span style={{ fontSize: '12px', color: C.emerald }}>
+                                {lang === 'ar' ? 'الإجابة الصحيحة: ' : 'Correct answer: '}<strong>{r.correctAnswer}</strong>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <button onClick={() => setView('lessons')} style={BTN.complete}>{t(lang, 'backToLessons')}</button>
               </div>
             )}
@@ -1309,6 +1451,9 @@ export async function getServerSideProps({ req }) {
         phone:  user.phone  || '',
         gender: user.gender || '',
         photo:  user.photo  || '',
+        subscriptionType:   user.subscriptionType   || 'permanent',
+        subscriptionExpiry: user.subscriptionExpiry || null,
+        lastActiveAt: user.lastActiveAt || null,
       }
     }
   }

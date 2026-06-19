@@ -44,6 +44,11 @@ export default async function handler(req, res) {
 
   setSessionCookie(res, token)
 
+  // Track last login (fire-and-forget)
+  import('../../../lib/users-store').then(({ updateUser }) =>
+    updateUser(username.toLowerCase().trim(), { lastLoginAt: new Date().toISOString() })
+  )
+
   return res.status(200).json({
     success: true,
     user: { username: username.toLowerCase().trim(), name: user.name, role: user.role, avatar: user.avatar }

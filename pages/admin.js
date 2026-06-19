@@ -749,8 +749,55 @@ function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, o
   )
 }
 
+// ─── Edit Student Modal ────────────────────────────────────────────────────
+function EditStudentModal({ student, lang, onClose, onSave }) {
+  const [name,     setName]     = useState(student.name)
+  const [password, setPassword] = useState('')
+  const [saving,   setSaving]   = useState(false)
+  const [msg,      setMsg]      = useState('')
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true); setMsg('')
+    const body = { username: student.username, action: 'editInfo' }
+    if (name.trim() && name.trim() !== student.name) body.name = name.trim()
+    if (password) body.newPassword = password
+    if (!body.name && !body.newPassword) { setMsg(lang === 'ar' ? 'لا توجد تغييرات' : 'No changes'); setSaving(false); return }
+    const res = await fetch('/api/admin/students', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json()
+    setSaving(false)
+    if (res.ok) { onSave(student.username, body.name || student.name); onClose() }
+    else setMsg(data.error || 'خطأ')
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,26,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '440px', boxShadow: `0 0 60px rgba(201,168,76,0.1)` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ color: C.white, fontWeight: '800', fontSize: '16px' }}>✏️ {lang === 'ar' ? `تعديل — ${student.name}` : `Edit — ${student.name}`}</h3>
+          <button onClick={onClose} style={{ background: C.lk20, border: 'none', borderRadius: '10px', padding: '7px 12px', color: C.silver, cursor: 'pointer' }}>✕</button>
+        </div>
+        {msg && <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', fontSize: '13px', fontWeight: '600', background: 'rgba(252,129,129,0.1)', border: '1px solid rgba(252,129,129,0.3)', color: C.red }}>{msg}</div>}
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'الاسم الكامل' : 'Full Name'}</label>
+            <input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '11px 14px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', color: C.silver, fontSize: '12px', marginBottom: '6px' }}>{lang === 'ar' ? 'كلمة مرور جديدة (اتركها فارغة لعدم التغيير)' : 'New Password (leave blank to keep)'}</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={lang === 'ar' ? 'اتركها فارغة' : 'Leave blank'} style={{ width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '11px 14px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <button type="submit" disabled={saving} style={{ padding: '12px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '12px', color: C.navy, fontSize: '14px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? '⏳...' : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── Subscriptions Tab ────────────────────────────────────────────────────
-function SubscriptionsTab({ students, lang, onRefresh }) {
+function SubscriptionsTab({ students, lang, onRefresh, onRenew }) {
   const [addOpen,  setAddOpen]  = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [deleting, setDeleting] = useState(null)
@@ -913,9 +960,14 @@ function SubscriptionsTab({ students, lang, onRefresh }) {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <button onClick={() => removeSubscriber(s.username)} disabled={deleting === s.username} style={{ background: 'rgba(252,129,129,0.1)', border: `1px solid ${C.red}`, borderRadius: '8px', color: C.red, padding: '5px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
-                        {deleting === s.username ? '⏳' : '🗑️'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <button onClick={() => onRenew(s.username)} style={{ background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '8px', color: C.emerald, padding: '5px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                          🔄 {lang === 'ar' ? '+30 يوم' : '+30d'}
+                        </button>
+                        <button onClick={() => removeSubscriber(s.username)} disabled={deleting === s.username} style={{ background: 'rgba(252,129,129,0.1)', border: `1px solid ${C.red}`, borderRadius: '8px', color: C.red, padding: '5px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                          {deleting === s.username ? '⏳' : '🗑️'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -943,6 +995,9 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const [detailStudent, setDetailStudent] = useState(null)
   const [sidebarOpen,   setSidebarOpen]   = useState(false)
   const [mounted,       setMounted]       = useState(false)
+  const [editStudent,      setEditStudent]      = useState(null)
+  const [studentSearch,    setStudentSearch]    = useState('')
+  const [selectedStudents, setSelectedStudents] = useState(new Set())
 
   useEffect(() => setMounted(true), [])
 
@@ -1003,9 +1058,42 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
     }
   }
 
+  async function renewSubscription(username) {
+    const res = await fetch('/api/admin/students', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, action: 'renewSubscription' }) })
+    if (res.ok) {
+      const data = await res.json()
+      setStudents(s => s.map(x => x.username === username ? { ...x, subscriptionExpiry: data.subscriptionExpiry } : x))
+    }
+  }
+
+  async function resetStudentProgress(username, name) {
+    if (!confirm(lang === 'ar' ? `إعادة تعيين تقدم ${name}؟ لا يمكن التراجع.` : `Reset ${name}'s progress? This cannot be undone.`)) return
+    const res = await fetch('/api/admin/students', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, action: 'resetProgress' }) })
+    if (res.ok) setStudents(s => s.map(x => x.username === username ? { ...x, progress: {}, quizScores: {} } : x))
+  }
+
+  function editStudentSaved(username, newName) {
+    setStudents(s => s.map(x => x.username === username ? { ...x, name: newName } : x))
+    if (detailStudent?.username === username) setDetailStudent(d => ({ ...d, name: newName }))
+  }
+
+  async function bulkDeleteStudents() {
+    if (!selectedStudents.size) return
+    if (!confirm(lang === 'ar' ? `حذف ${selectedStudents.size} طالب؟` : `Delete ${selectedStudents.size} students?`)) return
+    for (const username of selectedStudents) {
+      await fetch('/api/admin/students', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) })
+    }
+    setStudents(s => s.filter(x => !selectedStudents.has(x.username)))
+    setSelectedStudents(new Set())
+  }
+
   const totalLessons   = initialLessons.length
   const activeStudents = students.filter(s => Object.values(s.progress || {}).some(Boolean)).length
   const totalNotes     = students.reduce((a, s) => a + Object.keys(s.notes || {}).length, 0)
+  const filteredStudents = students.filter(s =>
+    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.username.toLowerCase().includes(studentSearch.toLowerCase())
+  )
 
   const tabs = [
     { key: 'students',      icon: '👥', label: lang==='ar'?'الطلاب':'Students'              },
@@ -1036,6 +1124,14 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           onClose={() => setDetailStudent(null)}
           onChangeCourse={changeStudentCourse}
           onDelete={deleteStudent}
+        />
+      )}
+      {editStudent && (
+        <EditStudentModal
+          student={editStudent}
+          lang={lang}
+          onClose={() => setEditStudent(null)}
+          onSave={editStudentSaved}
         />
       )}
 
@@ -1150,26 +1246,56 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           {/* ── STUDENTS ── */}
           {tab === 'students' && (
             <div>
-              {/* Export buttons */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {/* Toolbar */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px', alignItems: 'center' }}>
                 <button onClick={() => exportStudentsCSV(students, initialLessons, lang)} disabled={!students.length} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: students.length ? 'pointer' : 'not-allowed', background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', color: C.emerald, fontSize: '12px', fontWeight: '700', opacity: students.length ? 1 : 0.5 }}>
                   📥 {lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
                 </button>
                 <button onClick={() => exportStudentsPDF(students, initialLessons, lang)} disabled={!students.length} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: students.length ? 'pointer' : 'not-allowed', background: C.g10, border: `1px solid ${C.g20}`, color: C.gold, fontSize: '12px', fontWeight: '700', opacity: students.length ? 1 : 0.5 }}>
                   🖨 {lang === 'ar' ? 'تقرير PDF' : 'PDF Report'}
                 </button>
+                {selectedStudents.size > 0 && (
+                  <button onClick={bulkDeleteStudents} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(252,129,129,0.1)', border: '1px solid rgba(252,129,129,0.3)', color: C.red, fontSize: '12px', fontWeight: '700' }}>
+                    🗑 {lang === 'ar' ? `حذف المحددين (${selectedStudents.size})` : `Delete Selected (${selectedStudents.size})`}
+                  </button>
+                )}
               </div>
+
+              {/* Search */}
+              <div style={{ marginBottom: '14px' }}>
+                <input
+                  value={studentSearch}
+                  onChange={e => setStudentSearch(e.target.value)}
+                  placeholder={lang === 'ar' ? '🔍 ابحث بالاسم أو اسم المستخدم...' : '🔍 Search by name or username...'}
+                  style={{ width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '11px 16px', color: C.white, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              {studentSearch && (
+                <p style={{ color: C.silver, fontSize: '12px', marginBottom: '12px' }}>
+                  {lang === 'ar' ? `عرض ${filteredStudents.length} من ${students.length}` : `Showing ${filteredStudents.length} of ${students.length}`}
+                </p>
+              )}
 
               {students.length === 0
                 ? <div style={{ textAlign: 'center', padding: '48px', color: C.silver }}><div style={{ fontSize: '48px', marginBottom: '12px' }}>👥</div><p>{lang === 'ar' ? 'لا يوجد طلاب' : 'No students yet'}</p></div>
-                : students.map(student => {
+                : filteredStudents.map(student => {
                   const done = Object.values(student.progress || {}).filter(Boolean).length
                   const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
                   const noteCount = Object.keys(student.notes || {}).length
                   const cm = COURSE_OPTIONS.find(c => c.value === student.allowedCourse)
+                  const isSelected = selectedStudents.has(student.username)
                   return (
-                    <div key={student.username} style={{ background: C.surface, borderRadius: '16px', padding: '18px', marginBottom: '12px', border: `1px solid ${C.g15}` }}>
+                    <div key={student.username} style={{ background: C.surface, borderRadius: '16px', padding: '18px', marginBottom: '12px', border: `1px solid ${isSelected ? C.g30 : C.g15}`, outline: isSelected ? `2px solid ${C.gold}` : 'none', outlineOffset: '-1px', transition: 'outline 0.15s' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                        {/* Checkbox */}
+                        <input type="checkbox" checked={isSelected} onChange={() => {
+                          setSelectedStudents(prev => {
+                            const next = new Set(prev)
+                            if (next.has(student.username)) next.delete(student.username)
+                            else next.add(student.username)
+                            return next
+                          })
+                        }} style={{ width: '16px', height: '16px', accentColor: C.gold, cursor: 'pointer', flexShrink: 0 }} />
                         <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.g15, border: `2px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                           {student.photo ? <img src={student.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '14px', fontWeight: '700' }}>{student.avatar}</span>}
                         </div>
@@ -1178,11 +1304,13 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                             <span onClick={() => setDetailStudent(student)} style={{ fontWeight: '800', fontSize: '15px', color: C.white, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'color .2s' }} onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.textDecorationColor = C.gold }} onMouseLeave={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.textDecorationColor = 'transparent' }}>{student.name}</span>
                             {student.gender && <span style={{ fontSize: '14px' }}>{student.gender === 'female' ? '👩' : '👨'}</span>}
                             {cm && <span style={{ fontSize: '11px', background: C.g10, color: C.gold, padding: '2px 10px', borderRadius: '20px', border: `1px solid ${C.g20}` }}>{cm.icon} {lang === 'ar' ? cm.labelAr : cm.labelEn}</span>}
+                            {student.subscriptionType === 'monthly' && <span style={{ fontSize: '11px', background: 'rgba(183,148,244,0.1)', color: C.purple, padding: '2px 10px', borderRadius: '20px', border: '1px solid rgba(183,148,244,0.2)' }}>🗓️ {lang === 'ar' ? 'شهري' : 'Monthly'}</span>}
                           </div>
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '12px', color: C.silver }}>
                             <span>@{student.username}</span>
                             {student.phone && <span>📞 {student.phone}</span>}
                             <span>📅 {student.joinedAt}</span>
+                            {student.lastLoginAt && <span>🕐 {lang === 'ar' ? 'آخر دخول: ' : 'Last login: '}{new Date(student.lastLoginAt).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB')}</span>}
                           </div>
                         </div>
                         <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -1198,7 +1326,13 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                           📝 {lang === 'ar' ? 'الملاحظات' : 'Notes'}
                           {noteCount > 0 && <span style={{ background: C.gold, color: C.navy, borderRadius: '999px', padding: '1px 7px', fontSize: '11px', fontWeight: '900' }}>{noteCount}</span>}
                         </button>
-                        <button onClick={() => deleteStudent(student.username, student.name)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(252,129,129,0.08)', border: '1px solid rgba(252,129,129,0.2)', color: C.red, fontSize: '12px', fontWeight: '700', marginRight: 'auto' }}>
+                        <button onClick={() => setEditStudent(student)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(183,148,244,0.08)', border: '1px solid rgba(183,148,244,0.2)', color: C.purple, fontSize: '12px', fontWeight: '700' }}>
+                          ✏️ {lang === 'ar' ? 'تعديل' : 'Edit'}
+                        </button>
+                        <button onClick={() => resetStudentProgress(student.username, student.name)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(246,173,85,0.08)', border: '1px solid rgba(246,173,85,0.2)', color: '#F6AD55', fontSize: '12px', fontWeight: '700' }}>
+                          🔄 {lang === 'ar' ? 'إعادة التعيين' : 'Reset'}
+                        </button>
+                        <button onClick={() => deleteStudent(student.username, student.name)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '10px', cursor: 'pointer', background: 'rgba(252,129,129,0.08)', border: '1px solid rgba(252,129,129,0.2)', color: C.red, fontSize: '12px', fontWeight: '700', marginInlineStart: 'auto' }}>
                           🗑 {lang === 'ar' ? 'حذف' : 'Delete'}
                         </button>
                       </div>
@@ -1210,7 +1344,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           )}
 
           {/* ── ANALYTICS ── */}
-          {tab === 'subscriptions' && <SubscriptionsTab students={students} lang={lang} onRefresh={refreshStudents} />}
+          {tab === 'subscriptions' && <SubscriptionsTab students={students} lang={lang} onRefresh={refreshStudents} onRenew={renewSubscription} />}
 
           {tab === 'analytics' && <AnalyticsTab students={students} lessons={initialLessons} lang={lang} mounted={mounted} />}
 

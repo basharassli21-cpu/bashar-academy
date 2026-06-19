@@ -13,7 +13,8 @@ async function handler(req, res) {
   if (!user) return res.status(401).json({ error: 'مستخدم غير موجود' })
 
   const progress = { ...(user.progress || {}), [lessonId]: true }
-  await updateUser(req.user.username, { progress })
+  const today = new Date().toISOString().split('T')[0]
+  await updateUser(req.user.username, { progress, lastActiveAt: today })
 
   const completed = Object.values(progress).filter(Boolean).length
   const total = LESSONS.length

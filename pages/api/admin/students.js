@@ -1,5 +1,5 @@
 import { requireAuth } from '../../../lib/auth'
-import { hashPassword } from '../../../lib/db'
+import { hashPassword, verifyPassword } from '../../../lib/db'
 import { getAllUsers, createUser, deleteUser, getUser, updateUser } from '../../../lib/users-store'
 
 const VALID_COURSES = ['elite', 'professional', 'starter']
@@ -24,6 +24,8 @@ async function handler(req, res) {
         joinedAt: u.joinedAt || '',
         subscriptionType: u.subscriptionType || 'permanent',
         subscriptionExpiry: u.subscriptionExpiry || null,
+        lastLoginAt: u.lastLoginAt || null,
+        lastActiveAt: u.lastActiveAt || null,
       }))
     return res.status(200).json({ students })
   }
@@ -75,10 +77,32 @@ async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { username, allowedCourse } = req.body
+    const { username, allowedCourse, action, name, newPassword, subscriptionExpiry } = req.body
     const user = await getUser(username)
-    if (!username || !user) {
-      return res.status(404).json({ error: 'مستخدم غير موجود' })
+    if (!username || !user) return res.status(404).json({ error: 'مستخدم غير موجود' })
+
+    if (action === 'resetProgress') {
+      await updateUser(username, { progress: {}, quizScores: {} })
+      return res.status(200).json({ success: true })
+    }
+    if (action === 'editInfo') {
+      const updates = {}
+      if (name && name.trim()) updates.name = name.trim()
+      if (newPassword) {
+        if (newPassword.length < 6) return res.status(400).json({ error: 'كلمة المرور: 6 أحرف على الأقل' })
+        updates.passwordHash = await hashPassword(newPassword)
+      }
+      if (!updates.name && !updates.passwordHash) return res.status(400).json({ error: 'لا توجد بيانات للتحديث' })
+      await updateUser(username, updates)
+      return res.status(200).json({ success: true })
+    }
+    if (action === 'renewSubscription') {
+      const current = user.subscriptionExpiry && new Date(user.subscriptionExpiry) > new Date()
+        ? new Date(user.subscriptionExpiry)
+        : new Date()
+      current.setDate(current.getDate() + 30)
+      await updateUser(username, { subscriptionExpiry: current.toISOString().split('T')[0] })
+      return res.status(200).json({ success: true, subscriptionExpiry: current.toISOString().split('T')[0] })
     }
     if (!allowedCourse || !VALID_COURSES.includes(allowedCourse)) {
       return res.status(400).json({ error: 'دورة غير صالحة' })
