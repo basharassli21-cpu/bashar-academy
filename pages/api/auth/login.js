@@ -30,6 +30,11 @@ export default async function handler(req, res) {
 
   if (!user || !valid) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور خاطئة' })
 
+  if (user.subscriptionType === 'monthly' && user.subscriptionExpiry) {
+    const expired = new Date(user.subscriptionExpiry) < new Date()
+    if (expired) return res.status(403).json({ error: 'انتهت صلاحية اشتراكك. تواصل مع الإدارة للتجديد.' })
+  }
+
   const token = createToken({
     username: username.toLowerCase().trim(),
     name: user.name,

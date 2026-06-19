@@ -12,6 +12,7 @@ export default function LandingPage() {
   const [lang,     setLang]     = useState('ar')
   const [playing,  setPlaying]  = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState(0)
 
   useEffect(() => {
     const saved = localStorage.getItem('bashar_lang') || 'ar'
@@ -223,8 +224,12 @@ export default function LandingPage() {
         .course-card::before{content:"";position:absolute;top:0;right:0;left:0;height:3px;
           background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:.4s}
         .course-card:hover::before,.course-card.feat::before{opacity:1}
-        .course-card.feat{background:linear-gradient(160deg,rgba(202,162,83,.10),var(--bg2) 60%);border-color:rgba(202,162,83,.35)}
+        .course-card.feat{background:linear-gradient(160deg,rgba(202,162,83,.10),var(--bg2) 60%);border-color:rgba(202,162,83,.35);overflow:visible}
         .course-card.feat .course-badge{background:linear-gradient(105deg,var(--gold-2),var(--gold));color:#1a1407;border:none}
+        .course-ribbon{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);
+          background:linear-gradient(105deg,var(--gold-2),var(--gold));color:#1a1407;font-size:12px;font-weight:800;
+          letter-spacing:.03em;padding:7px 22px;border-radius:999px;white-space:nowrap;
+          box-shadow:0 8px 20px -8px rgba(202,162,83,.7)}
         .course-badge{display:inline-flex;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
           border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-weight:700;margin-bottom:20px}
         .course-emoji{font-size:30px;margin-bottom:14px;display:block}
@@ -423,7 +428,7 @@ export default function LandingPage() {
         </div>
         {menuOpen && (
           <div style={{background:'var(--bg2)',borderTop:'1px solid var(--line-soft)',padding:'16px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
-            {[['#about',tx('القصة','Story')],['#steps',tx('كيف تبدأ','How it works')],['#courses',tx('الدورات','Courses')],['#faq',tx('الأسئلة','FAQ')],['#testimonials',tx('آراء الطلاب','Reviews')]].map(([href,label])=>(
+            {[['#about',tx('القصة','Story')],['#steps',tx('كيف تبدأ','How it works')],['#courses',tx('الدورات','Courses')],['#faq',tx('الأسئلة','FAQ')],['#results',tx('نتائج الطلاب','Results')]].map(([href,label])=>(
               <a key={href} href={href} onClick={()=>setMenuOpen(false)} style={{color:'var(--muted)',fontSize:'17px'}}>{label}</a>
             ))}
             <a href="/login" style={{color:'var(--gold)',fontWeight:'700'}}>{tx('دخول الطلاب','Student Login')}</a>
@@ -492,7 +497,7 @@ export default function LandingPage() {
         <section className="video-band" id="intro">
           <div className="wrap reveal">
             <div className="video-outer" onClick={() => YT_ID ? setPlaying(true) : window.open('https://www.youtube.com/@coachbasharalasali','_blank')}>
-              <span className="video-label">{tx('فيديو تعريفي — الكوتش بشار', 'Intro video — Coach Bashar')}</span>
+              <span className="video-label">{YT_ID ? tx('فيديو تعريفي — الكوتش بشار', 'Intro video — Coach Bashar') : tx('قناة الكوتش بشار', 'Coach Bashar\'s channel')}</span>
               {playing && YT_ID
                 ? <iframe src={`https://www.youtube.com/embed/${YT_ID}?autoplay=1`} allow="autoplay; fullscreen" allowFullScreen title="intro" />
                 : (
@@ -500,10 +505,22 @@ export default function LandingPage() {
                     <div className="glow" />
                     <img src="/bashar-portrait.jpg" alt="بشار" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',opacity:0.18,pointerEvents:'none'}} />
                     <div className="bigplay" role="button" tabIndex={0} style={{zIndex:2}}>
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      {YT_ID
+                        ? <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+                      }
                     </div>
-                    <h3 style={{position:'relative',zIndex:2}}>{tx('تعرّف على بشار في 90 ثانية', 'Meet Bashar in 90 seconds')}</h3>
-                    <p style={{position:'relative',zIndex:2}}>{tx('قصتي وكيف بدأت على eBay', 'My story and how I started on eBay')}</p>
+                    {YT_ID ? (
+                      <>
+                        <h3 style={{position:'relative',zIndex:2}}>{tx('تعرّف على بشار في 90 ثانية', 'Meet Bashar in 90 seconds')}</h3>
+                        <p style={{position:'relative',zIndex:2}}>{tx('قصتي وكيف بدأت على eBay', 'My story and how I started on eBay')}</p>
+                      </>
+                    ) : (
+                      <>
+                        <h3 style={{position:'relative',zIndex:2}}>{tx('شاهد المزيد على قناة يوتيوب', 'Watch more on our YouTube channel')}</h3>
+                        <p style={{position:'relative',zIndex:2}}>{tx('فيديوهات ونصائح من الكوتش بشار', 'Videos and tips from Coach Bashar')}</p>
+                      </>
+                    )}
                   </div>
                 )
               }
@@ -576,7 +593,7 @@ export default function LandingPage() {
                     tx('حل المشاكل والعقبات الشائعة','Solving common obstacles'),
                   ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <a className="btn btn-ghost" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
+                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(0)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
               {/* ── Professional ── */}
@@ -599,11 +616,12 @@ export default function LandingPage() {
                     tx('توجيه مستمر لتجنب الأخطاء المكلفة','Guidance to avoid costly mistakes'),
                   ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <a className="btn btn-ghost" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
+                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(1)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
               {/* ── Elite ── */}
               <div className="course-card feat reveal">
+                <span className="course-ribbon">🔥 {tx('الأكثر طلباً', 'Most popular')}</span>
                 <span className="course-badge">👑 {tx('الباقة الكاملة', 'Elite Program')}</span>
                 <div className="course-tier">{tx('Elite Program', 'Elite Program')}</div>
                 <h3>{tx('الباقة الكاملة', 'Elite Package')}</h3>
@@ -623,7 +641,7 @@ export default function LandingPage() {
                     tx('الوصول إلى المنهج الكامل من الصفر حتى الاحتراف','Full curriculum from zero to mastery'),
                   ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <a className="btn btn-gold" href="#booking">{tx('سجّل الآن', 'Enroll now')}</a>
+                <a className="btn btn-gold" href="#booking" onClick={() => setSelectedPlan(2)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
             </div>
@@ -701,6 +719,7 @@ export default function LandingPage() {
                 [tx('متى أرى النتائج؟','When will I see results?'), tx('يعتمد على التزامك وتطبيقك. الطلاب الذين يطبّقون باستمرار يرون أول طلباتهم غالباً خلال أسابيع.','It depends on your commitment. Students who apply consistently often see their first orders within weeks.')],
                 [tx('ما الفرق بين الدورة والاشتراك الشهري؟','What\'s the difference between the course and the subscription?'), tx('الدورة الشاملة هي المنهج كاملاً بوصول دائم. الاشتراك يضيف متابعة مستمرة واستراتيجيات جديدة.','The complete course is the full method with lifetime access. The subscription adds ongoing mentorship.')],
                 [tx('كيف أحصل على الدعم إن واجهت مشكلة؟','How do I get support if I\'m stuck?'), tx('عبر المتابعة المباشرة وجلسات المتابعة ومجتمع الطلاب، وعبر واتساب لأي عائق أثناء التطبيق.','Through direct mentorship, follow-up sessions, the students community, and WhatsApp for any blocker.')],
+                [tx('ماذا لو لم تناسبني الدورة؟ هل يوجد ضمان؟','What if the course isn\'t right for me? Is there a guarantee?'), tx('قبل التسجيل نوضح لك محتوى كل باقة بالتفصيل عبر استشارة مباشرة لتتأكد من ملاءمتها لك. لأي استفسار بعد التسجيل، نحن على واتساب لمساعدتك.','Before enrolling, we walk you through each package in detail via a direct consultation so you can be sure it fits you. For any concern after enrolling, we\'re on WhatsApp to help.')],
               ].map(([q, a, open], i) => (
                 <details className="faq-item" key={i} open={!!open}>
                   <summary><span>{q}</span><span className="pm">+</span></summary>
@@ -726,7 +745,7 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-              <BookingForm lang={lang} tx={tx} />
+              <BookingForm lang={lang} tx={tx} selectedPlan={selectedPlan} />
             </div>
           </div>
         </section>
@@ -795,16 +814,20 @@ export default function LandingPage() {
 }
 
 // ── Booking form component ────────────────────────────────────────────────
-function BookingForm({ lang, tx }) {
+function BookingForm({ lang, tx, selectedPlan }) {
   const ar = lang === 'ar'
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [plan, setPlan] = useState('0')
   const [note, setNote] = useState('')
 
+  useEffect(() => {
+    if (selectedPlan !== undefined) setPlan(String(selectedPlan))
+  }, [selectedPlan])
+
   function submit(e) {
     e.preventDefault()
-    const plans = [tx('الدورة الشاملة على eBay','The complete eBay course'), tx('الاشتراك الشهري','Monthly subscription'), tx('لست متأكداً — انصحني','Not sure yet — advise me')]
+    const plans = [tx('باقة التنفيذ — Starter','Starter Package'), tx('الباقة المتوسطة — Professional','Professional Package'), tx('الباقة الكاملة — Elite','Elite Package'), tx('لست متأكداً — انصحني','Not sure yet — advise me')]
     const msg = ar
       ? `مرحباً كوتش بشار، أنا ${name}. مهتم بـ: ${plans[plan]}. رقم واتسابي: ${phone}.${note ? ` ملاحظة: ${note}` : ''}`
       : `Hello Coach Bashar, I'm ${name}. Interested in: ${plans[plan]}. My WhatsApp: ${phone}.${note ? ` Note: ${note}` : ''}`
@@ -826,9 +849,10 @@ function BookingForm({ lang, tx }) {
       <div className="field">
         <label>{tx('الباقة التي تهمّك', 'Which plan interests you?')}</label>
         <select value={plan} onChange={e=>setPlan(e.target.value)}>
-          <option value="0">{tx('الدورة الشاملة على eBay','The complete eBay course')}</option>
-          <option value="1">{tx('الاشتراك الشهري','Monthly subscription')}</option>
-          <option value="2">{tx('لست متأكداً — انصحني','Not sure yet — advise me')}</option>
+          <option value="0">{tx('باقة التنفيذ — Starter (40 د / 60$)','Starter Package (40 JD / $60)')}</option>
+          <option value="1">{tx('الباقة المتوسطة — Professional (75 د / 110$)','Professional Package (75 JD / $110)')}</option>
+          <option value="2">{tx('الباقة الكاملة — Elite (100 د / 140$)','Elite Package (100 JD / $140)')}</option>
+          <option value="3">{tx('لست متأكداً — انصحني','Not sure yet — advise me')}</option>
         </select>
       </div>
       <div className="field">

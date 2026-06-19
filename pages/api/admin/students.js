@@ -2,7 +2,7 @@ import { requireAuth } from '../../../lib/auth'
 import { hashPassword } from '../../../lib/db'
 import { getAllUsers, createUser, deleteUser, getUser, updateUser } from '../../../lib/users-store'
 
-const VALID_COURSES = ['comprehensive', 'intermediate', 'basic']
+const VALID_COURSES = ['elite', 'professional', 'starter']
 
 async function handler(req, res) {
 
@@ -22,17 +22,20 @@ async function handler(req, res) {
         notes: u.notes || {},
         allowedCourse: u.allowedCourse || null,
         joinedAt: u.joinedAt || '',
+        subscriptionType: u.subscriptionType || 'permanent',
+        subscriptionExpiry: u.subscriptionExpiry || null,
       }))
     return res.status(200).json({ students })
   }
 
   if (req.method === 'POST') {
-    const { username, password, name, allowedCourse } = req.body
+    const { username, password, name, allowedCourse, subscriptionType, subscriptionExpiry, joinedAt } = req.body
 
     if (!username || !password || !name) {
       return res.status(400).json({ error: 'يرجى ملء جميع الحقول' })
     }
-    if (!allowedCourse || !VALID_COURSES.includes(allowedCourse)) {
+    const isMonthly = subscriptionType === 'monthly'
+    if (!isMonthly && (!allowedCourse || !VALID_COURSES.includes(allowedCourse))) {
       return res.status(400).json({ error: 'يرجى اختيار الدورة المسموح بها' })
     }
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
@@ -49,19 +52,26 @@ async function handler(req, res) {
 
     const passwordHash = await hashPassword(password)
     const initials = name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('')
+    const resolvedCourse = isMonthly ? 'elite' : allowedCourse
 
-    await createUser(username.toLowerCase(), {
+    const userData = {
       name,
       avatar: initials,
       role: 'student',
       passwordHash,
       progress: {},
       quizScores: {},
-      allowedCourse,
-      joinedAt: new Date().toISOString().split('T')[0]
-    })
+      allowedCourse: resolvedCourse,
+      joinedAt: joinedAt || new Date().toISOString().split('T')[0],
+    }
+    if (isMonthly) {
+      userData.subscriptionType = 'monthly'
+      userData.subscriptionExpiry = subscriptionExpiry
+    }
 
-    return res.status(201).json({ success: true, student: { username, name, avatar: initials, allowedCourse } })
+    await createUser(username.toLowerCase(), userData)
+
+    return res.status(201).json({ success: true, student: { username, name, avatar: initials, allowedCourse: resolvedCourse } })
   }
 
   if (req.method === 'PATCH') {

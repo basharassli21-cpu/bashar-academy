@@ -26,9 +26,9 @@ const C = {
 }
 
 const COURSE_OPTIONS = [
-  { value: 'comprehensive', labelAr: 'الدورة الشاملة',  labelEn: 'Comprehensive', icon: '🏆', color: C.gold    },
-  { value: 'intermediate',  labelAr: 'الدورة المتوسطة', labelEn: 'Intermediate',  icon: '📈', color: C.purple  },
-  { value: 'basic',         labelAr: 'الدورة الأساسية', labelEn: 'Basic',         icon: '🌱', color: C.emerald },
+  { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: C.gold    },
+  { value: 'professional', labelAr: 'الباقة المتوسطة (Professional)', labelEn: 'Professional', icon: '⚡', color: C.purple  },
+  { value: 'starter',      labelAr: 'باقة التنفيذ (Starter)',   labelEn: 'Starter',      icon: '🚀', color: C.emerald },
 ]
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ function exportStudentsPDF(students, lessons, lang) {
     @media print{ body{padding:10px} }
   </style></head><body>
     <h1>📊 ${lang === 'ar' ? 'تقرير الطلاب الشهري' : 'Monthly Students Report'}</h1>
-    <p class="sub">COACH BASHAR ALASALI · ${dateStr}</p>
+    <p class="sub">BASHAR AL-ASALI · EBAY ACADEMY · ${dateStr}</p>
     <div class="kpis">${kpis.map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     <table><thead><tr>
       <th>${lang === 'ar' ? 'الاسم' : 'Name'}</th>
@@ -241,7 +241,7 @@ function openCertificate(student, lessons, lang) {
     @media print{ body{background:#fff} .cert{outline:none} @page{size:landscape} }
   </style></head><body>
     <div class="cert">
-      <div class="brand">COACH BASHAR ALASALI · EBAY ACADEMY</div>
+      <div class="brand">BASHAR AL-ASALI · EBAY ACADEMY</div>
       <h1>🏆 ${title}</h1>
       <div class="name">${student.name}</div>
       <p class="body">${body}</p>
@@ -749,6 +749,185 @@ function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, o
   )
 }
 
+// ─── Subscriptions Tab ────────────────────────────────────────────────────
+function SubscriptionsTab({ students, lang, onRefresh }) {
+  const [addOpen,  setAddOpen]  = useState(false)
+  const [loading,  setLoading]  = useState(false)
+  const [deleting, setDeleting] = useState(null)
+  const [msg,      setMsg]      = useState({ text: '', type: '' })
+  const today = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({ name: '', username: '', password: '', startDate: today })
+
+  const monthly = students.filter(s => s.subscriptionType === 'monthly')
+
+  function daysLeft(expiry) {
+    if (!expiry) return null
+    return Math.ceil((new Date(expiry) - new Date()) / 86_400_000)
+  }
+
+  function statusLabel(days) {
+    if (days === null) return { text: '—', color: C.silver }
+    if (days < 0)  return { text: lang === 'ar' ? `منتهي منذ ${Math.abs(days)} يوم` : `Expired ${Math.abs(days)}d ago`, color: C.red }
+    if (days === 0) return { text: lang === 'ar' ? 'ينتهي اليوم' : 'Expires today', color: '#F6AD55' }
+    if (days <= 7)  return { text: lang === 'ar' ? `ينتهي بعد ${days} أيام` : `${days}d left`, color: '#F6AD55' }
+    return { text: lang === 'ar' ? `${days} يوم متبقي` : `${days}d left`, color: C.emerald }
+  }
+
+  async function addSubscriber(e) {
+    e.preventDefault()
+    setLoading(true); setMsg({ text: '', type: '' })
+    const expiry = new Date(form.startDate)
+    expiry.setDate(expiry.getDate() + 30)
+    const subscriptionExpiry = expiry.toISOString().split('T')[0]
+    const res = await fetch('/api/admin/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: form.username, password: form.password, name: form.name, subscriptionType: 'monthly', subscriptionExpiry, joinedAt: form.startDate }),
+    })
+    const data = await res.json()
+    setLoading(false)
+    if (res.ok) {
+      setMsg({ text: lang === 'ar' ? `✅ تم إضافة ${form.name} — ينتهي اشتراكه ${subscriptionExpiry}` : `✅ ${form.name} added — expires ${subscriptionExpiry}`, type: 'success' })
+      setForm({ name: '', username: '', password: '', startDate: today })
+      setAddOpen(false)
+      onRefresh()
+    } else {
+      setMsg({ text: data.error || 'خطأ', type: 'error' })
+    }
+  }
+
+  async function removeSubscriber(username) {
+    if (!confirm(lang === 'ar' ? `حذف ${username}؟` : `Delete ${username}?`)) return
+    setDeleting(username)
+    await fetch('/api/admin/students', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) })
+    setDeleting(null)
+    onRefresh()
+  }
+
+  async function deleteExpired() {
+    const expired = monthly.filter(s => (daysLeft(s.subscriptionExpiry) ?? 0) < 0)
+    if (!expired.length) return
+    if (!confirm(lang === 'ar' ? `حذف ${expired.length} مشترك منتهي؟` : `Delete ${expired.length} expired subscribers?`)) return
+    for (const s of expired) {
+      await fetch('/api/admin/students', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: s.username }) })
+    }
+    onRefresh()
+  }
+
+  const expiredCount = monthly.filter(s => (daysLeft(s.subscriptionExpiry) ?? 0) < 0).length
+  const inputSt = { width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <h3 style={{ color: C.gold, fontSize: '16px', fontWeight: '800', margin: 0 }}>🗓️ {lang === 'ar' ? 'الاشتراكات الشهرية' : 'Monthly Subscriptions'}</h3>
+          <p style={{ color: C.silver, fontSize: '12px', marginTop: '4px' }}>{lang === 'ar' ? `${monthly.length} مشترك — يُحذف تلقائياً بعد انتهاء الشهر` : `${monthly.length} subscribers — auto-deleted on expiry`}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {expiredCount > 0 && (
+            <button onClick={deleteExpired} style={{ padding: '9px 16px', borderRadius: '10px', border: `1px solid ${C.red}`, background: 'rgba(252,129,129,0.1)', color: C.red, fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+              🗑️ {lang === 'ar' ? `حذف المنتهية (${expiredCount})` : `Delete Expired (${expiredCount})`}
+            </button>
+          )}
+          <button onClick={() => setAddOpen(v => !v)} style={{ padding: '9px 18px', borderRadius: '10px', border: 'none', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.navy, fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>
+            ➕ {lang === 'ar' ? 'إضافة مشترك' : 'Add Subscriber'}
+          </button>
+        </div>
+      </div>
+
+      {/* Message */}
+      {msg.text && (
+        <div style={{ padding: '12px 16px', borderRadius: '12px', marginBottom: '16px', fontSize: '13px', fontWeight: '600', background: msg.type === 'error' ? 'rgba(252,129,129,0.1)' : 'rgba(46,204,113,0.1)', border: `1px solid ${msg.type === 'error' ? 'rgba(252,129,129,0.3)' : 'rgba(46,204,113,0.3)'}`, color: msg.type === 'error' ? C.red : C.emerald }}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Add form */}
+      {addOpen && (
+        <div style={{ background: C.surface, borderRadius: '16px', padding: '20px', border: `1px solid ${C.g20}`, marginBottom: '20px' }}>
+          <h4 style={{ color: C.gold, fontSize: '14px', fontWeight: '800', marginBottom: '16px' }}>{lang === 'ar' ? 'إضافة مشترك شهري جديد' : 'New Monthly Subscriber'}</h4>
+          <form onSubmit={addSubscriber}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              {[[lang==='ar'?'الاسم الكامل':'Full Name','name','text'],[lang==='ar'?'اسم المستخدم (انجليزي)':'Username','username','text'],[lang==='ar'?'كلمة المرور':'Password','password','password']].map(([label,key,type]) => (
+                <div key={key}>
+                  <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>{label}</label>
+                  <input type={type} value={form[key]} required onChange={e => setForm({ ...form, [key]: e.target.value })} style={inputSt} />
+                </div>
+              ))}
+              <div>
+                <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>{lang === 'ar' ? 'تاريخ بدء الاشتراك' : 'Start Date'}</label>
+                <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} style={inputSt} />
+              </div>
+            </div>
+            <p style={{ color: C.silver, fontSize: '12px', marginBottom: '14px' }}>
+              {lang === 'ar' ? `⏳ ينتهي الاشتراك تلقائياً في: ` : '⏳ Auto-expires: '}
+              <strong style={{ color: C.gold }}>
+                {(() => { const d = new Date(form.startDate); d.setDate(d.getDate() + 30); return d.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB') })()}
+              </strong>
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" disabled={loading} style={{ flex: 1, padding: '12px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '12px', color: C.navy, fontSize: '14px', fontWeight: '900', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                {loading ? '⏳...' : (lang === 'ar' ? 'إضافة المشترك' : 'Add Subscriber')}
+              </button>
+              <button type="button" onClick={() => setAddOpen(false)} style={{ padding: '12px 20px', background: 'transparent', border: `1px solid ${C.lk30}`, borderRadius: '12px', color: C.silver, fontSize: '14px', cursor: 'pointer' }}>
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Subscribers table */}
+      {monthly.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: C.silver }}>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>🗓️</div>
+          <p style={{ fontWeight: '700' }}>{lang === 'ar' ? 'لا يوجد مشتركون شهريون حتى الآن' : 'No monthly subscribers yet'}</p>
+        </div>
+      ) : (
+        <div style={{ background: C.surface, borderRadius: '16px', border: `1px solid ${C.g20}`, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.g20}` }}>
+                {[lang==='ar'?'الطالب':'Student', lang==='ar'?'تاريخ البدء':'Start', lang==='ar'?'تاريخ الانتهاء':'Expiry', lang==='ar'?'الحالة':'Status', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '12px 16px', color: C.silver, fontWeight: '700', textAlign: 'right', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {monthly.map(s => {
+                const days = daysLeft(s.subscriptionExpiry)
+                const status = statusLabel(days)
+                return (
+                  <tr key={s.username} style={{ borderBottom: `1px solid ${C.lk20}` }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: '700', color: C.white }}>{s.name}</div>
+                      <div style={{ color: C.silver, fontSize: '11px' }}>@{s.username}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: C.silver }}>{s.joinedAt || '—'}</td>
+                    <td style={{ padding: '12px 16px', color: C.silver }}>{s.subscriptionExpiry || '—'}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ background: `${status.color}20`, color: status.color, padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                        {status.text}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <button onClick={() => removeSubscriber(s.username)} disabled={deleting === s.username} style={{ background: 'rgba(252,129,129,0.1)', border: `1px solid ${C.red}`, borderRadius: '8px', color: C.red, padding: '5px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                        {deleting === s.username ? '⏳' : '🗑️'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────
 export default function AdminPage({ initialStudents, initialLessons, adminUser }) {
   const router = useRouter()
@@ -756,7 +935,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
   const [students,      setStudents]      = useState(initialStudents)
   const [tab,           setTab]           = useState('students')
-  const [form,          setForm]          = useState({ name: '', username: '', password: '', allowedCourse: '' })
+  const [form,          setForm]          = useState({ name: '', username: '', password: '', allowedCourse: '', subscriptionType: 'lifetime', subscriptionStartDate: new Date().toISOString().split('T')[0] })
   const [formMsg,       setFormMsg]       = useState({ type: '', text: '' })
   const [loading,       setLoading]       = useState(false)
   const [refreshing,    setRefreshing]    = useState(false)
@@ -785,13 +964,29 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
   async function addStudent(e) {
     e.preventDefault()
-    if (!form.allowedCourse) { setFormMsg({ type: 'error', text: lang === 'ar' ? 'يرجى اختيار الدورة' : 'Select a course' }); return }
+    const isMonthly = form.subscriptionType === 'monthly'
+    if (!isMonthly && !form.allowedCourse) { setFormMsg({ type: 'error', text: lang === 'ar' ? 'يرجى اختيار الدورة' : 'Select a course' }); return }
     setLoading(true); setFormMsg({ type: '', text: '' })
-    const res = await fetch('/api/admin/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    const body = { name: form.name, username: form.username, password: form.password }
+    if (isMonthly) {
+      const expiry = new Date(form.subscriptionStartDate)
+      expiry.setDate(expiry.getDate() + 30)
+      body.subscriptionType = 'monthly'
+      body.subscriptionExpiry = expiry.toISOString().split('T')[0]
+      body.joinedAt = form.subscriptionStartDate
+    } else {
+      body.allowedCourse = form.allowedCourse
+    }
+    const res = await fetch('/api/admin/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setFormMsg({ type: 'error', text: data.error }) }
-    else { setFormMsg({ type: 'success', text: `✅ ${lang === 'ar' ? `تم إضافة ${form.name}` : `${form.name} added`}` }); setForm({ name: '', username: '', password: '', allowedCourse: '' }); await refreshStudents() }
+    else {
+      const expMsg = isMonthly ? ` — ${lang === 'ar' ? 'ينتهي' : 'expires'} ${body.subscriptionExpiry}` : ''
+      setFormMsg({ type: 'success', text: `✅ ${lang === 'ar' ? `تم إضافة ${form.name}` : `${form.name} added`}${expMsg}` })
+      setForm({ name: '', username: '', password: '', allowedCourse: '', subscriptionType: 'lifetime', subscriptionStartDate: new Date().toISOString().split('T')[0] })
+      await refreshStudents()
+    }
   }
 
   async function deleteStudent(username, name) {
@@ -813,17 +1008,24 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const totalNotes     = students.reduce((a, s) => a + Object.keys(s.notes || {}).length, 0)
 
   const tabs = [
-    { key: 'students',  icon: '👥', label: lang==='ar'?'الطلاب':'Students'     },
-    { key: 'analytics', icon: '📊', label: lang==='ar'?'التحليلات':'Analytics'  },
-    { key: 'lessons',   icon: '📚', label: lang==='ar'?'الدروس':'Lessons'       },
-    { key: 'add',       icon: '➕', label: lang==='ar'?'إضافة طالب':'Add Student'},
+    { key: 'students',      icon: '👥', label: lang==='ar'?'الطلاب':'Students'              },
+    { key: 'subscriptions', icon: '🗓️', label: lang==='ar'?'الاشتراكات الشهرية':'Subscriptions' },
+    { key: 'analytics',     icon: '📊', label: lang==='ar'?'التحليلات':'Analytics'           },
+    { key: 'lessons',       icon: '📚', label: lang==='ar'?'الدروس':'Lessons'                },
+    { key: 'add',           icon: '➕', label: lang==='ar'?'إضافة طالب':'Add Student'        },
   ]
 
   const inputStyle = { width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }
 
   return (
     <>
-      <Head><title>COACHBASHARALASALI — Admin</title><meta name="robots" content="noindex" /></Head>
+      <Head>
+        <title>{lang === 'ar' ? 'لوحة الإدارة — بشار العسلي' : 'Admin Panel — Bashar Al-Asali'}</title>
+        <meta name="robots" content="noindex" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+      </Head>
 
       {notesStudent && <NotesModal student={notesStudent} lessons={initialLessons} lang={lang} onClose={() => setNotesStudent(null)} />}
       {detailStudent && (
@@ -864,11 +1066,11 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
         }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '20px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ color: C.navy, fontWeight: '900', fontSize: '13px' }}>CB</span>
+            <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: `1px solid ${C.gold}`, background: `radial-gradient(circle at 30% 30%, ${C.g20}, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: C.gold, fontWeight: '700', fontSize: '17px', fontFamily: "'El Messiri',serif" }}>ب</span>
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ color: C.gold, fontWeight: '900', fontSize: '13px', letterSpacing: '0.5px' }}>COACH BASHAR</p>
+              <p style={{ color: C.gold, fontWeight: '900', fontSize: '13px', letterSpacing: '0.5px' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
               <p style={{ color: C.silver, fontSize: '10px' }}>{lang === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}</p>
             </div>
           </div>
@@ -1008,6 +1210,8 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           )}
 
           {/* ── ANALYTICS ── */}
+          {tab === 'subscriptions' && <SubscriptionsTab students={students} lang={lang} onRefresh={refreshStudents} />}
+
           {tab === 'analytics' && <AnalyticsTab students={students} lessons={initialLessons} lang={lang} mounted={mounted} />}
 
           {/* ── LESSONS ── */}
@@ -1021,24 +1225,68 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                 <div style={{ padding: '12px 16px', borderRadius: '12px', marginBottom: '16px', fontSize: '13px', fontWeight: '600', background: formMsg.type === 'error' ? 'rgba(252,129,129,0.1)' : 'rgba(46,204,113,0.1)', border: `1px solid ${formMsg.type === 'error' ? 'rgba(252,129,129,0.3)' : 'rgba(46,204,113,0.3)'}`, color: formMsg.type === 'error' ? C.red : C.emerald }}>{formMsg.text}</div>
               )}
               <form onSubmit={addStudent}>
+                {/* Basic fields */}
                 {[[lang==='ar'?'الاسم الكامل':'Full Name','name','text'],[lang==='ar'?'اسم المستخدم (انجليزي)':'Username','username','text'],[lang==='ar'?'كلمة المرور':'Password','password','password']].map(([label,key,type])=>(
                   <div key={key} style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '7px' }}>{label}</label>
                     <input type={type} value={form[key]} required onChange={e => setForm({ ...form, [key]: e.target.value })} style={inputStyle} />
                   </div>
                 ))}
-                <div style={{ marginBottom: '22px' }}>
-                  <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>{lang === 'ar' ? 'الدورة المسموح بها' : 'Allowed Course'}</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {COURSE_OPTIONS.map(c => (
-                      <label key={c.value} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '14px', cursor: 'pointer', background: form.allowedCourse === c.value ? C.g10 : C.navy, border: `1px solid ${form.allowedCourse === c.value ? C.g30 : C.lk30}` }}>
-                        <input type="radio" name="course" value={c.value} checked={form.allowedCourse === c.value} onChange={e => setForm({ ...form, allowedCourse: e.target.value })} style={{ accentColor: C.gold, width: '16px', height: '16px' }} />
-                        <span style={{ fontSize: '22px' }}>{c.icon}</span>
-                        <span style={{ fontSize: '14px', fontWeight: '700', color: form.allowedCourse === c.value ? C.gold : C.silver }}>{lang === 'ar' ? c.labelAr : c.labelEn}</span>
-                      </label>
-                    ))}
+
+                {/* Access type selector */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>{lang === 'ar' ? 'نوع الوصول' : 'Access Type'}</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    {[
+                      { value: 'lifetime', icon: '♾️', labelAr: 'مدة الحياة', labelEn: 'Lifetime', descAr: 'وصول دائم لا ينتهي', descEn: 'Never expires' },
+                      { value: 'monthly',  icon: '🗓️', labelAr: 'اشتراك شهري', labelEn: 'Monthly',  descAr: 'ينتهي بعد 30 يوم', descEn: 'Expires in 30 days' },
+                    ].map(opt => {
+                      const sel = form.subscriptionType === opt.value
+                      return (
+                        <label key={opt.value} onClick={() => setForm({ ...form, subscriptionType: opt.value })} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '16px 12px', borderRadius: '14px', cursor: 'pointer', textAlign: 'center', background: sel ? C.g10 : C.navy, border: `2px solid ${sel ? C.gold : C.lk30}`, transition: 'all 0.2s' }}>
+                          <span style={{ fontSize: '26px' }}>{opt.icon}</span>
+                          <span style={{ fontSize: '14px', fontWeight: '800', color: sel ? C.gold : C.white }}>{lang === 'ar' ? opt.labelAr : opt.labelEn}</span>
+                          <span style={{ fontSize: '11px', color: C.silver }}>{lang === 'ar' ? opt.descAr : opt.descEn}</span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
+
+                {/* Lifetime: course selector */}
+                {form.subscriptionType === 'lifetime' && (
+                  <div style={{ marginBottom: '22px' }}>
+                    <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>{lang === 'ar' ? 'الدورة المسموح بها' : 'Allowed Course'}</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {COURSE_OPTIONS.map(c => (
+                        <label key={c.value} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '14px', cursor: 'pointer', background: form.allowedCourse === c.value ? C.g10 : C.navy, border: `1px solid ${form.allowedCourse === c.value ? C.g30 : C.lk30}` }}>
+                          <input type="radio" name="course" value={c.value} checked={form.allowedCourse === c.value} onChange={e => setForm({ ...form, allowedCourse: e.target.value })} style={{ accentColor: C.gold, width: '16px', height: '16px' }} />
+                          <span style={{ fontSize: '22px' }}>{c.icon}</span>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: form.allowedCourse === c.value ? C.gold : C.silver }}>{lang === 'ar' ? c.labelAr : c.labelEn}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Monthly: start date + expiry preview */}
+                {form.subscriptionType === 'monthly' && (
+                  <div style={{ marginBottom: '22px', padding: '16px', borderRadius: '14px', background: C.navy, border: `1px solid ${C.lk30}` }}>
+                    <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>{lang === 'ar' ? 'تاريخ بدء الاشتراك' : 'Subscription Start Date'}</label>
+                    <input type="date" value={form.subscriptionStartDate} onChange={e => setForm({ ...form, subscriptionStartDate: e.target.value })} style={{ ...inputStyle, marginBottom: '12px' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${C.g20}` }}>
+                      <span style={{ fontSize: '16px' }}>⏳</span>
+                      <div>
+                        <span style={{ color: C.silver, fontSize: '12px' }}>{lang === 'ar' ? 'ينتهي الاشتراك تلقائياً في: ' : 'Auto-expires on: '}</span>
+                        <strong style={{ color: C.gold, fontSize: '13px' }}>
+                          {(() => { const d = new Date(form.subscriptionStartDate); d.setDate(d.getDate() + 30); return d.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB') })()}
+                        </strong>
+                        <p style={{ color: C.silver, fontSize: '11px', marginTop: '2px' }}>{lang === 'ar' ? 'الوصول: الباقة الكاملة Elite — 86 درس' : 'Access: Elite Package — 86 lessons'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '14px', color: C.navy, fontSize: '15px', fontWeight: '900', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 20px rgba(201,168,76,0.3)' }}>
                   {loading ? (lang==='ar'?'⏳ جاري الإضافة...':'⏳ Adding...') : (lang==='ar'?'إضافة الطالب':'Add Student')}
                 </button>
@@ -1074,6 +1322,7 @@ export async function getServerSideProps({ req }) {
       photo: u.photo || '', gender: u.gender || '', phone: u.phone || '',
       progress: u.progress || {}, quizScores: u.quizScores || {},
       notes: u.notes || {}, allowedCourse: u.allowedCourse || null, joinedAt: u.joinedAt || '',
+      subscriptionType: u.subscriptionType || 'permanent', subscriptionExpiry: u.subscriptionExpiry || null,
     }))
   const lessons = LESSONS.map(({ id, title, duration, free }) => ({ id, title, duration, free }))
   return { props: { initialStudents: students, initialLessons: lessons, adminUser: { name: user.name } } }

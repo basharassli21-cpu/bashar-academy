@@ -45,12 +45,12 @@ function Sidebar({ user, view, setView, onLogout, lang }) {
       <div>
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.g20}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ color: C.navy, fontWeight: '900', fontSize: '13px', fontFamily: 'Inter,sans-serif' }}>CB</span>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `1px solid ${C.gold}`, background: `radial-gradient(circle at 30% 30%, ${C.g20}, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: C.gold, fontWeight: '700', fontSize: '18px', fontFamily: "'El Messiri',serif" }}>ب</span>
             </div>
             <div>
-              <p style={{ color: C.gold, fontWeight: '900', fontSize: '12px', letterSpacing: '0.5px', marginBottom: '2px' }}>COACH BASHAR</p>
-              <p style={{ color: C.silver, fontSize: '11px' }}>{lang === 'ar' ? 'منصة التدريب الاحترافي' : 'Professional Training'}</p>
+              <p style={{ color: C.gold, fontWeight: '900', fontSize: '12px', letterSpacing: '0.5px', marginBottom: '2px' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
+              <p style={{ color: C.silver, fontSize: '11px' }}>EBAY ACADEMY</p>
             </div>
           </div>
         </div>
@@ -667,8 +667,8 @@ function Certificate({ lang, user, courseData, onClose }) {
           <div style={CERT.outerBorder}>
             <div style={CERT.innerBorder}>
               <div style={CERT.topDeco}><div style={CERT.decoLine} /><span style={CERT.decoStar}>✦</span><div style={CERT.decoLine} /></div>
-              <div style={CERT.platformName}>COACHBASHARALASALI</div>
-              <div style={CERT.platformSub}>{lang === 'ar' ? 'منصة تجارة eBay الاحترافية' : 'Professional eBay Trading Platform'}</div>
+              <div style={CERT.platformName}>BASHAR AL-ASALI</div>
+              <div style={CERT.platformSub}>EBAY ACADEMY</div>
               <div style={CERT.divider} />
               <p style={CERT.certLabel}>{t(lang, 'certificateTitle')}</p>
               <div style={CERT.dividerThin} />
@@ -852,7 +852,13 @@ export default function Dashboard({ initialUser }) {
 
   return (
     <>
-      <Head><title>COACHBASHARALASALI</title><meta name="robots" content="noindex" /></Head>
+      <Head>
+        <title>{lang === 'ar' ? 'لوحة الطالب — بشار العسلي' : 'Student Dashboard — Bashar Al-Asali'}</title>
+        <meta name="robots" content="noindex" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+      </Head>
 
       {/* Overlays */}
       {showLessonCeleb && (
@@ -1299,7 +1305,7 @@ export async function getServerSideProps({ req }) {
       initialUser: {
         username: session.username, name: user.name, avatar: user.avatar,
         role: user.role, progress: user.progress || {}, quizScores: user.quizScores || {},
-        allowedCourse: user.allowedCourse || 'basic',
+        allowedCourse: user.allowedCourse || 'starter',
         phone:  user.phone  || '',
         gender: user.gender || '',
         photo:  user.photo  || '',
@@ -1381,7 +1387,7 @@ const CERT = {
   topDeco: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' },
   decoLine: { flex: 1, height: '1px', background: `linear-gradient(90deg,transparent,${C.g30},transparent)` },
   decoStar: { color: C.gold, fontSize: '14px' },
-  platformName: { fontSize: '20px', fontWeight: '900', color: C.gold, fontFamily: 'Inter,sans-serif', letterSpacing: '2px', marginBottom: '6px' },
+  platformName: { fontSize: '20px', fontWeight: '700', color: C.gold, fontFamily: "'El Messiri',serif", letterSpacing: '2px', marginBottom: '6px' },
   platformSub: { fontSize: '11px', color: C.w40, marginBottom: '16px' },
   divider: { width: '80px', height: '2px', margin: '14px auto', background: `linear-gradient(90deg,transparent,${C.gold},transparent)` },
   dividerThin: { width: '40px', height: '1px', margin: '10px auto', background: C.g30 },
