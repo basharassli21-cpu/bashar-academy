@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTheme } from './_app'
 import Head from 'next/head'
 import Image from 'next/image'
 
@@ -10,6 +11,7 @@ const YT_ID = '' // أضف الـ ID هنا
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [lang,     setLang]     = useState('ar')
+  const { theme, toggleTheme } = useTheme()
   const [playing,  setPlaying]  = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(0)
@@ -67,6 +69,14 @@ export default function LandingPage() {
           --gold:#C09E6A;--gold-2:#D4B483;--gold-deep:#8A6F3A;
           --ink:#E8E3DC;--muted:#8B95A8;--muted-2:#5C6478;--maxw:1240px;
         }
+        [data-theme="light"]{
+          --bg:#F5F0E8;--bg2:#FFFFFF;--bg3:#EDE8E0;
+          --line:rgba(138,96,48,0.14);--line-soft:rgba(0,0,0,0.06);
+          --gold:#8A6030;--gold-2:#A07840;--gold-deep:#6A4820;
+          --ink:#1C1814;--muted:#6B7280;--muted-2:#9CA3AF;
+        }
+        [data-theme="light"] .hdr.scrolled{background:rgba(245,240,232,.96)!important;border-color:var(--line)}
+        [data-theme="light"] body::before{background:radial-gradient(ellipse 80% 55% at 50% -8%,rgba(138,96,48,.05),transparent)}
         *{margin:0;padding:0;box-sizing:border-box}
         html{scroll-behavior:smooth}
         body{background:var(--bg);color:var(--ink);font-family:'Tajawal',system-ui,sans-serif;
@@ -450,6 +460,12 @@ export default function LandingPage() {
             </ul>
           </nav>
           <div className="nav-cta">
+            <button onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} style={{
+              border: '1px solid var(--line)', borderRadius: '999px', padding: '5px 12px',
+              background: 'none', fontSize: '16px', cursor: 'pointer', lineHeight: 1,
+            }}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             <button className="lang-btn" onClick={() => switchLang(ar ? 'en' : 'ar')}>
               {ar ? 'EN' : 'ع'}
             </button>

@@ -10,10 +10,10 @@ const cairo = Cairo({
 })
 
 export const LangContext = createContext({ lang: 'ar', setLang: () => {} })
+export function useLang() { return useContext(LangContext) }
 
-export function useLang() {
-  return useContext(LangContext)
-}
+export const ThemeContext = createContext({ theme: 'dark', toggleTheme: () => {} })
+export function useTheme() { return useContext(ThemeContext) }
 
 // ===== MOUSE GLOW =====
 function MouseGlow() {
@@ -70,10 +70,14 @@ function MouseGlow() {
 
 export default function App({ Component, pageProps }) {
   const [lang, setLang] = useState('ar')
+  const [theme, setTheme] = useState('dark')
 
   useEffect(() => {
-    const saved = localStorage.getItem('cba_lang') || 'ar'
-    setLang(saved)
+    const savedLang = localStorage.getItem('cba_lang') || 'ar'
+    setLang(savedLang)
+    const savedTheme = localStorage.getItem('cba_theme') || 'dark'
+    setTheme(savedTheme)
+    document.documentElement.setAttribute('data-theme', savedTheme)
   }, [])
 
   function handleSetLang(l) {
@@ -81,12 +85,21 @@ export default function App({ Component, pageProps }) {
     localStorage.setItem('cba_lang', l)
   }
 
+  function handleToggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('cba_theme', next)
+    document.documentElement.setAttribute('data-theme', next)
+  }
+
   return (
-    <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
-      <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cairo.className} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'Cairo, Tajawal, sans-serif' }}>
-        <MouseGlow />
-        <Component {...pageProps} />
-      </div>
-    </LangContext.Provider>
+    <ThemeContext.Provider value={{ theme, toggleTheme: handleToggleTheme }}>
+      <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
+        <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cairo.className} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'Cairo, Tajawal, sans-serif' }}>
+          <MouseGlow />
+          <Component {...pageProps} />
+        </div>
+      </LangContext.Provider>
+    </ThemeContext.Provider>
   )
 }

@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { useLang } from './_app'
+import { useLang, useTheme } from './_app'
 import { t } from '../lib/i18n'
 
-// ─── Brand Color Palette — Deep Slate & Bronze ────────────────────────────
-const C = {
+// ─── Brand Color Palettes ─────────────────────────────────────────────────
+const C_DARK = {
   navy:    '#0D1117',
   gold:    '#C09E6A',
   goldL:   '#D4B483',
@@ -18,13 +18,32 @@ const C = {
   white:   '#E8E3DC',
   red:     '#E07878',
   purple:  '#9B8AC4',
-  // rgba helpers
   g10: 'rgba(192,158,106,0.08)', g15: 'rgba(192,158,106,0.12)',
   g20: 'rgba(192,158,106,0.16)', g30: 'rgba(192,158,106,0.26)',
   w10: 'rgba(232,227,220,0.10)', w20: 'rgba(232,227,220,0.20)',
   w40: 'rgba(232,227,220,0.40)', w50: 'rgba(232,227,220,0.50)',
   lk30: 'rgba(58,66,85,0.32)',
 }
+const C_LIGHT = {
+  navy:    '#F5F0E8',
+  gold:    '#8A6030',
+  goldL:   '#A07840',
+  goldD:   '#6A4820',
+  blue:    '#EDE8E0',
+  surface: '#FFFFFF',
+  emerald: '#27805C',
+  silver:  '#6B7280',
+  locked:  '#C8C0B8',
+  white:   '#1C1814',
+  red:     '#B85450',
+  purple:  '#6D5EA8',
+  g10: 'rgba(138,96,48,0.06)', g15: 'rgba(138,96,48,0.10)',
+  g20: 'rgba(138,96,48,0.12)', g30: 'rgba(138,96,48,0.20)',
+  w10: 'rgba(28,24,20,0.06)',  w20: 'rgba(28,24,20,0.12)',
+  w40: 'rgba(28,24,20,0.25)',  w50: 'rgba(28,24,20,0.35)',
+  lk30: 'rgba(200,192,184,0.5)',
+}
+let C = C_DARK
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
 function Sidebar({ user, view, setView, onLogout, lang }) {
@@ -748,6 +767,8 @@ function Certificate({ lang, user, courseData, onClose }) {
 export default function Dashboard({ initialUser }) {
   const router = useRouter()
   const { lang, setLang } = useLang()
+  const { theme, toggleTheme } = useTheme()
+  C = theme === 'light' ? C_LIGHT : C_DARK
   const [user, setUser]           = useState(initialUser)
   const [lessons, setLessons]     = useState([])
   const [view, setView]           = useState('courses')
@@ -980,7 +1001,7 @@ export default function Dashboard({ initialUser }) {
           {/* Top Header */}
           <header style={{
             position: 'sticky', top: 0, zIndex: 30,
-            background: 'rgba(13,13,26,0.85)', backdropFilter: 'blur(16px)',
+            background: theme === 'light' ? 'rgba(245,240,232,0.93)' : 'rgba(13,13,26,0.85)', backdropFilter: 'blur(16px)',
             borderBottom: `1px solid rgba(201,168,76,0.1)`,
             padding: '0 20px', height: '56px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -991,7 +1012,13 @@ export default function Dashboard({ initialUser }) {
               <span>/</span>
               <span style={{ color: C.gold, fontWeight: '700' }}>{breadcrumb}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} style={{
+                padding: '5px 10px', borderRadius: '8px', border: `1px solid ${C.g30}`,
+                background: 'transparent', fontSize: '15px', cursor: 'pointer', lineHeight: 1,
+              }}>
+                {theme === 'dark' ? '☀️' : '🌙'}
+              </button>
               <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} style={{
                 padding: '5px 14px', borderRadius: '8px', border: `1px solid ${C.g30}`,
                 background: 'transparent', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer',

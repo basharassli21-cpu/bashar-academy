@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import dynamic from 'next/dynamic'
-import { useLang } from './_app'
+import { useLang, useTheme } from './_app'
 import { t } from '../lib/i18n'
 
 // ─── Recharts (client-only) ────────────────────────────────────────────────
@@ -14,8 +14,8 @@ const {
   try { return require('recharts') } catch { return {} }
 })()
 
-// ─── Brand Colors ─────────────────────────────────────────────────────────
-const C = {
+// ─── Brand Color Palettes ─────────────────────────────────────────────────
+const C_DARK = {
   navy:    '#0D1117', gold:    '#C09E6A', goldL:   '#D4B483', goldD:   '#8A6F3A',
   blue:    '#1E3050', surface: '#131921', emerald: '#4CAF87', silver:  '#8B95A8',
   locked:  '#3A4255', white:   '#E8E3DC', red:     '#E07878', purple:  '#9B8AC4',
@@ -24,11 +24,21 @@ const C = {
   w40: 'rgba(232,227,220,0.40)', w50: 'rgba(232,227,220,0.50)',
   lk20: 'rgba(58,66,85,0.20)', lk30: 'rgba(58,66,85,0.32)',
 }
+const C_LIGHT = {
+  navy:    '#F5F0E8', gold:    '#8A6030', goldL:   '#A07840', goldD:   '#6A4820',
+  blue:    '#EDE8E0', surface: '#FFFFFF', emerald: '#27805C', silver:  '#6B7280',
+  locked:  '#C8C0B8', white:   '#1C1814', red:     '#B85450', purple:  '#6D5EA8',
+  g10: 'rgba(138,96,48,0.06)', g15: 'rgba(138,96,48,0.10)',
+  g20: 'rgba(138,96,48,0.12)', g30: 'rgba(138,96,48,0.20)',
+  w40: 'rgba(28,24,20,0.25)',  w50: 'rgba(28,24,20,0.35)',
+  lk20: 'rgba(200,192,184,0.35)', lk30: 'rgba(200,192,184,0.5)',
+}
+let C = C_DARK
 
 const COURSE_OPTIONS = [
-  { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: C.gold    },
-  { value: 'professional', labelAr: 'الباقة المتوسطة (Professional)', labelEn: 'Professional', icon: '⚡', color: C.purple  },
-  { value: 'starter',      labelAr: 'باقة التنفيذ (Starter)',   labelEn: 'Starter',      icon: '🚀', color: C.emerald },
+  { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: '#C09E6A' },
+  { value: 'professional', labelAr: 'الباقة المتوسطة (Professional)', labelEn: 'Professional', icon: '⚡', color: '#9B8AC4' },
+  { value: 'starter',      labelAr: 'باقة التنفيذ (Starter)',   labelEn: 'Starter',      icon: '🚀', color: '#4CAF87' },
 ]
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -984,6 +994,8 @@ function SubscriptionsTab({ students, lang, onRefresh, onRenew }) {
 export default function AdminPage({ initialStudents, initialLessons, adminUser }) {
   const router = useRouter()
   const { lang, setLang } = useLang()
+  const { theme, toggleTheme } = useTheme()
+  C = theme === 'light' ? C_LIGHT : C_DARK
 
   const [students,      setStudents]      = useState(initialStudents)
   const [tab,           setTab]           = useState('students')
@@ -1162,7 +1174,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
         {/* ── Sidebar ── */}
         <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} style={{
-          width: '240px', flexShrink: 0, background: 'rgba(22,33,62,0.95)',
+          width: '240px', flexShrink: 0, background: theme === 'light' ? 'rgba(253,250,245,0.98)' : 'rgba(22,33,62,0.95)',
           borderInlineEnd: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column',
           height: '100vh', position: 'sticky', top: 0, zIndex: 300,
         }}>
@@ -1220,13 +1232,14 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
         <div style={{ flex: 1, minWidth: 0 }}>
 
           {/* Topbar */}
-          <nav style={{ background: 'rgba(22,33,62,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
+          <nav style={{ background: theme === 'light' ? 'rgba(245,240,232,0.93)' : 'rgba(22,33,62,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn" style={{ display: 'none', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '7px 10px', cursor: 'pointer', fontSize: '15px' }}>☰</button>
               <span style={{ color: C.white, fontWeight: '800', fontSize: '14px' }}>{tabs.find(t => t.key === tab)?.icon} {tabs.find(t => t.key === tab)?.label}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <NotificationBell students={students} lang={lang} />
+              <button onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} style={{ padding: '5px 10px', borderRadius: '8px', border: `1px solid ${C.g30}`, background: 'transparent', fontSize: '15px', cursor: 'pointer', lineHeight: 1 }}>{theme === 'dark' ? '☀️' : '🌙'}</button>
               <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} style={{ padding: '5px 12px', borderRadius: '8px', border: `1px solid ${C.g30}`, background: 'transparent', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>{lang === 'ar' ? 'EN' : 'AR'}</button>
             </div>
           </nav>
