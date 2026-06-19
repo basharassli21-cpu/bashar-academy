@@ -4,26 +4,26 @@ import Head from 'next/head'
 import { useLang } from './_app'
 import { t } from '../lib/i18n'
 
-// ─── Brand Color Palette ───────────────────────────────────────────────────
+// ─── Brand Color Palette — Deep Slate & Bronze ────────────────────────────
 const C = {
-  navy:    '#0D0D1A',
-  gold:    '#C9A84C',
-  goldL:   '#E8C96A',
-  goldD:   '#A67C32',
-  blue:    '#1E3A5F',
-  surface: '#16213E',
-  emerald: '#2ECC71',
-  silver:  '#A0AEC0',
-  locked:  '#4A5568',
-  white:   '#F0EAF5',
-  red:     '#FC8181',
-  purple:  '#B794F4',
+  navy:    '#0D1117',
+  gold:    '#C09E6A',
+  goldL:   '#D4B483',
+  goldD:   '#8A6F3A',
+  blue:    '#1E3050',
+  surface: '#131921',
+  emerald: '#4CAF87',
+  silver:  '#8B95A8',
+  locked:  '#3A4255',
+  white:   '#E8E3DC',
+  red:     '#E07878',
+  purple:  '#9B8AC4',
   // rgba helpers
-  g10: 'rgba(201,168,76,0.10)', g15: 'rgba(201,168,76,0.15)',
-  g20: 'rgba(201,168,76,0.20)', g30: 'rgba(201,168,76,0.30)',
-  w10: 'rgba(240,234,245,0.10)', w20: 'rgba(240,234,245,0.20)',
-  w40: 'rgba(240,234,245,0.40)', w50: 'rgba(240,234,245,0.50)',
-  lk30: 'rgba(74,85,104,0.30)',
+  g10: 'rgba(192,158,106,0.08)', g15: 'rgba(192,158,106,0.12)',
+  g20: 'rgba(192,158,106,0.16)', g30: 'rgba(192,158,106,0.26)',
+  w10: 'rgba(232,227,220,0.10)', w20: 'rgba(232,227,220,0.20)',
+  w40: 'rgba(232,227,220,0.40)', w50: 'rgba(232,227,220,0.50)',
+  lk30: 'rgba(58,66,85,0.32)',
 }
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
@@ -924,6 +924,15 @@ export default function Dashboard({ initialUser }) {
       )}
 
       <style jsx global>{`
+        /* ── Luxury scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; height: 5px }
+        ::-webkit-scrollbar-track { background: transparent }
+        ::-webkit-scrollbar-thumb { background: rgba(192,158,106,0.28); border-radius: 999px }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(192,158,106,0.48) }
+        /* ── Ambient body glow ── */
+        body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+          background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(192,158,106,0.06), transparent) }
+        /* ── Mobile layout ── */
         @media (max-width: 720px) {
           .dash-sidebar { transform: translateX(100%); transition: transform 0.3s; }
           .dash-sidebar.open { transform: translateX(0); }
