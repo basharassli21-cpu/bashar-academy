@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { useLang, useTheme } from './_app'
+import OpenCPool from '../components/OpenCPool'
 
 // ─── Brand Color Palettes — Forest Green (same as dashboard.js) ──────────
 const C_DARK = {
@@ -75,6 +76,7 @@ function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleColla
   const navItems = [
     { icon: '📊', label: lang === 'ar' ? 'لوحة التحكم'          : 'Dashboard', id: 'dashboard' },
     { icon: '🎯', label: lang === 'ar' ? 'العملاء المحتملون'    : 'Leads',     id: 'leads'     },
+    { icon: '♻️', label: lang === 'ar' ? 'OpenC'                : 'OpenC',     id: 'openc'     },
   ]
   return (
     <aside style={{
@@ -173,7 +175,7 @@ function StatCard({ icon, label, value, color }) {
   )
 }
 
-function DashboardView({ user, lang, stats, loading }) {
+function DashboardView({ user, lang, stats, opencStats, loading }) {
   const dateStr = new Date().toLocaleDateString(lang === 'ar' ? 'ar-JO' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   return (
     <div>
@@ -191,35 +193,52 @@ function DashboardView({ user, lang, stats, loading }) {
       {loading ? (
         <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
       ) : (
-        <div className="sales-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' }}>
-          <StatCard icon="💰" color={C.emerald} label={lang === 'ar' ? 'المبيعات المغلقة (هذا الشهر)' : 'Closed Sales (this month)'} value={stats.closedSales} />
-          <StatCard icon="📞" color={C.gold}    label={lang === 'ar' ? 'عدد المكالمات (هذا الشهر)' : 'Calls Made (this month)'} value={stats.totalCalls} />
-          <StatCard icon="🎯" color={C.purple}  label={lang === 'ar' ? 'التارجت الشهري' : 'Monthly Target'} value={stats.monthlyTarget} />
-          <StatCard icon="📈" color={stats.targetProgress >= 100 ? C.emerald : C.gold} label={lang === 'ar' ? 'نسبة تحقيق التارجت' : 'Target Progress'} value={`${stats.targetProgress}%`} />
-        </div>
+        <>
+          <div className="sales-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' }}>
+            <StatCard icon="💰" color={C.emerald} label={lang === 'ar' ? 'المبيعات المغلقة (هذا الشهر)' : 'Closed Sales (this month)'} value={stats.closedSales} />
+            <StatCard icon="📞" color={C.gold}    label={lang === 'ar' ? 'عدد المكالمات (هذا الشهر)' : 'Calls Made (this month)'} value={stats.totalCalls} />
+            <StatCard icon="🎯" color={C.purple}  label={lang === 'ar' ? 'التارجت الشهري' : 'Monthly Target'} value={stats.monthlyTarget} />
+            <StatCard icon="📈" color={stats.targetProgress >= 100 ? C.emerald : C.gold} label={lang === 'ar' ? 'نسبة تحقيق التارجت' : 'Target Progress'} value={`${stats.targetProgress}%`} />
+          </div>
+
+          <div className="sales-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginTop: '16px' }}>
+            <StatCard icon="♻️" color={C.gold}    label={lang === 'ar' ? 'متاح في OpenC' : 'Available in OpenC'} value={opencStats.openCount} />
+            <StatCard icon="📥" color={C.purple}  label={lang === 'ar' ? 'سحبتها من OpenC' : 'Claimed from OpenC'} value={opencStats.claimedByMeCount} />
+            <StatCard icon="✅" color={C.emerald} label={lang === 'ar' ? 'تحولت لمبيعات' : 'Converted to sales'} value={opencStats.convertedByMeCount} />
+          </div>
+        </>
       )}
     </div>
   )
 }
 
 // ─── Leads View ──────────────────────────────────────────────────────────
-function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy }) {
+function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy, onReturnToOpenC, returning }) {
   const [status, setStatus] = useState(lead.status)
   const [note, setNote] = useState('')
   const [lastContact, setLastContact] = useState(lead.last_contact_date || todayISO())
   const [nextFollowup, setNextFollowup] = useState(lead.next_followup_date || '')
+  const [showReturnForm, setShowReturnForm] = useState(false)
+  const [returnReason, setReturnReason] = useState('')
 
   useEffect(() => {
     setStatus(lead.status)
     setLastContact(lead.last_contact_date || todayISO())
     setNextFollowup(lead.next_followup_date || '')
     setNote('')
+    setShowReturnForm(false)
+    setReturnReason('')
   }, [lead.id, lead.status, lead.last_contact_date, lead.next_followup_date])
 
   const isCurrent = !lead.locked && !lead.isHandled
 
   function handleSave() {
     onSave(lead.id, { status, note, lastContactDate: lastContact, nextFollowupDate: nextFollowup })
+  }
+
+  function handleReturn() {
+    if (!returnReason.trim()) return
+    onReturnToOpenC(lead.id, returnReason.trim())
   }
 
   return (
@@ -311,13 +330,40 @@ function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy }) {
             }} />
           </label>
 
-          <button onClick={handleSave} disabled={busy} style={{
-            padding: '9px 22px', borderRadius: '10px', border: 'none',
-            background: C.gold, color: C.navy, fontSize: '13px', fontWeight: '800',
-            cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1,
-          }}>
-            {busy ? (lang === 'ar' ? 'جارٍ الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التحديث' : 'Save Update')}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button onClick={handleSave} disabled={busy} style={{
+              padding: '9px 22px', borderRadius: '10px', border: 'none',
+              background: C.gold, color: C.navy, fontSize: '13px', fontWeight: '800',
+              cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1,
+            }}>
+              {busy ? (lang === 'ar' ? 'جارٍ الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التحديث' : 'Save Update')}
+            </button>
+            <button onClick={() => setShowReturnForm(s => !s)} style={{
+              padding: '9px 16px', borderRadius: '10px', border: `1px solid ${C.red}`,
+              background: 'transparent', color: C.red, fontSize: '12.5px', fontWeight: '700', cursor: 'pointer',
+            }}>
+              ♻️ {lang === 'ar' ? 'إرجاع لـ OpenC' : 'Return to OpenC'}
+            </button>
+          </div>
+
+          {showReturnForm && (
+            <div style={{ marginTop: '12px', padding: '12px', background: C.navy, borderRadius: '10px', border: `1px solid ${C.g20}` }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '11px', color: C.silver, fontWeight: '700' }}>{lang === 'ar' ? 'سبب الإرجاع' : 'Return reason'}</span>
+                <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={2} placeholder={lang === 'ar' ? 'لماذا تتم إعادة هذا العميل لـ OpenC؟' : 'Why is this lead going back to OpenC?'} style={{
+                  background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '8px 10px',
+                  color: C.white, fontSize: '12.5px', outline: 'none', resize: 'vertical', fontFamily: 'inherit',
+                }} />
+              </label>
+              <button onClick={handleReturn} disabled={returning || !returnReason.trim()} style={{
+                padding: '8px 18px', borderRadius: '9px', border: 'none',
+                background: C.red, color: '#fff', fontSize: '12.5px', fontWeight: '800',
+                cursor: (returning || !returnReason.trim()) ? 'not-allowed' : 'pointer', opacity: (returning || !returnReason.trim()) ? 0.6 : 1,
+              }}>
+                {returning ? (lang === 'ar' ? 'جارٍ الإرجاع...' : 'Returning...') : (lang === 'ar' ? 'تأكيد الإرجاع' : 'Confirm Return')}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -329,6 +375,7 @@ function LeadsView({ lang }) {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [busyId, setBusyId] = useState(null)
+  const [returningId, setReturningId] = useState(null)
 
   async function fetchLeads(autoExpand) {
     const res = await fetch('/api/sales/leads')
@@ -353,6 +400,15 @@ function LeadsView({ lang }) {
     setBusyId(null)
   }
 
+  async function handleReturnToOpenC(id, reason) {
+    setReturningId(id)
+    await fetch(`/api/sales/leads/${id}/return-to-openc`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+    })
+    await fetchLeads(true)
+    setReturningId(null)
+  }
+
   return (
     <div>
       <h2 style={{ color: C.white, fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>
@@ -371,6 +427,8 @@ function LeadsView({ lang }) {
               onExpand={setExpandedId}
               onSave={handleSave}
               busy={busyId === lead.id}
+              onReturnToOpenC={handleReturnToOpenC}
+              returning={returningId === lead.id}
             />
           ))}
         </div>
@@ -389,12 +447,17 @@ export default function SalesPage({ initialUser }) {
   const [user] = useState(initialUser)
   const [view, setView] = useState('dashboard')
   const [stats, setStats] = useState({ closedSales: 0, totalCalls: 0, monthlyTarget: 0, targetProgress: 0 })
+  const [opencStats, setOpencStats] = useState({ openCount: 0, claimedByMeCount: 0, convertedByMeCount: 0 })
   const [statsLoading, setStatsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
 
   useEffect(() => {
-    fetch('/api/sales/dashboard').then(r => r.json()).then(d => { setStats(d.stats || stats); setStatsLoading(false) }).catch(() => setStatsLoading(false))
+    fetch('/api/sales/dashboard').then(r => r.json()).then(d => {
+      setStats(d.stats || stats)
+      setOpencStats(d.opencStats || opencStats)
+      setStatsLoading(false)
+    }).catch(() => setStatsLoading(false))
   }, [])
 
   async function logout() {
@@ -452,7 +515,7 @@ export default function SalesPage({ initialUser }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: C.silver }}>
               <button className="sales-hamburger" onClick={() => setSidebarOpen(o => !o)} style={{ display: 'none', background: 'none', border: `1px solid ${C.lk30}`, borderRadius: '8px', color: C.gold, padding: '6px 10px', cursor: 'pointer', fontSize: '16px', marginLeft: '6px' }}>☰</button>
-              <span style={{ color: C.gold, fontWeight: '700' }}>{view === 'dashboard' ? (lang === 'ar' ? 'لوحة التحكم' : 'Dashboard') : (lang === 'ar' ? 'العملاء المحتملون' : 'Leads')}</span>
+              <span style={{ color: C.gold, fontWeight: '700' }}>{view === 'dashboard' ? (lang === 'ar' ? 'لوحة التحكم' : 'Dashboard') : view === 'leads' ? (lang === 'ar' ? 'العملاء المحتملون' : 'Leads') : 'OpenC'}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} style={{
@@ -468,8 +531,10 @@ export default function SalesPage({ initialUser }) {
 
           <div className="sales-content-pad" style={{ padding: '28px 32px', flex: 1 }}>
             {view === 'dashboard'
-              ? <DashboardView user={user} lang={lang} stats={stats} loading={statsLoading} />
-              : <LeadsView lang={lang} />}
+              ? <DashboardView user={user} lang={lang} stats={stats} opencStats={opencStats} loading={statsLoading} />
+              : view === 'leads'
+              ? <LeadsView lang={lang} />
+              : <OpenCPool C={C} lang={lang} role="employee" currentEmployee={user} />}
           </div>
         </div>
       </div>

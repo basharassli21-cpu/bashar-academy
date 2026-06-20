@@ -1,5 +1,9 @@
 import { requireAuth } from '../../../../lib/auth'
 import { getEmployeeByUsername, getLeadsForEmployee, updateLead } from '../../../../lib/sales-db'
+import { returnLeadToOpenC } from '../../../../lib/openc-db'
+
+const AUTO_OPENC_STATUSES = ['not_interested', 'cancelled']
+const STATUS_LABELS_AR = { not_interested: 'غير مهتم', cancelled: 'ملغي' }
 
 async function handler(req, res) {
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' })
@@ -23,6 +27,14 @@ async function handler(req, res) {
 
   try {
     const updated = await updateLead(leadId, { status, note, lastContactDate, nextFollowupDate })
+
+    if (AUTO_OPENC_STATUSES.includes(updated.status) && target.status !== updated.status) {
+      const reason = (note && note.trim()) || `تم تحديد الحالة: ${STATUS_LABELS_AR[updated.status]}`
+      await returnLeadToOpenC({
+        leadId, reason, actorRole: 'employee', actorEmployeeId: employee.id,
+      })
+    }
+
     return res.status(200).json({ lead: updated })
   } catch (err) {
     return res.status(400).json({ error: 'بيانات غير صحيحة' })
