@@ -806,7 +806,67 @@ function EditStudentModal({ student, lang, onClose, onSave }) {
   )
 }
 
-// ─── Community Tab (moderation + posting) ─────────────────────────────────
+// ─── Community Tab (moderation + posting, Lark-style messages) ───────────
+const ADMIN_QUICK_REACTIONS = ['❤️', '🎉', '👍', '🔥']
+
+function adminCommunityTimeAgo(iso, lang) {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime())
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return lang === 'ar' ? 'الآن' : 'now'
+  if (min < 60) return lang === 'ar' ? `منذ ${min} د` : `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return lang === 'ar' ? `منذ ${hr} س` : `${hr}h ago`
+  const d = Math.floor(hr / 24)
+  return lang === 'ar' ? `منذ ${d} يوم` : `${d}d ago`
+}
+
+function AdminReactionPicker({ onPick }) {
+  return (
+    <div onClick={e => e.stopPropagation()} style={{
+      position: 'absolute', top: '-74px', insetInlineStart: 0, zIndex: 6,
+      display: 'flex', gap: '2px', background: C.surface, border: `1px solid ${C.g20}`,
+      borderRadius: '10px', padding: '4px', boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+    }}>
+      {ADMIN_QUICK_REACTIONS.map(e => (
+        <button key={e} onClick={() => onPick(e)} style={{
+          width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', borderRadius: '6px',
+        }}>{e}</button>
+      ))}
+    </div>
+  )
+}
+
+function AdminReactionChips({ reactions, username, onToggle }) {
+  const entries = Object.entries(reactions || {}).filter(([, users]) => users?.length > 0)
+  if (!entries.length) return null
+  return (
+    <div style={{ display: 'flex', gap: '5px', marginTop: '6px', flexWrap: 'wrap' }}>
+      {entries.map(([emoji, users]) => {
+        const mine = users.includes(username)
+        return (
+          <button key={emoji} onClick={() => onToggle(emoji)} style={{
+            display: 'flex', alignItems: 'center', gap: '4px',
+            background: mine ? C.g15 : C.navy, border: `1px solid ${mine ? C.gold : C.g20}`,
+            borderRadius: '7px', padding: '2px 8px', fontSize: '12px',
+            color: mine ? C.gold : C.silver, cursor: 'pointer',
+          }}>
+            <span>{emoji}</span><span>{users.length}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function AdminMessageBubble({ children }) {
+  return (
+    <div style={{ background: C.navy, borderRadius: '10px', padding: '8px 13px', fontSize: '13.5px', lineHeight: '1.6', color: C.white, maxWidth: '380px', display: 'inline-block', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      {children}
+    </div>
+  )
+}
+
 function CommunityTab({ adminUser, lang }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -817,6 +877,8 @@ function CommunityTab({ adminUser, lang }) {
   const [expanded, setExpanded] = useState(new Set())
   const [commentDrafts, setCommentDrafts] = useState({})
   const [commentBusy, setCommentBusy] = useState({})
+  const [hoveredId, setHoveredId] = useState(null)
+  const [pickerFor, setPickerFor] = useState(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -825,6 +887,13 @@ function CommunityTab({ adminUser, lang }) {
       .then(d => { setPosts(d.posts || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!pickerFor) return
+    const close = () => setPickerFor(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [pickerFor])
 
   function handleImagePick(e) {
     const file = e.target.files?.[0]
@@ -876,13 +945,18 @@ function CommunityTab({ adminUser, lang }) {
     await fetch(`/api/community/posts?id=${postId}`, { method: 'DELETE' })
   }
 
-  async function handleLike(postId) {
+  async function handleReact(postId, emoji) {
     setPosts(p => p.map(x => {
       if (x.id !== postId) return x
-      const has = (x.likes || []).includes(adminUser.username)
-      return { ...x, likes: has ? x.likes.filter(u => u !== adminUser.username) : [...(x.likes || []), adminUser.username] }
+      const reactions = { ...(x.reactions || {}) }
+      const arr = reactions[emoji] ? [...reactions[emoji]] : []
+      const idx = arr.indexOf(adminUser.username)
+      if (idx === -1) arr.push(adminUser.username); else arr.splice(idx, 1)
+      if (arr.length) reactions[emoji] = arr; else delete reactions[emoji]
+      return { ...x, reactions }
     }))
-    await fetch(`/api/community/${postId}/like`, { method: 'POST' })
+    setPickerFor(null)
+    await fetch(`/api/community/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji }) })
   }
 
   function toggleComments(postId) {
@@ -912,120 +986,156 @@ function CommunityTab({ adminUser, lang }) {
     await fetch(`/api/community/${postId}/comments?commentId=${commentId}`, { method: 'DELETE' })
   }
 
-  function timeAgo(iso) {
-    const diff = Math.max(0, Date.now() - new Date(iso).getTime())
-    const min = Math.floor(diff / 60000)
-    if (min < 1) return lang === 'ar' ? 'الآن' : 'now'
-    if (min < 60) return lang === 'ar' ? `منذ ${min} د` : `${min}m ago`
-    const hr = Math.floor(min / 60)
-    if (hr < 24) return lang === 'ar' ? `منذ ${hr} س` : `${hr}h ago`
-    const d = Math.floor(hr / 24)
-    return lang === 'ar' ? `منذ ${d} يوم` : `${d}d ago`
-  }
-
   return (
     <div>
       <h2 style={{ fontSize: '16px', fontWeight: '800', color: C.white, marginBottom: '16px' }}>
         {lang === 'ar' ? 'مجتمع الطلاب' : 'Student Community'}
       </h2>
 
-      <form onSubmit={handleSubmit} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '16px', padding: '18px', marginBottom: '20px' }}>
+      {/* Composer — Lark input-bar style */}
+      <div style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '22px' }}>
         <textarea
           value={text} onChange={e => setText(e.target.value)}
           placeholder={lang === 'ar' ? 'اكتب إعلاناً أو رسالة تحفيزية للطلاب...' : 'Write an announcement or motivational message...'}
-          rows={3}
-          style={{ width: '100%', background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '12px', padding: '12px 14px', color: C.white, fontSize: '14px', lineHeight: '1.6', resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+          rows={text || image ? 3 : 1}
+          style={{ width: '100%', background: 'transparent', border: 'none', color: C.white, fontSize: '14px', lineHeight: '1.6', resize: 'none', outline: 'none', fontFamily: 'inherit', padding: 0 }}
         />
         {image && (
-          <div style={{ position: 'relative', marginTop: '10px', display: 'inline-block' }}>
-            <img src={image} alt="" style={{ maxHeight: '160px', borderRadius: '10px', border: `1px solid ${C.g20}`, display: 'block' }} />
+          <div style={{ position: 'relative', marginTop: '8px', display: 'inline-block' }}>
+            <img src={image} alt="" style={{ maxHeight: '140px', borderRadius: '8px', display: 'block' }} />
             <button type="button" onClick={() => { setImage(null); if (fileRef.current) fileRef.current.value = '' }}
-              style={{ position: 'absolute', top: '-8px', insetInlineEnd: '-8px', width: '24px', height: '24px', borderRadius: '50%', background: C.red, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', lineHeight: 1 }}>✕</button>
+              style={{ position: 'absolute', top: '-8px', insetInlineEnd: '-8px', width: '22px', height: '22px', borderRadius: '50%', background: C.red, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', lineHeight: 1 }}>✕</button>
           </div>
         )}
-        {error && <p style={{ color: C.red, fontSize: '12px', marginTop: '8px' }}>{error}</p>}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: C.gold, fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-            🖼️ {lang === 'ar' ? 'إضافة صورة' : 'Add image'}
+        {error && <p style={{ color: C.red, fontSize: '12px', marginTop: '6px' }}>{error}</p>}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${C.g15}` }}>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: C.silver, fontSize: '17px' }}>
+            🖼️
             <input ref={fileRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
           </label>
-          <button type="submit" disabled={posting || (!text.trim() && !image)} style={{
-            padding: '9px 22px', borderRadius: '10px', border: 'none',
+          <button onClick={handleSubmit} disabled={posting || (!text.trim() && !image)} style={{
+            padding: '6px 18px', borderRadius: '8px', border: 'none',
             background: C.gold, color: C.navy, fontSize: '13px', fontWeight: '800',
             cursor: (posting || (!text.trim() && !image)) ? 'not-allowed' : 'pointer', opacity: (posting || (!text.trim() && !image)) ? 0.6 : 1,
           }}>
-            {posting ? (lang === 'ar' ? 'جاري النشر...' : 'Posting...') : (lang === 'ar' ? 'نشر' : 'Post')}
+            {posting ? '...' : (lang === 'ar' ? 'نشر' : 'Post')}
           </button>
         </div>
-      </form>
+      </div>
 
       {loading ? (
         <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
       ) : posts.length === 0 ? (
         <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'لا توجد منشورات بعد' : 'No posts yet'}</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {posts.map(post => {
-            const liked = (post.likes || []).includes(adminUser.username)
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {posts.map((post, i) => {
             const isOpen = expanded.has(post.id)
+            const comments = post.comments || []
+            const isHovered = hoveredId === post.id
+            const toolbar = (
+              <div style={{
+                position: 'absolute', top: '-34px', insetInlineStart: 0, zIndex: 5,
+                display: 'flex', alignItems: 'center', gap: '2px', background: C.surface,
+                border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '3px',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+                opacity: isHovered ? 1 : 0.5,
+                transition: 'opacity 0.15s',
+              }}>
+                <button onClick={() => setPickerFor(p => p === post.id ? null : post.id)} style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', borderRadius: '6px', color: C.silver }}>😊</button>
+                <button onClick={() => toggleComments(post.id)} style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', borderRadius: '6px', color: C.silver }}>↩️</button>
+                <button onClick={() => handleDelete(post.id)} title={lang === 'ar' ? 'حذف (إشراف)' : 'Delete (moderation)'} style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', borderRadius: '6px', color: C.silver }}>🗑️</button>
+              </div>
+            )
             return (
-              <div key={post.id} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '16px', padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {post.photo ? <img src={post.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '13px', fontWeight: '700' }}>{post.avatar}</span>}
-                    </div>
-                    <div>
-                      <p style={{ color: C.white, fontSize: '13px', fontWeight: '700' }}>{post.name}</p>
-                      <p style={{ color: C.silver, fontSize: '11px' }}>{timeAgo(post.createdAt)}</p>
-                    </div>
+              <div key={post.id}>
+                <div
+                  onMouseEnter={() => setHoveredId(post.id)} onMouseLeave={() => setHoveredId(null)}
+                  style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '14px 4px' }}
+                >
+                  <div style={{ width: '34px', height: '34px', borderRadius: '8px', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {post.photo ? <img src={post.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '12px', fontWeight: '700' }}>{post.avatar}</span>}
                   </div>
-                  <button onClick={() => handleDelete(post.id)} title={lang === 'ar' ? 'حذف' : 'Delete'}
-                    style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '14px', padding: '4px' }}>🗑️</button>
-                </div>
+                  <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                    {toolbar}
+                    {pickerFor === post.id && <AdminReactionPicker onPick={emoji => handleReact(post.id, emoji)} />}
 
-                {post.text && <p style={{ color: C.white, fontSize: '14px', lineHeight: '1.7', marginTop: '12px', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
-                {post.image && <img src={post.image} alt="" style={{ width: '100%', borderRadius: '12px', marginTop: '12px', border: `1px solid ${C.g20}`, display: 'block' }} />}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', marginBottom: '4px' }}>
+                      <span style={{ color: C.white, fontSize: '13px', fontWeight: '700' }}>{post.name}</span>
+                      {post.role === 'admin' && (
+                        <span style={{ fontSize: '10px', background: C.g15, color: C.gold, padding: '1px 7px', borderRadius: '5px', fontWeight: '700' }}>
+                          {lang === 'ar' ? 'مدرّب' : 'Coach'}
+                        </span>
+                      )}
+                      <span style={{ color: C.silver, fontSize: '11px' }}>{adminCommunityTimeAgo(post.createdAt, lang)}</span>
+                    </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${C.g15}` }}>
-                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: liked ? C.gold : C.silver, fontSize: '13px', fontWeight: '600' }}>
-                    {liked ? '❤️' : '🤍'} {(post.likes || []).length || ''}
-                  </button>
-                  <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: C.silver, fontSize: '13px', fontWeight: '600' }}>
-                    💬 {(post.comments || []).length || (lang === 'ar' ? 'تعليق' : 'Comment')}
-                  </button>
-                </div>
+                    {post.text && <AdminMessageBubble>{post.text}</AdminMessageBubble>}
 
-                {isOpen && (
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {(post.comments || []).map(c => (
-                      <div key={c.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {c.photo ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '10px', fontWeight: '700' }}>{c.avatar}</span>}
-                        </div>
-                        <div style={{ flex: 1, background: C.navy, borderRadius: '10px', padding: '8px 12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <p style={{ color: C.white, fontSize: '12px', fontWeight: '700' }}>{c.name}</p>
-                            <button onClick={() => deleteComment(post.id, c.id)} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                          </div>
-                          <p style={{ color: C.silver, fontSize: '12.5px', lineHeight: '1.5', marginTop: '2px' }}>{c.text}</p>
+                    <AdminReactionChips reactions={post.reactions} username={adminUser.username} onToggle={emoji => handleReact(post.id, emoji)} />
+
+                    {post.image && (
+                      <div style={{ marginTop: '8px', position: 'relative', display: 'inline-block' }}>
+                        <div style={{ background: C.navy, borderRadius: '10px', padding: '4px', display: 'inline-block' }}>
+                          <img src={post.image} alt="" style={{ maxWidth: '280px', maxHeight: '280px', borderRadius: '7px', display: 'block' }} />
                         </div>
                       </div>
-                    ))}
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        value={commentDrafts[post.id] || ''}
-                        onChange={e => setCommentDrafts(d => ({ ...d, [post.id]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(post.id) } }}
-                        placeholder={lang === 'ar' ? 'اكتب تعليقاً...' : 'Write a comment...'}
-                        style={{ flex: 1, background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '8px 12px', color: C.white, fontSize: '13px', outline: 'none' }}
-                      />
-                      <button onClick={() => submitComment(post.id)} disabled={commentBusy[post.id]} style={{ background: C.g15, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '8px 14px', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
-                        {lang === 'ar' ? 'إرسال' : 'Send'}
+                    )}
+
+                    {comments.length > 0 && (
+                      <button onClick={() => toggleComments(post.id)} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
+                        <div style={{ display: 'flex' }}>
+                          {comments.slice(0, 3).map((c, ci) => (
+                            <div key={c.id} style={{ width: '18px', height: '18px', borderRadius: '5px', overflow: 'hidden', background: C.g15, border: `2px solid ${C.surface}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', color: C.gold, fontWeight: '700', marginInlineStart: ci > 0 ? '-6px' : 0 }}>
+                              {c.photo ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.avatar}
+                            </div>
+                          ))}
+                        </div>
+                        <span style={{ fontSize: '12px', color: C.silver, fontWeight: '600' }}>
+                          {lang === 'ar' ? `${comments.length} ${comments.length === 1 ? 'رد' : 'ردود'}` : `${comments.length} ${comments.length === 1 ? 'reply' : 'replies'}`}
+                        </span>
+                        <span style={{ fontSize: '11px', color: C.silver, transform: isOpen ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>▾</span>
                       </button>
-                    </div>
+                    )}
+
+                    {isOpen && (
+                      <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {comments.map(c => (
+                          <div key={c.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                            <div style={{ width: '26px', height: '26px', borderRadius: '6px', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              {c.photo ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '10px', fontWeight: '700' }}>{c.avatar}</span>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '3px' }}>
+                                <span style={{ color: C.white, fontSize: '12px', fontWeight: '700' }}>{c.name}</span>
+                                <span style={{ color: C.silver, fontSize: '10.5px' }}>{adminCommunityTimeAgo(c.createdAt, lang)}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ background: C.navy, borderRadius: '8px', padding: '6px 11px', fontSize: '12.5px', lineHeight: '1.5', color: C.silver, display: 'inline-block', wordBreak: 'break-word' }}>
+                                  {c.text}
+                                </div>
+                                <button onClick={() => deleteComment(post.id, c.id)} title={lang === 'ar' ? 'حذف (إشراف)' : 'Delete (moderation)'} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: '8px', marginInlineStart: '34px' }}>
+                          <input
+                            value={commentDrafts[post.id] || ''}
+                            onChange={e => setCommentDrafts(d => ({ ...d, [post.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(post.id) } }}
+                            placeholder={lang === 'ar' ? 'اكتب رداً...' : 'Write a reply...'}
+                            style={{ flex: 1, background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '7px 11px', color: C.white, fontSize: '12.5px', outline: 'none' }}
+                          />
+                          <button onClick={() => submitComment(post.id)} disabled={commentBusy[post.id]} style={{ background: C.g15, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '7px 13px', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
+                            {lang === 'ar' ? 'إرسال' : 'Send'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+                {i < posts.length - 1 && <div style={{ height: '1px', background: C.g15, margin: '0 4px' }} />}
               </div>
             )
           })}

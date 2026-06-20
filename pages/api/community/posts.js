@@ -28,6 +28,7 @@ async function handler(req, res) {
       name: user.name,
       avatar: user.avatar,
       photo: user.photo,
+      role: user.role,
       text: trimmed,
       image: image || null,
     })
