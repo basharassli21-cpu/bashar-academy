@@ -6,6 +6,7 @@ import { useLang, useTheme } from './_app'
 import { t } from '../lib/i18n'
 import { playSendSound } from '../lib/sound'
 import OpenCPool from '../components/OpenCPool'
+import ImportLeadsPanel from '../components/ImportLeadsPanel'
 
 // ─── Recharts (client-only) ────────────────────────────────────────────────
 const {
@@ -1078,6 +1079,16 @@ function OpenCTab({ lang }) {
   return <OpenCPool C={C} lang={lang} role="admin" employees={employees} />
 }
 
+function ImportLeadsTab({ lang }) {
+  const [employees, setEmployees] = useState([])
+
+  useEffect(() => {
+    fetch('/api/admin/employees').then(r => r.json()).then(d => setEmployees(d.employees || []))
+  }, [])
+
+  return <ImportLeadsPanel C={C} lang={lang} employees={employees} />
+}
+
 function CommunityTab({ adminUser, lang }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1694,6 +1705,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
     { key: 'students',      icon: '👥', label: lang==='ar'?'الطلاب':'Students'              },
     { key: 'salesTeam',     icon: '💼', label: lang==='ar'?'فريق المبيعات':'Sales Team'       },
     { key: 'openc',         icon: '♻️', label: lang==='ar'?'OpenC':'OpenC'                    },
+    { key: 'importLeads',   icon: '📥', label: lang==='ar'?'استيراد العملاء':'Import Leads'   },
     { key: 'community',     icon: '🌐', label: lang==='ar'?'مجتمع الطلاب':'Community'        },
     { key: 'subscriptions', icon: '🗓️', label: lang==='ar'?'الاشتراكات الشهرية':'Subscriptions' },
     { key: 'analytics',     icon: '📊', label: lang==='ar'?'التحليلات':'Analytics'           },
@@ -1975,6 +1987,8 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           {tab === 'salesTeam' && <SalesTeamTab lang={lang} />}
 
           {tab === 'openc' && <OpenCTab lang={lang} />}
+
+          {tab === 'importLeads' && <ImportLeadsTab lang={lang} />}
 
           {tab === 'community' && <CommunityTab adminUser={adminUser} lang={lang} />}
 
