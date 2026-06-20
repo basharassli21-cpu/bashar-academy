@@ -14,31 +14,31 @@ const {
   try { return require('recharts') } catch { return {} }
 })()
 
-// ─── Brand Color Palettes ─────────────────────────────────────────────────
+// ─── Brand Color Palettes — Forest Green ──────────────────────────────────
 const C_DARK = {
-  navy:    '#0D1117', gold:    '#C09E6A', goldL:   '#D4B483', goldD:   '#8A6F3A',
-  blue:    '#1E3050', surface: '#131921', emerald: '#4CAF87', silver:  '#8B95A8',
-  locked:  '#3A4255', white:   '#E8E3DC', red:     '#E07878', purple:  '#9B8AC4',
-  g10: 'rgba(192,158,106,0.08)', g15: 'rgba(192,158,106,0.12)',
-  g20: 'rgba(192,158,106,0.16)', g30: 'rgba(192,158,106,0.26)',
-  w40: 'rgba(232,227,220,0.40)', w50: 'rgba(232,227,220,0.50)',
-  lk20: 'rgba(58,66,85,0.20)', lk30: 'rgba(58,66,85,0.32)',
+  navy:    '#0A0F0A', gold:    '#4ADE80', goldL:   '#7AE89F', goldD:   '#22A35A',
+  blue:    '#0F2F0F', surface: '#0D1A0D', emerald: '#34D399', silver:  '#8AAB8A',
+  locked:  '#2A3A2A', white:   '#E8F0E8', red:     '#F0807A', purple:  '#A78BFA',
+  g10: 'rgba(74,222,128,0.08)', g15: 'rgba(74,222,128,0.12)',
+  g20: 'rgba(74,222,128,0.16)', g30: 'rgba(74,222,128,0.26)',
+  w40: 'rgba(232,240,232,0.40)', w50: 'rgba(232,240,232,0.50)',
+  lk20: 'rgba(42,58,42,0.30)', lk30: 'rgba(42,58,42,0.45)',
 }
 const C_LIGHT = {
-  navy:    '#F5F0E8', gold:    '#8A6030', goldL:   '#A07840', goldD:   '#6A4820',
-  blue:    '#EDE8E0', surface: '#FFFFFF', emerald: '#27805C', silver:  '#6B7280',
-  locked:  '#C8C0B8', white:   '#1C1814', red:     '#B85450', purple:  '#6D5EA8',
-  g10: 'rgba(138,96,48,0.06)', g15: 'rgba(138,96,48,0.10)',
-  g20: 'rgba(138,96,48,0.12)', g30: 'rgba(138,96,48,0.20)',
-  w40: 'rgba(28,24,20,0.25)',  w50: 'rgba(28,24,20,0.35)',
-  lk20: 'rgba(200,192,184,0.35)', lk30: 'rgba(200,192,184,0.5)',
+  navy:    '#F2F7F0', gold:    '#1C8A4D', goldL:   '#239B5A', goldD:   '#146238',
+  blue:    '#E8F2E6', surface: '#FFFFFF', emerald: '#0F9D6E', silver:  '#5B6B5B',
+  locked:  '#D7DED5', white:   '#142016', red:     '#C0463F', purple:  '#7C5FD1',
+  g10: 'rgba(28,138,77,0.06)', g15: 'rgba(28,138,77,0.10)',
+  g20: 'rgba(28,138,77,0.12)', g30: 'rgba(28,138,77,0.22)',
+  w40: 'rgba(20,32,22,0.25)',  w50: 'rgba(20,32,22,0.35)',
+  lk20: 'rgba(190,200,188,0.35)', lk30: 'rgba(190,200,188,0.5)',
 }
 let C = C_DARK
 
 const COURSE_OPTIONS = [
-  { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: '#C09E6A' },
-  { value: 'professional', labelAr: 'الباقة المتوسطة (Professional)', labelEn: 'Professional', icon: '⚡', color: '#9B8AC4' },
-  { value: 'starter',      labelAr: 'باقة التنفيذ (Starter)',   labelEn: 'Starter',      icon: '🚀', color: '#4CAF87' },
+  { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: '#4ADE80' },
+  { value: 'professional', labelAr: 'الباقة المتوسطة (Professional)', labelEn: 'Professional', icon: '⚡', color: '#A78BFA' },
+  { value: 'starter',      labelAr: 'باقة التنفيذ (Starter)',   labelEn: 'Starter',      icon: '🚀', color: '#34D399' },
 ]
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ function NotificationBell({ students, lang }) {
                 style={{
                   padding: '12px 16px', borderBottom: `1px solid ${C.lk20}`, cursor: 'pointer',
                   display: 'flex', gap: '12px', alignItems: 'flex-start',
-                  background: readIds.has(n.id) ? 'transparent' : 'rgba(201,168,76,0.04)',
+                  background: readIds.has(n.id) ? 'transparent' : 'rgba(74,222,128,0.04)',
                 }}>
                 <span style={{ fontSize: '20px', flexShrink: 0 }}>{n.icon}</span>
                 <div>
@@ -544,7 +544,7 @@ function LessonsTab({ lessons, students, lang }) {
           ].map(([key, label, color]) => (
             <button key={key} onClick={() => setFilter(key)} style={{
               padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700',
-              background: filter === key ? 'rgba(201,168,76,0.1)' : C.lk20,
+              background: filter === key ? 'rgba(74,222,128,0.1)' : C.lk20,
               border: `1px solid ${filter === key ? C.g30 : C.lk30}`,
               color: filter === key ? C.gold : color,
               transition: 'all 0.2s',
@@ -609,8 +609,8 @@ function NotesModal({ student, lessons, lang, onClose }) {
     .filter(([, v]) => v?.trim())
     .map(([lid, text]) => ({ lessonId: lid, lessonTitle: (lessons.find(l => String(l.id) === String(lid))?.title || `درس ${lid}`), text }))
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,26,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: `0 0 60px rgba(201,168,76,0.1)` }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(10,15,10,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: `0 0 60px rgba(74,222,128,0.1)` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: C.g15, border: `2px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
@@ -657,8 +657,8 @@ function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, o
   )
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,26,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '680px', maxHeight: '88vh', overflowY: 'auto', boxShadow: `0 0 60px rgba(201,168,76,0.1)` }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(10,15,10,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '680px', maxHeight: '88vh', overflowY: 'auto', boxShadow: `0 0 60px rgba(74,222,128,0.1)` }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
@@ -781,8 +781,8 @@ function EditStudentModal({ student, lang, onClose, onSave }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,13,26,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '440px', boxShadow: `0 0 60px rgba(201,168,76,0.1)` }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(10,15,10,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: '20px', padding: '28px', border: `1px solid ${C.g20}`, width: '100%', maxWidth: '440px', boxShadow: `0 0 60px rgba(74,222,128,0.1)` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ color: C.white, fontWeight: '800', fontSize: '16px' }}>✏️ {lang === 'ar' ? `تعديل — ${student.name}` : `Edit — ${student.name}`}</h3>
           <button onClick={onClose} style={{ background: C.lk20, border: 'none', borderRadius: '10px', padding: '7px 12px', color: C.silver, cursor: 'pointer' }}>✕</button>
@@ -1150,10 +1150,10 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
       <style jsx global>{`
         ::-webkit-scrollbar { width: 5px; height: 5px }
         ::-webkit-scrollbar-track { background: transparent }
-        ::-webkit-scrollbar-thumb { background: rgba(192,158,106,0.28); border-radius: 999px }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(192,158,106,0.48) }
+        ::-webkit-scrollbar-thumb { background: rgba(74,222,128,0.28); border-radius: 999px }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(74,222,128,0.48) }
         body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-          background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(192,158,106,0.06), transparent) }
+          background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(74,222,128,0.06), transparent) }
         @media (max-width: 880px) {
           .admin-sidebar {
             position: fixed; inset: 0 auto 0 0; z-index: 300;
@@ -1174,7 +1174,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
         {/* ── Sidebar ── */}
         <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} style={{
-          width: '240px', flexShrink: 0, background: theme === 'light' ? 'rgba(253,250,245,0.98)' : 'rgba(22,33,62,0.95)',
+          width: '240px', flexShrink: 0, background: theme === 'light' ? 'rgba(250,253,249,0.98)' : 'rgba(13,26,13,0.95)',
           borderInlineEnd: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column',
           height: '100vh', position: 'sticky', top: 0, zIndex: 300,
         }}>
@@ -1232,7 +1232,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
         <div style={{ flex: 1, minWidth: 0 }}>
 
           {/* Topbar */}
-          <nav style={{ background: theme === 'light' ? 'rgba(245,240,232,0.93)' : 'rgba(22,33,62,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
+          <nav style={{ background: theme === 'light' ? 'rgba(242,247,240,0.93)' : 'rgba(13,26,13,0.88)', borderBottom: `1px solid ${C.g15}`, backdropFilter: 'blur(20px)', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px', position: 'sticky', top: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn" style={{ display: 'none', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '7px 10px', cursor: 'pointer', fontSize: '15px' }}>☰</button>
               <span style={{ color: C.white, fontWeight: '800', fontSize: '14px' }}>{tabs.find(t => t.key === tab)?.icon} {tabs.find(t => t.key === tab)?.label}</span>
@@ -1427,7 +1427,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                   <div style={{ marginBottom: '22px', padding: '16px', borderRadius: '14px', background: C.navy, border: `1px solid ${C.lk30}` }}>
                     <label style={{ display: 'block', color: C.silver, fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>{lang === 'ar' ? 'تاريخ بدء الاشتراك' : 'Subscription Start Date'}</label>
                     <input type="date" value={form.subscriptionStartDate} onChange={e => setForm({ ...form, subscriptionStartDate: e.target.value })} style={{ ...inputStyle, marginBottom: '12px' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${C.g20}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(74,222,128,0.06)', border: `1px solid ${C.g20}` }}>
                       <span style={{ fontSize: '16px' }}>⏳</span>
                       <div>
                         <span style={{ color: C.silver, fontSize: '12px' }}>{lang === 'ar' ? 'ينتهي الاشتراك تلقائياً في: ' : 'Auto-expires on: '}</span>
@@ -1440,7 +1440,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '14px', color: C.navy, fontSize: '15px', fontWeight: '900', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 20px rgba(201,168,76,0.3)' }}>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '14px', color: C.navy, fontSize: '15px', fontWeight: '900', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 20px rgba(74,222,128,0.3)' }}>
                   {loading ? (lang==='ar'?'⏳ جاري الإضافة...':'⏳ Adding...') : (lang==='ar'?'إضافة الطالب':'Add Student')}
                 </button>
               </form>

@@ -4,44 +4,44 @@ import Head from 'next/head'
 import { useLang, useTheme } from './_app'
 import { t } from '../lib/i18n'
 
-// ─── Brand Color Palettes ─────────────────────────────────────────────────
+// ─── Brand Color Palettes — Forest Green ──────────────────────────────────
 const C_DARK = {
-  navy:    '#0D1117',
-  gold:    '#C09E6A',
-  goldL:   '#D4B483',
-  goldD:   '#8A6F3A',
-  blue:    '#1E3050',
-  surface: '#131921',
-  emerald: '#4CAF87',
-  silver:  '#8B95A8',
-  locked:  '#3A4255',
-  white:   '#E8E3DC',
-  red:     '#E07878',
-  purple:  '#9B8AC4',
-  g10: 'rgba(192,158,106,0.08)', g15: 'rgba(192,158,106,0.12)',
-  g20: 'rgba(192,158,106,0.16)', g30: 'rgba(192,158,106,0.26)',
-  w10: 'rgba(232,227,220,0.10)', w20: 'rgba(232,227,220,0.20)',
-  w40: 'rgba(232,227,220,0.40)', w50: 'rgba(232,227,220,0.50)',
-  lk30: 'rgba(58,66,85,0.32)',
+  navy:    '#0A0F0A',
+  gold:    '#4ADE80',
+  goldL:   '#7AE89F',
+  goldD:   '#22A35A',
+  blue:    '#0F2F0F',
+  surface: '#0D1A0D',
+  emerald: '#34D399',
+  silver:  '#8AAB8A',
+  locked:  '#2A3A2A',
+  white:   '#E8F0E8',
+  red:     '#F0807A',
+  purple:  '#A78BFA',
+  g10: 'rgba(74,222,128,0.08)', g15: 'rgba(74,222,128,0.12)',
+  g20: 'rgba(74,222,128,0.16)', g30: 'rgba(74,222,128,0.26)',
+  w10: 'rgba(232,240,232,0.10)', w20: 'rgba(232,240,232,0.20)',
+  w40: 'rgba(232,240,232,0.40)', w50: 'rgba(232,240,232,0.50)',
+  lk30: 'rgba(42,58,42,0.45)',
 }
 const C_LIGHT = {
-  navy:    '#F5F0E8',
-  gold:    '#8A6030',
-  goldL:   '#A07840',
-  goldD:   '#6A4820',
-  blue:    '#EDE8E0',
+  navy:    '#F2F7F0',
+  gold:    '#1C8A4D',
+  goldL:   '#239B5A',
+  goldD:   '#146238',
+  blue:    '#E8F2E6',
   surface: '#FFFFFF',
-  emerald: '#27805C',
-  silver:  '#6B7280',
-  locked:  '#C8C0B8',
-  white:   '#1C1814',
-  red:     '#B85450',
-  purple:  '#6D5EA8',
-  g10: 'rgba(138,96,48,0.06)', g15: 'rgba(138,96,48,0.10)',
-  g20: 'rgba(138,96,48,0.12)', g30: 'rgba(138,96,48,0.20)',
-  w10: 'rgba(28,24,20,0.06)',  w20: 'rgba(28,24,20,0.12)',
-  w40: 'rgba(28,24,20,0.25)',  w50: 'rgba(28,24,20,0.35)',
-  lk30: 'rgba(200,192,184,0.5)',
+  emerald: '#0F9D6E',
+  silver:  '#5B6B5B',
+  locked:  '#D7DED5',
+  white:   '#142016',
+  red:     '#C0463F',
+  purple:  '#7C5FD1',
+  g10: 'rgba(28,138,77,0.06)', g15: 'rgba(28,138,77,0.10)',
+  g20: 'rgba(28,138,77,0.12)', g30: 'rgba(28,138,77,0.22)',
+  w10: 'rgba(20,32,22,0.06)',  w20: 'rgba(20,32,22,0.12)',
+  w40: 'rgba(20,32,22,0.25)',  w50: 'rgba(20,32,22,0.35)',
+  lk30: 'rgba(190,200,188,0.5)',
 }
 let C = C_DARK
 
@@ -145,8 +145,8 @@ function WelcomeBanner({ user, lang, lastLesson, onContinue }) {
       background: `linear-gradient(135deg, ${C.blue} 0%, ${C.surface} 50%, ${C.navy} 100%)`,
       border: `1px solid ${C.g20}`, padding: '28px 32px', marginBottom: '28px'
     }}>
-      <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(201,168,76,0.05)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: '-40px', right: '20%', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(201,168,76,0.04)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(74,222,128,0.05)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '-40px', right: '20%', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(74,222,128,0.04)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
         <div>
           <p style={{ color: C.silver, fontSize: '13px', marginBottom: '6px' }}>{greeting} 👋</p>
@@ -220,7 +220,7 @@ function ProgressMilestones({ progress, lang }) {
         {lang === 'ar' ? 'مسار الإنجاز' : 'Achievement Path'}
       </h3>
       <div style={{ height: '8px', background: C.lk30, borderRadius: '999px', marginBottom: '20px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', borderRadius: '999px', width: `${progress}%`, transition: 'width 0.7s ease', background: `linear-gradient(90deg, rgba(201,168,76,0.5), ${C.gold})` }} />
+        <div style={{ height: '100%', borderRadius: '999px', width: `${progress}%`, transition: 'width 0.7s ease', background: `linear-gradient(90deg, rgba(74,222,128,0.5), ${C.gold})` }} />
       </div>
       <div className="dash-milestones" style={{ display: 'flex', justifyContent: 'space-between' }}>
         {milestones.map((m, i) => {
@@ -232,7 +232,7 @@ function ProgressMilestones({ progress, lang }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: `2px solid ${done ? C.gold : C.locked}`,
                 background: done ? C.g20 : 'rgba(74,85,104,0.2)',
-                boxShadow: done ? '0 0 14px rgba(201,168,76,0.3)' : 'none',
+                boxShadow: done ? '0 0 14px rgba(74,222,128,0.3)' : 'none',
                 transition: 'all 0.3s',
               }}>{m.icon}</div>
               <span style={{ fontSize: '10px', color: done ? C.gold : C.silver, textAlign: 'center', maxWidth: '60px', lineHeight: 1.3 }}>{m.label}</span>
@@ -471,7 +471,7 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
               background: C.g20, border: `3px solid ${C.gold}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto', cursor: 'pointer', overflow: 'hidden',
-              boxShadow: `0 0 20px rgba(201,168,76,0.25)`,
+              boxShadow: `0 0 20px rgba(74,222,128,0.25)`,
             }}
           >
             {photo
@@ -615,7 +615,7 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
             color: saved ? '#fff' : C.navy,
             fontSize: '15px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer',
             marginTop: '20px', opacity: saving ? 0.75 : 1, transition: 'all 0.3s',
-            boxShadow: `0 4px 20px ${saved ? 'rgba(46,204,113,0.3)' : 'rgba(201,168,76,0.25)'}`,
+            boxShadow: `0 4px 20px ${saved ? 'rgba(46,204,113,0.3)' : 'rgba(74,222,128,0.25)'}`,
           }}
         >
           {saving
@@ -948,11 +948,11 @@ export default function Dashboard({ initialUser }) {
         /* ── Luxury scrollbar ── */
         ::-webkit-scrollbar { width: 5px; height: 5px }
         ::-webkit-scrollbar-track { background: transparent }
-        ::-webkit-scrollbar-thumb { background: rgba(192,158,106,0.28); border-radius: 999px }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(192,158,106,0.48) }
+        ::-webkit-scrollbar-thumb { background: rgba(74,222,128,0.28); border-radius: 999px }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(74,222,128,0.48) }
         /* ── Ambient body glow ── */
         body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-          background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(192,158,106,0.06), transparent) }
+          background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(74,222,128,0.06), transparent) }
         /* ── Mobile layout ── */
         @media (max-width: 720px) {
           .dash-sidebar { transform: translateX(100%); transition: transform 0.3s; }
@@ -1001,8 +1001,8 @@ export default function Dashboard({ initialUser }) {
           {/* Top Header */}
           <header style={{
             position: 'sticky', top: 0, zIndex: 30,
-            background: theme === 'light' ? 'rgba(245,240,232,0.93)' : 'rgba(13,13,26,0.85)', backdropFilter: 'blur(16px)',
-            borderBottom: `1px solid rgba(201,168,76,0.1)`,
+            background: theme === 'light' ? 'rgba(242,247,240,0.93)' : 'rgba(10,15,10,0.85)', backdropFilter: 'blur(16px)',
+            borderBottom: `1px solid rgba(74,222,128,0.1)`,
             padding: '0 20px', height: '56px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
@@ -1059,13 +1059,13 @@ export default function Dashboard({ initialUser }) {
                         marginBottom: '14px', transition: 'all 0.25s',
                         cursor: isAllowed ? 'pointer' : 'not-allowed',
                         opacity: isAllowed ? 1 : 0.6,
-                        boxShadow: isAllowed ? '0 4px 24px rgba(201,168,76,0.08)' : 'none',
+                        boxShadow: isAllowed ? '0 4px 24px rgba(74,222,128,0.08)' : 'none',
                       }}>
                       {/* Locked overlay */}
                       {!isAllowed && (
                         <div style={{
                           position: 'absolute', inset: 0, zIndex: 10,
-                          background: 'rgba(13,13,26,0.55)', backdropFilter: 'blur(2px)',
+                          background: 'rgba(10,15,10,0.55)', backdropFilter: 'blur(2px)',
                           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px'
                         }}>
                           <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(74,85,104,0.4)', border: `2px solid ${C.locked}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>🔒</div>
@@ -1245,7 +1245,7 @@ export default function Dashboard({ initialUser }) {
                       display: 'flex', alignItems: 'center', gap: '14px',
                       cursor: accessible ? 'pointer' : 'default',
                       opacity: accessible ? 1 : 0.35,
-                      background: completed ? 'rgba(201,168,76,0.08)' : accessible ? C.surface : 'rgba(13,13,26,0.5)',
+                      background: completed ? 'rgba(74,222,128,0.08)' : accessible ? C.surface : 'rgba(10,15,10,0.5)',
                       border: `1px solid ${completed ? C.g30 : accessible ? C.g15 : 'rgba(255,255,255,0.04)'}`,
                       transition: 'all 0.2s',
                     }}>
@@ -1263,7 +1263,7 @@ export default function Dashboard({ initialUser }) {
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '11px', color: C.w40 }}>⏱ {duration}</span>
-                          {lesson.free && <span style={{ fontSize: '10px', background: 'rgba(201,168,76,0.1)', color: C.gold, padding: '2px 8px', borderRadius: '6px', border: `1px solid ${C.g20}` }}>{t(lang, 'free')}</span>}
+                          {lesson.free && <span style={{ fontSize: '10px', background: 'rgba(74,222,128,0.1)', color: C.gold, padding: '2px 8px', borderRadius: '6px', border: `1px solid ${C.g20}` }}>{t(lang, 'free')}</span>}
                           {user.quizScores[lesson.id] != null && <span style={{ fontSize: '10px', background: 'rgba(183,148,244,0.1)', color: C.purple, padding: '2px 8px', borderRadius: '6px' }}>📝 {user.quizScores[lesson.id]}%</span>}
                           {!accessible && <span style={{ fontSize: '10px', color: C.w40, fontStyle: 'italic' }}>{lang === 'ar' ? 'أكمل الدرس السابق أولاً' : 'Complete previous first'}</span>}
                         </div>
@@ -1508,7 +1508,7 @@ const BTN = {
     background: `linear-gradient(135deg, ${C.gold}, ${C.goldD})`,
     border: 'none', borderRadius: '14px',
     color: C.navy, fontSize: '15px', fontWeight: '900', cursor: 'pointer',
-    boxShadow: '0 4px 24px rgba(201,168,76,0.3)', transition: 'transform 0.15s',
+    boxShadow: '0 4px 24px rgba(74,222,128,0.3)', transition: 'transform 0.15s',
   },
   doneLabel: {
     textAlign: 'center', padding: '13px',
@@ -1534,12 +1534,12 @@ const OVL = {
   overlay: {
     position: 'fixed', inset: 0, zIndex: 9999,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(13,13,26,0.88)', backdropFilter: 'blur(8px)', padding: '1.5rem',
+    background: 'rgba(10,15,10,0.88)', backdropFilter: 'blur(8px)', padding: '1.5rem',
   },
   modal: {
     background: C.surface, border: `1px solid ${C.g30}`,
     borderRadius: '24px', padding: '2.5rem 2rem', maxWidth: '400px', width: '100%', textAlign: 'center',
-    boxShadow: '0 0 60px rgba(201,168,76,0.15)',
+    boxShadow: '0 0 60px rgba(74,222,128,0.15)',
   },
   celebIcon: { fontSize: '64px', marginBottom: '1rem', display: 'block' },
   celebTitle: { fontSize: '26px', fontWeight: '900', color: C.gold, marginBottom: '8px' },
@@ -1549,7 +1549,7 @@ const OVL = {
     background: `linear-gradient(135deg, ${C.gold}, ${C.goldD})`,
     border: 'none', borderRadius: '12px', color: C.navy,
     fontSize: '15px', fontWeight: '900', cursor: 'pointer',
-    boxShadow: '0 4px 20px rgba(201,168,76,0.3)',
+    boxShadow: '0 4px 20px rgba(74,222,128,0.3)',
   },
   secondaryBtn: {
     width: '100%', padding: '12px',
@@ -1560,9 +1560,9 @@ const OVL = {
 
 const CERT = {
   overlay: { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' },
-  backdrop: { position: 'fixed', inset: 0, background: 'rgba(13,13,26,0.95)', backdropFilter: 'blur(8px)', zIndex: -1 },
+  backdrop: { position: 'fixed', inset: 0, background: 'rgba(10,15,10,0.95)', backdropFilter: 'blur(8px)', zIndex: -1 },
   wrapper: { display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', width: '100%', maxWidth: '600px' },
-  paper: { width: '100%', background: '#0a0614', borderRadius: '4px', boxShadow: `0 0 60px rgba(201,168,76,0.2)` },
+  paper: { width: '100%', background: '#0a0614', borderRadius: '4px', boxShadow: `0 0 60px rgba(74,222,128,0.2)` },
   outerBorder: { border: `3px solid ${C.gold}`, borderRadius: '4px', padding: '6px' },
   innerBorder: { border: `1px solid ${C.g30}`, borderRadius: '2px', padding: '2.5rem 2rem', textAlign: 'center' },
   topDeco: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' },
@@ -1576,7 +1576,7 @@ const CERT = {
   bodyText: { color: C.w50, lineHeight: 1.8 },
   studentName: { fontSize: '26px', fontWeight: '900', color: C.gold, margin: '10px 0' },
   courseName: { fontSize: '16px', fontWeight: '700', color: C.white, margin: '6px 0 14px' },
-  hoursBox: { display: 'inline-block', padding: '8px 24px', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: '30px', background: 'rgba(201,168,76,0.06)', margin: '8px auto' },
+  hoursBox: { display: 'inline-block', padding: '8px 24px', border: `1px solid rgba(74,222,128,0.35)`, borderRadius: '30px', background: 'rgba(74,222,128,0.06)', margin: '8px auto' },
   hoursText: { fontSize: '13px', color: C.gold, fontWeight: '700' },
   footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' },
   footerItem: { textAlign: 'center', flex: 1 },
