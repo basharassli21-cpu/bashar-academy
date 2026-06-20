@@ -1377,6 +1377,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const [notesStudent,  setNotesStudent]  = useState(null)
   const [detailStudent, setDetailStudent] = useState(null)
   const [sidebarOpen,   setSidebarOpen]   = useState(false)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [mounted,       setMounted]       = useState(false)
   const [editStudent,      setEditStudent]      = useState(null)
   const [studentSearch,    setStudentSearch]    = useState('')
@@ -1531,6 +1532,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
             position: fixed; inset: 0 auto 0 0; z-index: 300;
             transform: translateX(${lang === 'ar' ? '100%' : '-100%'});
             transition: transform 0.3s;
+            width: 240px !important;
           }
           .admin-sidebar.open { transform: translateX(0); }
           .mobile-menu-btn { display: flex !important; }
@@ -1546,57 +1548,79 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
         {/* ── Sidebar ── */}
         <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} style={{
-          width: '240px', flexShrink: 0, background: theme === 'light' ? 'rgba(250,253,249,0.98)' : 'rgba(13,26,13,0.95)',
+          width: desktopCollapsed ? '72px' : '240px', flexShrink: 0, background: theme === 'light' ? 'rgba(250,253,249,0.98)' : 'rgba(13,26,13,0.95)',
           borderInlineEnd: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column',
           height: '100vh', position: 'sticky', top: 0, zIndex: 300,
+          transition: 'width 0.2s', overflow: 'hidden',
         }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '20px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: `1px solid ${C.gold}`, background: `radial-gradient(circle at 30% 30%, ${C.g20}, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ color: C.gold, fontWeight: '700', fontSize: '17px', fontFamily: "'El Messiri',serif" }}>ب</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: desktopCollapsed ? 'center' : 'space-between', gap: '8px', padding: desktopCollapsed ? '20px 0' : '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: `1px solid ${C.gold}`, background: `radial-gradient(circle at 30% 30%, ${C.g20}, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ color: C.gold, fontWeight: '700', fontSize: '17px', fontFamily: "'El Messiri',serif" }}>ب</span>
+              </div>
+              {!desktopCollapsed && (
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <p style={{ color: C.gold, fontWeight: '900', fontSize: '13px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
+                  <p style={{ color: C.silver, fontSize: '10px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}</p>
+                </div>
+              )}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ color: C.gold, fontWeight: '900', fontSize: '13px', letterSpacing: '0.5px' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
-              <p style={{ color: C.silver, fontSize: '10px' }}>{lang === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}</p>
-            </div>
+            {!desktopCollapsed && (
+              <button onClick={() => setDesktopCollapsed(true)} title={lang === 'ar' ? 'تصغير القائمة' : 'Collapse menu'} style={{
+                flexShrink: 0, width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: `1px solid ${C.g20}`, borderRadius: '7px', color: C.silver, cursor: 'pointer', fontSize: '13px',
+              }}>☰</button>
+            )}
           </div>
 
+          {desktopCollapsed && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 0 10px' }}>
+              <button onClick={() => setDesktopCollapsed(false)} title={lang === 'ar' ? 'توسيع القائمة' : 'Expand menu'} style={{
+                width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: `1px solid ${C.g20}`, borderRadius: '7px', color: C.silver, cursor: 'pointer', fontSize: '13px',
+              }}>☰</button>
+            </div>
+          )}
+
           {/* Nav items */}
-          <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
+          <div style={{ padding: desktopCollapsed ? '8px' : '8px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
             {tabs.map(tb => (
-              <button key={tb.key} onClick={() => { setTab(tb.key); setSidebarOpen(false) }} style={{
-                display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px',
+              <button key={tb.key} onClick={() => { setTab(tb.key); setSidebarOpen(false); setDesktopCollapsed(true) }} title={desktopCollapsed ? tb.label : undefined} style={{
+                display: 'flex', alignItems: 'center', justifyContent: desktopCollapsed ? 'center' : 'flex-start', gap: '10px', padding: desktopCollapsed ? '11px' : '11px 14px',
                 border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
                 borderRadius: '10px', textAlign: lang === 'ar' ? 'right' : 'left', width: '100%',
                 color: tab === tb.key ? C.gold : C.silver,
                 background: tab === tb.key ? C.g10 : 'transparent',
                 transition: 'all 0.2s',
               }}>
-                <span style={{ fontSize: '16px' }}>{tb.icon}</span><span>{tb.label}</span>
+                <span style={{ fontSize: '16px' }}>{tb.icon}</span>{!desktopCollapsed && <span>{tb.label}</span>}
               </button>
             ))}
-            <button onClick={refreshStudents} disabled={refreshing} style={{
-              display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', marginTop: '8px',
+            <button onClick={refreshStudents} disabled={refreshing} title={desktopCollapsed ? (lang === 'ar' ? 'تحديث' : 'Refresh') : undefined} style={{
+              display: 'flex', alignItems: 'center', justifyContent: desktopCollapsed ? 'center' : 'flex-start', gap: '10px', padding: desktopCollapsed ? '11px' : '11px 14px', marginTop: '8px',
               border: `1px solid ${C.g20}`, cursor: 'pointer', fontSize: '12px', fontWeight: '700',
               borderRadius: '10px', textAlign: lang === 'ar' ? 'right' : 'left', width: '100%',
               color: C.silver, background: 'transparent', opacity: refreshing ? 0.6 : 1,
             }}>
-              <span style={{ fontSize: '16px' }}>{refreshing ? '⏳' : '🔄'}</span><span>{lang === 'ar' ? 'تحديث' : 'Refresh'}</span>
+              <span style={{ fontSize: '16px' }}>{refreshing ? '⏳' : '🔄'}</span>{!desktopCollapsed && <span>{lang === 'ar' ? 'تحديث' : 'Refresh'}</span>}
             </button>
           </div>
 
           {/* Admin card + logout */}
-          <div style={{ padding: '14px', borderTop: `1px solid ${C.lk20}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ padding: desktopCollapsed ? '14px 8px' : '14px', borderTop: `1px solid ${C.lk20}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: desktopCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '10px' }}>
               <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: C.g15, border: `2px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <span style={{ color: C.gold, fontWeight: '700', fontSize: '12px' }}>{adminUser.name?.[0]}</span>
               </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ color: C.white, fontSize: '12px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adminUser.name}</p>
-                <p style={{ color: C.gold, fontSize: '10px' }}>{lang === 'ar' ? 'مدير المنصة ✦' : 'Platform Admin ✦'}</p>
-              </div>
+              {!desktopCollapsed && (
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ color: C.white, fontSize: '12px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adminUser.name}</p>
+                  <p style={{ color: C.gold, fontSize: '10px' }}>{lang === 'ar' ? 'مدير المنصة ✦' : 'Platform Admin ✦'}</p>
+                </div>
+              )}
             </div>
-            <button onClick={logout} style={{ width: '100%', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '8px 12px', cursor: 'pointer', fontSize: '12px' }}>🚪 {lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}</button>
+            <button onClick={logout} title={desktopCollapsed ? (lang === 'ar' ? 'تسجيل الخروج' : 'Logout') : undefined} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'none', border: `1px solid ${C.lk20}`, borderRadius: '8px', color: C.silver, padding: '8px 12px', cursor: 'pointer', fontSize: '12px' }}>🚪 {!desktopCollapsed && (lang === 'ar' ? 'تسجيل الخروج' : 'Logout')}</button>
           </div>
         </aside>
 

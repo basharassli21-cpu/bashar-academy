@@ -47,7 +47,7 @@ const C_LIGHT = {
 let C = C_DARK
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
-function Sidebar({ user, view, setView, onLogout, lang }) {
+function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleCollapse }) {
   const isCoursesView = ['courses','lessons','lesson','quiz','quizResult'].includes(view)
   const navItems = [
     { icon: '🏠', label: lang === 'ar' ? 'لوحة التحكم'    : 'Dashboard',  id: 'courses'  },
@@ -57,42 +57,60 @@ function Sidebar({ user, view, setView, onLogout, lang }) {
   ]
   return (
     <aside style={{
-      position: 'fixed', right: 0, top: 0, height: '100%', width: '240px',
+      position: 'fixed', right: 0, top: 0, height: '100%', width: collapsed ? '72px' : '240px',
       background: C.surface, borderLeft: `1px solid ${C.g20}`,
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      zIndex: 40, boxShadow: '-4px 0 30px rgba(0,0,0,0.5)'
+      zIndex: 40, boxShadow: '-4px 0 30px rgba(0,0,0,0.5)',
+      transition: 'width 0.2s', overflow: 'hidden',
     }}>
       {/* Logo */}
       <div>
-        <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.g20}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: collapsed ? '20px 0 16px' : '20px 20px 16px', borderBottom: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `1px solid ${C.gold}`, background: `radial-gradient(circle at 30% 30%, ${C.g20}, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <span style={{ color: C.gold, fontWeight: '700', fontSize: '18px', fontFamily: "'El Messiri',serif" }}>ب</span>
             </div>
-            <div>
-              <p style={{ color: C.gold, fontWeight: '900', fontSize: '12px', letterSpacing: '0.5px', marginBottom: '2px' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
-              <p style={{ color: C.silver, fontSize: '11px' }}>EBAY ACADEMY</p>
-            </div>
+            {!collapsed && (
+              <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                <p style={{ color: C.gold, fontWeight: '900', fontSize: '12px', letterSpacing: '0.5px', marginBottom: '2px', whiteSpace: 'nowrap' }}>{lang === 'ar' ? 'بشار العسلي' : 'Bashar Al-Asali'}</p>
+                <p style={{ color: C.silver, fontSize: '11px', whiteSpace: 'nowrap' }}>EBAY ACADEMY</p>
+              </div>
+            )}
           </div>
+          {!collapsed && (
+            <button onClick={onToggleCollapse} title={lang === 'ar' ? 'تصغير القائمة' : 'Collapse menu'} style={{
+              flexShrink: 0, width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: `1px solid ${C.g20}`, borderRadius: '7px', color: C.silver, cursor: 'pointer', fontSize: '13px',
+            }}>☰</button>
+          )}
         </div>
+
+        {collapsed && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+            <button onClick={onToggleCollapse} title={lang === 'ar' ? 'توسيع القائمة' : 'Expand menu'} style={{
+              width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: `1px solid ${C.g20}`, borderRadius: '7px', color: C.silver, cursor: 'pointer', fontSize: '13px',
+            }}>☰</button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {navItems.map((item, i) => {
             const isActive = item.id === 'courses' ? isCoursesView : view === item.id
             if (item.href) return (
-              <a key={i} href={item.href} target="_blank" rel="noreferrer" style={{
-                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '12px',
+              <a key={i} href={item.href} target="_blank" rel="noreferrer" title={collapsed ? item.label : undefined} style={{
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: '12px', padding: collapsed ? '10px' : '10px 14px', borderRadius: '12px',
                 textDecoration: 'none', color: C.silver, fontSize: '13px', fontWeight: '600',
                 transition: 'all 0.2s', border: '1px solid transparent',
               }}>
                 <span style={{ fontSize: '18px' }}>{item.icon}</span>
-                <span>{item.label}</span>
+                {!collapsed && <span>{item.label}</span>}
               </a>
             )
             return (
-              <button key={i} onClick={() => setView(item.id)} style={{
-                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '12px',
+              <button key={i} onClick={() => setView(item.id)} title={collapsed ? item.label : undefined} style={{
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: '12px', padding: collapsed ? '10px' : '10px 14px', borderRadius: '12px',
                 cursor: 'pointer', width: '100%', textAlign: 'right',
                 background: isActive ? C.g20 : 'transparent',
                 border: `1px solid ${isActive ? C.g30 : 'transparent'}`,
@@ -100,8 +118,8 @@ function Sidebar({ user, view, setView, onLogout, lang }) {
                 fontSize: '13px', fontWeight: '600', transition: 'all 0.2s',
               }}>
                 <span style={{ fontSize: '18px' }}>{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {isActive && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.gold, flexShrink: 0 }} />}
+                {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+                {!collapsed && isActive && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.gold, flexShrink: 0 }} />}
               </button>
             )
           })}
@@ -109,26 +127,28 @@ function Sidebar({ user, view, setView, onLogout, lang }) {
       </div>
 
       {/* User + Logout */}
-      <div style={{ padding: '12px 12px 16px', borderTop: `1px solid ${C.g20}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', marginBottom: '6px' }}>
+      <div style={{ padding: collapsed ? '12px 8px 16px' : '12px 12px 16px', borderTop: `1px solid ${C.g20}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: '10px', padding: collapsed ? '8px 0' : '8px 10px', marginBottom: '6px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.g20, border: `1px solid ${C.g30}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
             {user.photo
               ? <img src={user.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ color: C.gold, fontSize: '12px', fontWeight: '700' }}>{user.avatar}</span>
             }
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: C.white, fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name.split(' ')[0]}</p>
-            <p style={{ color: C.silver, fontSize: '11px' }}>{lang === 'ar' ? 'طالب نشط' : 'Active Student'}</p>
-          </div>
+          {!collapsed && (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ color: C.white, fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name.split(' ')[0]}</p>
+              <p style={{ color: C.silver, fontSize: '11px' }}>{lang === 'ar' ? 'طالب نشط' : 'Active Student'}</p>
+            </div>
+          )}
         </div>
-        <button onClick={onLogout} style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 14px',
+        <button onClick={onLogout} title={collapsed ? (lang === 'ar' ? 'تسجيل الخروج' : 'Logout') : undefined} style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: '10px', padding: collapsed ? '9px' : '9px 14px',
           borderRadius: '12px', background: 'transparent', border: 'none', cursor: 'pointer',
           color: C.red, fontSize: '13px', fontWeight: '600',
         }}>
           <span>🚪</span>
-          <span>{lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>
+          {!collapsed && <span>{lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>}
         </button>
       </div>
     </aside>
@@ -1165,6 +1185,7 @@ export default function Dashboard({ initialUser }) {
   const [celebNextIdx, setCelebNextIdx]         = useState(null)
   const [COURSES_DATA, setCoursesData]          = useState(null)
   const [sidebarOpen, setSidebarOpen]           = useState(false)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [lessonSearch, setLessonSearch]         = useState('')
 
   useEffect(() => {
@@ -1335,6 +1356,7 @@ export default function Dashboard({ initialUser }) {
         @media (max-width: 720px) {
           .dash-sidebar { transform: translateX(100%); transition: transform 0.3s; }
           .dash-sidebar.open { transform: translateX(0); }
+          .dash-sidebar > aside { width: 240px !important; }
           .dash-main { margin-right: 0 !important; }
           .dash-stats-grid { grid-template-columns: 1fr 1fr !important; }
           .dash-milestones { flex-wrap: wrap; gap: 12px !important; justify-content: center !important; }
@@ -1353,11 +1375,16 @@ export default function Dashboard({ initialUser }) {
 
         {/* Sidebar */}
         <div className={`dash-sidebar${sidebarOpen ? ' open' : ''}`} style={{ position: 'fixed', right: 0, top: 0, height: '100%', zIndex: 40 }}>
-          <Sidebar user={user} view={view} setView={(v) => { setView(v); setSelectedCourse(v === 'courses' ? null : selectedCourse); setSidebarOpen(false) }} onLogout={logout} lang={lang} />
+          <Sidebar
+            user={user} view={view}
+            setView={(v) => { setView(v); setSelectedCourse(v === 'courses' ? null : selectedCourse); setSidebarOpen(false); setDesktopCollapsed(true) }}
+            onLogout={logout} lang={lang}
+            collapsed={desktopCollapsed} onToggleCollapse={() => setDesktopCollapsed(c => !c)}
+          />
         </div>
 
         {/* Main Content — offset right for sidebar */}
-        <div className="dash-main" style={{ marginRight: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="dash-main" style={{ marginRight: desktopCollapsed ? '72px' : '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column', transition: 'margin-right 0.2s' }}>
 
           {/* Subscription expiry warning */}
           {user.subscriptionType === 'monthly' && user.subscriptionExpiry && (() => {
