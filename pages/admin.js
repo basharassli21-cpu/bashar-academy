@@ -879,6 +879,7 @@ function CommunityTab({ adminUser, lang }) {
   const [commentBusy, setCommentBusy] = useState({})
   const [hoveredId, setHoveredId] = useState(null)
   const [pickerFor, setPickerFor] = useState(null)
+  const [pickerForComment, setPickerForComment] = useState(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -894,6 +895,13 @@ function CommunityTab({ adminUser, lang }) {
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [pickerFor])
+
+  useEffect(() => {
+    if (!pickerForComment) return
+    const close = () => setPickerForComment(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [pickerForComment])
 
   function handleImagePick(e) {
     const file = e.target.files?.[0]
@@ -958,6 +966,24 @@ function CommunityTab({ adminUser, lang }) {
     }))
     setPickerFor(null)
     await fetch(`/api/community/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji }) })
+  }
+
+  async function handleReactComment(postId, commentId, emoji) {
+    setPosts(p => p.map(x => {
+      if (x.id !== postId) return x
+      const comments = (x.comments || []).map(c => {
+        if (c.id !== commentId) return c
+        const reactions = { ...(c.reactions || {}) }
+        const arr = reactions[emoji] ? [...reactions[emoji]] : []
+        const idx = arr.indexOf(adminUser.username)
+        if (idx === -1) arr.push(adminUser.username); else arr.splice(idx, 1)
+        if (arr.length) reactions[emoji] = arr; else delete reactions[emoji]
+        return { ...c, reactions }
+      })
+      return { ...x, comments }
+    }))
+    setPickerForComment(null)
+    await fetch(`/api/community/${postId}/comments/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId, emoji }) })
   }
 
   function toggleComments(postId) {
@@ -1117,8 +1143,11 @@ function CommunityTab({ adminUser, lang }) {
                                 <div style={{ background: C.navy, borderRadius: '8px', padding: '6px 11px', fontSize: '12.5px', lineHeight: '1.5', color: C.silver, display: 'inline-block', wordBreak: 'break-word' }}>
                                   {c.text}
                                 </div>
+                                <button onClick={() => setPickerForComment(p => p === c.id ? null : c.id)} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '13px', flexShrink: 0, opacity: 0.6 }}>😊</button>
                                 <button onClick={() => deleteComment(post.id, c.id)} title={lang === 'ar' ? 'حذف (إشراف)' : 'Delete (moderation)'} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕</button>
                               </div>
+                              {pickerForComment === c.id && <AdminReactionPicker onPick={emoji => handleReactComment(post.id, c.id, emoji)} />}
+                              <AdminReactionChips reactions={c.reactions} username={adminUser.username} onToggle={emoji => handleReactComment(post.id, c.id, emoji)} />
                             </div>
                           </div>
                         ))}
