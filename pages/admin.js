@@ -806,6 +806,235 @@ function EditStudentModal({ student, lang, onClose, onSave }) {
   )
 }
 
+// ─── Community Tab (moderation + posting) ─────────────────────────────────
+function CommunityTab({ adminUser, lang }) {
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [text, setText] = useState('')
+  const [image, setImage] = useState(null)
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(new Set())
+  const [commentDrafts, setCommentDrafts] = useState({})
+  const [commentBusy, setCommentBusy] = useState({})
+  const fileRef = useRef(null)
+
+  useEffect(() => {
+    fetch('/api/community/posts')
+      .then(r => r.json())
+      .then(d => { setPosts(d.posts || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  function handleImagePick(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError(lang === 'ar' ? 'يرجى اختيار صورة' : 'Please select an image'); return }
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX_DIM = 1000
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM }
+          else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        setImage(canvas.toDataURL('image/jpeg', 0.75))
+        setError('')
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!text.trim() && !image) return
+    setPosting(true); setError('')
+    try {
+      const res = await fetch('/api/community/posts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.trim(), image }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || (lang === 'ar' ? 'حدث خطأ' : 'Something went wrong')); setPosting(false); return }
+      setPosts(p => [data.post, ...p])
+      setText(''); setImage(null); setPosting(false)
+      if (fileRef.current) fileRef.current.value = ''
+    } catch {
+      setError(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error'); setPosting(false)
+    }
+  }
+
+  async function handleDelete(postId) {
+    if (!confirm(lang === 'ar' ? 'حذف هذا المنشور؟' : 'Delete this post?')) return
+    setPosts(p => p.filter(x => x.id !== postId))
+    await fetch(`/api/community/posts?id=${postId}`, { method: 'DELETE' })
+  }
+
+  async function handleLike(postId) {
+    setPosts(p => p.map(x => {
+      if (x.id !== postId) return x
+      const has = (x.likes || []).includes(adminUser.username)
+      return { ...x, likes: has ? x.likes.filter(u => u !== adminUser.username) : [...(x.likes || []), adminUser.username] }
+    }))
+    await fetch(`/api/community/${postId}/like`, { method: 'POST' })
+  }
+
+  function toggleComments(postId) {
+    setExpanded(s => { const n = new Set(s); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
+  }
+
+  async function submitComment(postId) {
+    const draft = (commentDrafts[postId] || '').trim()
+    if (!draft) return
+    setCommentBusy(b => ({ ...b, [postId]: true }))
+    try {
+      const res = await fetch(`/api/community/${postId}/comments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: draft }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setPosts(p => p.map(x => x.id === postId ? { ...x, comments: [...(x.comments || []), data.comment] } : x))
+        setCommentDrafts(d => ({ ...d, [postId]: '' }))
+      }
+    } finally {
+      setCommentBusy(b => ({ ...b, [postId]: false }))
+    }
+  }
+
+  async function deleteComment(postId, commentId) {
+    setPosts(p => p.map(x => x.id === postId ? { ...x, comments: (x.comments || []).filter(c => c.id !== commentId) } : x))
+    await fetch(`/api/community/${postId}/comments?commentId=${commentId}`, { method: 'DELETE' })
+  }
+
+  function timeAgo(iso) {
+    const diff = Math.max(0, Date.now() - new Date(iso).getTime())
+    const min = Math.floor(diff / 60000)
+    if (min < 1) return lang === 'ar' ? 'الآن' : 'now'
+    if (min < 60) return lang === 'ar' ? `منذ ${min} د` : `${min}m ago`
+    const hr = Math.floor(min / 60)
+    if (hr < 24) return lang === 'ar' ? `منذ ${hr} س` : `${hr}h ago`
+    const d = Math.floor(hr / 24)
+    return lang === 'ar' ? `منذ ${d} يوم` : `${d}d ago`
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: '16px', fontWeight: '800', color: C.white, marginBottom: '16px' }}>
+        {lang === 'ar' ? 'مجتمع الطلاب' : 'Student Community'}
+      </h2>
+
+      <form onSubmit={handleSubmit} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '16px', padding: '18px', marginBottom: '20px' }}>
+        <textarea
+          value={text} onChange={e => setText(e.target.value)}
+          placeholder={lang === 'ar' ? 'اكتب إعلاناً أو رسالة تحفيزية للطلاب...' : 'Write an announcement or motivational message...'}
+          rows={3}
+          style={{ width: '100%', background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '12px', padding: '12px 14px', color: C.white, fontSize: '14px', lineHeight: '1.6', resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+        />
+        {image && (
+          <div style={{ position: 'relative', marginTop: '10px', display: 'inline-block' }}>
+            <img src={image} alt="" style={{ maxHeight: '160px', borderRadius: '10px', border: `1px solid ${C.g20}`, display: 'block' }} />
+            <button type="button" onClick={() => { setImage(null); if (fileRef.current) fileRef.current.value = '' }}
+              style={{ position: 'absolute', top: '-8px', insetInlineEnd: '-8px', width: '24px', height: '24px', borderRadius: '50%', background: C.red, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', lineHeight: 1 }}>✕</button>
+          </div>
+        )}
+        {error && <p style={{ color: C.red, fontSize: '12px', marginTop: '8px' }}>{error}</p>}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: C.gold, fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+            🖼️ {lang === 'ar' ? 'إضافة صورة' : 'Add image'}
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
+          </label>
+          <button type="submit" disabled={posting || (!text.trim() && !image)} style={{
+            padding: '9px 22px', borderRadius: '10px', border: 'none',
+            background: C.gold, color: C.navy, fontSize: '13px', fontWeight: '800',
+            cursor: (posting || (!text.trim() && !image)) ? 'not-allowed' : 'pointer', opacity: (posting || (!text.trim() && !image)) ? 0.6 : 1,
+          }}>
+            {posting ? (lang === 'ar' ? 'جاري النشر...' : 'Posting...') : (lang === 'ar' ? 'نشر' : 'Post')}
+          </button>
+        </div>
+      </form>
+
+      {loading ? (
+        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
+      ) : posts.length === 0 ? (
+        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'لا توجد منشورات بعد' : 'No posts yet'}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {posts.map(post => {
+            const liked = (post.likes || []).includes(adminUser.username)
+            const isOpen = expanded.has(post.id)
+            return (
+              <div key={post.id} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '16px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {post.photo ? <img src={post.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '13px', fontWeight: '700' }}>{post.avatar}</span>}
+                    </div>
+                    <div>
+                      <p style={{ color: C.white, fontSize: '13px', fontWeight: '700' }}>{post.name}</p>
+                      <p style={{ color: C.silver, fontSize: '11px' }}>{timeAgo(post.createdAt)}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleDelete(post.id)} title={lang === 'ar' ? 'حذف' : 'Delete'}
+                    style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '14px', padding: '4px' }}>🗑️</button>
+                </div>
+
+                {post.text && <p style={{ color: C.white, fontSize: '14px', lineHeight: '1.7', marginTop: '12px', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
+                {post.image && <img src={post.image} alt="" style={{ width: '100%', borderRadius: '12px', marginTop: '12px', border: `1px solid ${C.g20}`, display: 'block' }} />}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${C.g15}` }}>
+                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: liked ? C.gold : C.silver, fontSize: '13px', fontWeight: '600' }}>
+                    {liked ? '❤️' : '🤍'} {(post.likes || []).length || ''}
+                  </button>
+                  <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: C.silver, fontSize: '13px', fontWeight: '600' }}>
+                    💬 {(post.comments || []).length || (lang === 'ar' ? 'تعليق' : 'Comment')}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${C.g15}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {(post.comments || []).map(c => (
+                      <div key={c.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {c.photo ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.gold, fontSize: '10px', fontWeight: '700' }}>{c.avatar}</span>}
+                        </div>
+                        <div style={{ flex: 1, background: C.navy, borderRadius: '10px', padding: '8px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <p style={{ color: C.white, fontSize: '12px', fontWeight: '700' }}>{c.name}</p>
+                            <button onClick={() => deleteComment(post.id, c.id)} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                          </div>
+                          <p style={{ color: C.silver, fontSize: '12.5px', lineHeight: '1.5', marginTop: '2px' }}>{c.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        value={commentDrafts[post.id] || ''}
+                        onChange={e => setCommentDrafts(d => ({ ...d, [post.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(post.id) } }}
+                        placeholder={lang === 'ar' ? 'اكتب تعليقاً...' : 'Write a comment...'}
+                        style={{ flex: 1, background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '8px 12px', color: C.white, fontSize: '13px', outline: 'none' }}
+                      />
+                      <button onClick={() => submitComment(post.id)} disabled={commentBusy[post.id]} style={{ background: C.g15, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '8px 14px', color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
+                        {lang === 'ar' ? 'إرسال' : 'Send'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Subscriptions Tab ────────────────────────────────────────────────────
 function SubscriptionsTab({ students, lang, onRefresh, onRenew }) {
   const [addOpen,  setAddOpen]  = useState(false)
@@ -1109,6 +1338,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
   const tabs = [
     { key: 'students',      icon: '👥', label: lang==='ar'?'الطلاب':'Students'              },
+    { key: 'community',     icon: '🌐', label: lang==='ar'?'مجتمع الطلاب':'Community'        },
     { key: 'subscriptions', icon: '🗓️', label: lang==='ar'?'الاشتراكات الشهرية':'Subscriptions' },
     { key: 'analytics',     icon: '📊', label: lang==='ar'?'التحليلات':'Analytics'           },
     { key: 'lessons',       icon: '📚', label: lang==='ar'?'الدروس':'Lessons'                },
@@ -1362,6 +1592,9 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
             </div>
           )}
 
+          {/* ── COMMUNITY ── */}
+          {tab === 'community' && <CommunityTab adminUser={adminUser} lang={lang} />}
+
           {/* ── ANALYTICS ── */}
           {tab === 'subscriptions' && <SubscriptionsTab students={students} lang={lang} onRefresh={refreshStudents} onRenew={renewSubscription} />}
 
@@ -1478,5 +1711,5 @@ export async function getServerSideProps({ req }) {
       subscriptionType: u.subscriptionType || 'permanent', subscriptionExpiry: u.subscriptionExpiry || null,
     }))
   const lessons = LESSONS.map(({ id, title, duration, free }) => ({ id, title, duration, free }))
-  return { props: { initialStudents: students, initialLessons: lessons, adminUser: { name: user.name } } }
+  return { props: { initialStudents: students, initialLessons: lessons, adminUser: { username: session.username, name: user.name, avatar: user.avatar || '', photo: user.photo || '' } } }
 }
