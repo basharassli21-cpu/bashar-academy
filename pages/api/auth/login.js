@@ -1,6 +1,7 @@
 import { createToken, setSessionCookie } from '../../../lib/auth'
 import { verifyPassword } from '../../../lib/db'
 import { getUser } from '../../../lib/users-store'
+import { getEmployeeByUsername, employeeAvatar } from '../../../lib/sales-db'
 
 const loginAttempts = new Map()
 
@@ -23,12 +24,24 @@ export default async function handler(req, res) {
   if (!username || !password) return res.status(400).json({ error: 'يرجى إدخال جميع البيانات' })
   if (typeof username !== 'string' || username.length > 50) return res.status(400).json({ error: 'بيانات غير صحيحة' })
 
-  const user = await getUser(username.toLowerCase().trim())
+  const usernameNorm = username.toLowerCase().trim()
+  const employee = await getEmployeeByUsername(usernameNorm)
+  const user = employee ? null : await getUser(usernameNorm)
 
   const dummyHash = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LnU0Q0y/lS6'
-  const valid = await verifyPassword(password, user ? user.passwordHash : dummyHash)
+  const hashToCheck = employee ? employee.password_hash : (user ? user.passwordHash : dummyHash)
+  const valid = await verifyPassword(password, hashToCheck)
 
-  if (!user || !valid) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور خاطئة' })
+  if ((!employee && !user) || !valid) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور خاطئة' })
+
+  if (employee) {
+    const token = createToken({ username: employee.username, name: employee.name, role: 'employee', avatar: employeeAvatar(employee.name) })
+    setSessionCookie(res, token)
+    return res.status(200).json({
+      success: true,
+      user: { username: employee.username, name: employee.name, role: 'employee', avatar: employeeAvatar(employee.name) }
+    })
+  }
 
   if (user.subscriptionType === 'monthly' && user.subscriptionExpiry) {
     const expired = new Date(user.subscriptionExpiry) < new Date()

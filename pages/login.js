@@ -137,7 +137,7 @@ export default function LoginPage() {
       const res  = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username.trim(), password }) })
       const data = await res.json()
       if (!res.ok) { setError(data.error || (lang === 'ar' ? 'خطأ في تسجيل الدخول' : 'Login error')); setLoading(false); return }
-      router.push(data.user.role === 'admin' ? '/admin' : '/dashboard')
+      router.push(data.user.role === 'admin' ? '/admin' : data.user.role === 'employee' ? '/sales' : '/dashboard')
     } catch {
       setError(lang === 'ar' ? 'خطأ في الاتصال. حاول مرة ثانية.' : 'Connection error. Try again.')
       setLoading(false)

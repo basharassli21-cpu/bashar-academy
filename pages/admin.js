@@ -867,6 +867,206 @@ function AdminMessageBubble({ children }) {
   )
 }
 
+const SALES_STATUS_META = {
+  new:            { ar: 'جديد',          en: 'New',            key: 'silver'  },
+  contacted:      { ar: 'تم التواصل',     en: 'Contacted',      key: 'gold'    },
+  interested:     { ar: 'مهتم',           en: 'Interested',     key: 'emerald' },
+  not_interested: { ar: 'غير مهتم',       en: 'Not Interested', key: 'red'     },
+  closed_sale:    { ar: 'تم البيع',       en: 'Closed Sale',    key: 'emerald' },
+  cancelled:      { ar: 'ألغى الفكرة',    en: 'Cancelled',      key: 'red'     },
+}
+function salesStatusLabel(s, lang) {
+  const m = SALES_STATUS_META[s]
+  if (!m) return s
+  return lang === 'ar' ? m.ar : m.en
+}
+function salesStatusColor(s) {
+  return { silver: C.silver, gold: C.gold, emerald: C.emerald, red: C.red }[SALES_STATUS_META[s]?.key] || C.silver
+}
+
+function SalesTeamTab({ lang }) {
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [form, setForm] = useState({ name: '', username: '', password: '', monthlyTarget: '' })
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
+  const [leadsByEmployee, setLeadsByEmployee] = useState({})
+  const [leadForm, setLeadForm] = useState({ customerName: '', phone: '' })
+  const [leadSaving, setLeadSaving] = useState(false)
+  const [targetEdits, setTargetEdits] = useState({})
+
+  async function fetchEmployees() {
+    const res = await fetch('/api/admin/employees')
+    const data = await res.json()
+    setEmployees(data.employees || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchEmployees() }, [])
+
+  async function addEmployee(e) {
+    e.preventDefault()
+    if (!form.name.trim() || !form.username.trim() || !form.password) {
+      setError(lang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields')
+      return
+    }
+    setSaving(true); setError('')
+    const res = await fetch('/api/admin/employees', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, monthlyTarget: Number(form.monthlyTarget) || 0 }),
+    })
+    const data = await res.json()
+    setSaving(false)
+    if (!res.ok) { setError(data.error || (lang === 'ar' ? 'حدث خطأ' : 'Something went wrong')); return }
+    setForm({ name: '', username: '', password: '', monthlyTarget: '' })
+    setShowAddForm(false)
+    fetchEmployees()
+  }
+
+  async function deleteEmployeeRow(id) {
+    if (!confirm(lang === 'ar' ? 'حذف هذا الموظف؟ سيتم حذف جميع عملائه المحتملين أيضاً.' : 'Delete this employee? All their leads will be deleted too.')) return
+    await fetch('/api/admin/employees', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    fetchEmployees()
+  }
+
+  async function saveTarget(id) {
+    const monthlyTarget = Number(targetEdits[id])
+    if (Number.isNaN(monthlyTarget)) return
+    await fetch('/api/admin/employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, monthlyTarget }) })
+    setTargetEdits(t => { const n = { ...t }; delete n[id]; return n })
+    fetchEmployees()
+  }
+
+  async function toggleExpand(id) {
+    if (expandedId === id) { setExpandedId(null); return }
+    setExpandedId(id)
+    if (!leadsByEmployee[id]) {
+      const res = await fetch(`/api/admin/employees/${id}/leads`)
+      const data = await res.json()
+      setLeadsByEmployee(m => ({ ...m, [id]: data.leads || [] }))
+    }
+  }
+
+  async function addLead(employeeId) {
+    if (!leadForm.customerName.trim() || !leadForm.phone.trim()) return
+    setLeadSaving(true)
+    const res = await fetch(`/api/admin/employees/${employeeId}/leads`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(leadForm),
+    })
+    setLeadSaving(false)
+    if (!res.ok) return
+    setLeadForm({ customerName: '', phone: '' })
+    const refreshed = await fetch(`/api/admin/employees/${employeeId}/leads`)
+    const data = await refreshed.json()
+    setLeadsByEmployee(m => ({ ...m, [employeeId]: data.leads || [] }))
+  }
+
+  const inputStyle = { width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '10px', padding: '10px 14px', color: C.white, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <h2 style={{ color: C.white, fontSize: '16px', fontWeight: '800' }}>{lang === 'ar' ? 'فريق المبيعات' : 'Sales Team'}</h2>
+        <button onClick={() => setShowAddForm(s => !s)} style={{
+          display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', cursor: 'pointer',
+          background: C.g10, border: `1px solid ${C.g20}`, color: C.gold, fontSize: '12px', fontWeight: '700',
+        }}>➕ {lang === 'ar' ? 'إضافة موظف' : 'Add Employee'}</button>
+      </div>
+
+      {showAddForm && (
+        <form onSubmit={addEmployee} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '14px', padding: '18px', marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <input placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full name'} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
+          <input placeholder={lang === 'ar' ? 'اسم المستخدم' : 'Username'} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} style={inputStyle} />
+          <input type="password" placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inputStyle} />
+          <input type="number" min="0" placeholder={lang === 'ar' ? 'التارجت الشهري' : 'Monthly target'} value={form.monthlyTarget} onChange={e => setForm(f => ({ ...f, monthlyTarget: e.target.value }))} style={inputStyle} />
+          {error && <p style={{ color: C.red, fontSize: '12px', gridColumn: '1 / -1' }}>{error}</p>}
+          <button type="submit" disabled={saving} style={{
+            gridColumn: '1 / -1', padding: '10px', borderRadius: '10px', border: 'none',
+            background: C.gold, color: C.navy, fontSize: '13px', fontWeight: '800', cursor: 'pointer', opacity: saving ? 0.6 : 1,
+          }}>{saving ? (lang === 'ar' ? 'جارٍ الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+        </form>
+      )}
+
+      {loading ? (
+        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
+      ) : employees.length === 0 ? (
+        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'لا يوجد موظفو مبيعات بعد' : 'No sales employees yet'}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {employees.map(emp => {
+            const leads = leadsByEmployee[emp.id]
+            return (
+              <div key={emp.id} style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', flexWrap: 'wrap' }}>
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: C.g15, border: `1px solid ${C.g20}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: C.gold, fontSize: '12px', fontWeight: '700' }}>{emp.avatar}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '140px' }}>
+                    <p style={{ color: C.white, fontSize: '13.5px', fontWeight: '700' }}>{emp.name}</p>
+                    <p style={{ color: C.silver, fontSize: '11.5px' }}>@{emp.username}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '14px', fontSize: '11.5px', color: C.silver, flexWrap: 'wrap' }}>
+                    <span>{lang === 'ar' ? 'مبيعات' : 'Sales'}: <b style={{ color: C.emerald }}>{emp.stats.closedSales}</b></span>
+                    <span>{lang === 'ar' ? 'مكالمات' : 'Calls'}: <b style={{ color: C.gold }}>{emp.stats.totalCalls}</b></span>
+                    <span>{lang === 'ar' ? 'الإنجاز' : 'Progress'}: <b style={{ color: C.purple }}>{emp.stats.targetProgress}%</b></span>
+                  </div>
+                  <input
+                    type="number" min="0"
+                    value={targetEdits[emp.id] ?? emp.monthlyTarget}
+                    onChange={e => setTargetEdits(t => ({ ...t, [emp.id]: e.target.value }))}
+                    onBlur={() => targetEdits[emp.id] !== undefined && saveTarget(emp.id)}
+                    title={lang === 'ar' ? 'التارجت الشهري' : 'Monthly target'}
+                    style={{ width: '70px', background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '6px 8px', color: C.white, fontSize: '12px', outline: 'none' }}
+                  />
+                  <button onClick={() => toggleExpand(emp.id)} style={{ background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '8px', color: C.gold, padding: '6px 12px', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer' }}>
+                    {expandedId === emp.id ? (lang === 'ar' ? 'إغلاق' : 'Close') : (lang === 'ar' ? 'العملاء المحتملون' : 'Leads')}
+                  </button>
+                  <button onClick={() => deleteEmployeeRow(emp.id)} style={{ background: 'none', border: 'none', color: C.red, fontSize: '13px', cursor: 'pointer' }}>🗑</button>
+                </div>
+
+                {expandedId === emp.id && (
+                  <div style={{ padding: '0 16px 16px', borderTop: `1px solid ${C.g20}` }}>
+                    <div style={{ display: 'flex', gap: '10px', margin: '14px 0', flexWrap: 'wrap' }}>
+                      <input placeholder={lang === 'ar' ? 'اسم العميل' : 'Customer name'} value={leadForm.customerName} onChange={e => setLeadForm(f => ({ ...f, customerName: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: '140px' }} />
+                      <input placeholder={lang === 'ar' ? 'رقم الهاتف' : 'Phone number'} value={leadForm.phone} onChange={e => setLeadForm(f => ({ ...f, phone: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: '140px' }} />
+                      <button onClick={() => addLead(emp.id)} disabled={leadSaving} style={{
+                        padding: '10px 18px', borderRadius: '10px', border: 'none', background: C.gold, color: C.navy,
+                        fontSize: '12.5px', fontWeight: '800', cursor: 'pointer', opacity: leadSaving ? 0.6 : 1, flexShrink: 0,
+                      }}>{lang === 'ar' ? 'إضافة' : 'Add'}</button>
+                    </div>
+
+                    {!leads ? (
+                      <p style={{ color: C.silver, fontSize: '12px' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
+                    ) : leads.length === 0 ? (
+                      <p style={{ color: C.silver, fontSize: '12px' }}>{lang === 'ar' ? 'لا يوجد عملاء محتملون لهذا الموظف' : 'No leads for this employee yet'}</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {leads.map((lead, i) => (
+                          <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: C.navy, borderRadius: '8px', padding: '8px 12px', opacity: lead.locked ? 0.5 : 1 }}>
+                            <span style={{ fontSize: '11px', color: C.silver, width: '18px', flexShrink: 0 }}>{lead.locked ? '🔒' : i + 1}</span>
+                            <span style={{ flex: 1, minWidth: '100px', color: C.white, fontSize: '12.5px', fontWeight: '600' }}>{lead.customer_name}</span>
+                            <span style={{ color: C.silver, fontSize: '11.5px' }}>{lead.phone}</span>
+                            <span style={{
+                              fontSize: '10.5px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', flexShrink: 0,
+                              color: salesStatusColor(lead.status), background: C.g10, border: `1px solid ${C.g20}`, whiteSpace: 'nowrap',
+                            }}>{salesStatusLabel(lead.status, lang)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CommunityTab({ adminUser, lang }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1481,6 +1681,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
 
   const tabs = [
     { key: 'students',      icon: '👥', label: lang==='ar'?'الطلاب':'Students'              },
+    { key: 'salesTeam',     icon: '💼', label: lang==='ar'?'فريق المبيعات':'Sales Team'       },
     { key: 'community',     icon: '🌐', label: lang==='ar'?'مجتمع الطلاب':'Community'        },
     { key: 'subscriptions', icon: '🗓️', label: lang==='ar'?'الاشتراكات الشهرية':'Subscriptions' },
     { key: 'analytics',     icon: '📊', label: lang==='ar'?'التحليلات':'Analytics'           },
@@ -1759,6 +1960,8 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
           )}
 
           {/* ── COMMUNITY ── */}
+          {tab === 'salesTeam' && <SalesTeamTab lang={lang} />}
+
           {tab === 'community' && <CommunityTab adminUser={adminUser} lang={lang} />}
 
           {/* ── ANALYTICS ── */}
