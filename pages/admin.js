@@ -4,6 +4,7 @@ import Head from 'next/head'
 import dynamic from 'next/dynamic'
 import { useLang, useTheme } from './_app'
 import { t } from '../lib/i18n'
+import { playSendSound } from '../lib/sound'
 
 // ─── Recharts (client-only) ────────────────────────────────────────────────
 const {
@@ -823,14 +824,13 @@ function adminCommunityTimeAgo(iso, lang) {
 function AdminReactionPicker({ onPick }) {
   return (
     <div onClick={e => e.stopPropagation()} style={{
-      position: 'absolute', top: '-74px', insetInlineStart: 0, zIndex: 6,
       display: 'flex', gap: '2px', background: C.surface, border: `1px solid ${C.g20}`,
-      borderRadius: '10px', padding: '4px', boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+      borderRadius: '10px', padding: '4px', margin: '6px 0', width: 'fit-content',
     }}>
       {ADMIN_QUICK_REACTIONS.map(e => (
         <button key={e} onClick={() => onPick(e)} style={{
-          width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', borderRadius: '6px',
+          width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', borderRadius: '6px',
         }}>{e}</button>
       ))}
     </div>
@@ -923,6 +923,7 @@ function CommunityTab({ adminUser, lang }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!text.trim() && !image) return
+    playSendSound()
     setPosting(true); setError('')
     try {
       const res = await fetch('/api/community/posts', {
@@ -966,6 +967,7 @@ function CommunityTab({ adminUser, lang }) {
   async function submitComment(postId) {
     const draft = (commentDrafts[postId] || '').trim()
     if (!draft) return
+    playSendSound()
     setCommentBusy(b => ({ ...b, [postId]: true }))
     try {
       const res = await fetch(`/api/community/${postId}/comments`, {
@@ -1058,7 +1060,6 @@ function CommunityTab({ adminUser, lang }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                     {toolbar}
-                    {pickerFor === post.id && <AdminReactionPicker onPick={emoji => handleReact(post.id, emoji)} />}
 
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', marginBottom: '4px' }}>
                       <span style={{ color: C.white, fontSize: '13px', fontWeight: '700' }}>{post.name}</span>
@@ -1071,6 +1072,8 @@ function CommunityTab({ adminUser, lang }) {
                     </div>
 
                     {post.text && <AdminMessageBubble>{post.text}</AdminMessageBubble>}
+
+                    {pickerFor === post.id && <AdminReactionPicker onPick={emoji => handleReact(post.id, emoji)} />}
 
                     <AdminReactionChips reactions={post.reactions} username={adminUser.username} onToggle={emoji => handleReact(post.id, emoji)} />
 
