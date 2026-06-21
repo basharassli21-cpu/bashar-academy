@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TEAM_LEADER
+  SALES_EMPLOYEE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  NOT_INTERESTED
+  CLOSED_SALE
+  CANCELLED
+}
+
+enum LeadSource {
+  MANUAL
+  IMPORT
+  OPENC_CLAIM
+}
+
+enum ImportAssignmentMode {
+  SINGLE_EMPLOYEE
+  ROUND_ROBIN
+  OPENC
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  EMPLOYEE_CREATED
+  EMPLOYEE_UPDATED
+  EMPLOYEE_DEACTIVATED
+  EMPLOYEE_REACTIVATED
+  TEAM_LEADER_CREATED
+  TEAM_LEADER_ASSIGNED
+  TEAM_LEADER_UNASSIGNED
+  LEAD_CREATED
+  LEAD_UPDATED
+  LEAD_DELETED
+  LEAD_TRANSFERRED
+  LEAD_PULLED_TO_OPENC
+  LEAD_RETURNED_FROM_OPENC
+  LEAD_CLAIMED
+  LEAD_CLAIM_FAILED
+  LEADS_IMPORTED
+  LEADS_DISTRIBUTED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  passwordHash  String   @map("password_hash")
+  fullName      String   @map("full_name")
+  role          Role
+  teamLeaderId  String?  @map("team_leader_id")
+  teamLeader    User?    @relation("LeaderToEmployees", fields: [teamLeaderId], references: [id], onDelete: SetNull)
+  employees     User[]   @relation("LeaderToEmployees")
+  monthlyTarget Int?     @map("monthly_target")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  ownedLeads       Lead[]       @relation("LeadOwner")
+  createdLeads     Lead[]       @relation("LeadCreator")
+  leadNotes        LeadNote[]
+  auditLogs        AuditLog[]   @relation("AuditActor")
+  leadImports      LeadImport[] @relation("ImportUploader")
+  importedAsTarget LeadImport[] @relation("ImportSingleTarget")
+
+  @@index([role, isActive])
+  @@index([teamLeaderId])
+  @@map("users")
+}
+
+model Lead {
+  id               String      @id @default(cuid())
+  customerName     String      @map("customer_name")
+  phone            String      @map("phone")
+  phoneNormalized  String      @unique @map("phone_normalized")
+  status           LeadStatus  @default(NEW)
+  ownerEmployeeId  String?     @map("owner_employee_id")
+  owner            User?       @relation("LeadOwner", fields: [ownerEmployeeId], references: [id], onDelete: Restrict)
+  lastContactDate  DateTime?   @map("last_contact_date")
+  nextFollowupDate DateTime?   @map("next_followup_date")
+  closedAt         DateTime?   @map("closed_at")
+  pulledToOpenAt   DateTime?   @map("pulled_to_open_at")
+  claimedAt        DateTime?   @map("claimed_at")
+  createdById      String      @map("created_by")
+  createdBy        User        @relation("LeadCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  source           LeadSource  @default(MANUAL)
+  importId         String?     @map("import_id")
+  import           LeadImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  notes LeadNote[]
+
+  @@index([ownerEmployeeId, status])
+  @@index([status])
+  @@index([ownerEmployeeId, nextFollowupDate])
+  @@index([closedAt])
+  @@index([ownerEmployeeId, closedAt])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model LeadNote {
+  id           String     @id @default(cuid())
+  leadId       String     @map("lead_id")
+  lead         Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  employeeId   String     @map("employee_id")
+  employee     User       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  note         String
+  statusAtTime LeadStatus @map("status_at_time")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([employeeId, createdAt])
+  @@index([leadId, createdAt])
+  @@map("lead_notes")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorUserId String?     @map("actor_user_id")
+  actor       User?       @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorRole   Role?       @map("actor_role")
+  action      AuditAction
+  entityType  String?     @map("entity_type")
+  entityId    String?     @map("entity_id")
+  details     Json?
+  ipAddress   String?     @map("ip_address")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model LeadImport {
+  id                 String               @id @default(cuid())
+  uploadedById       String               @map("uploaded_by")
+  uploadedBy         User                 @relation("ImportUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  filename           String
+  totalRows          Int                  @map("total_rows")
+  importedCount      Int                  @map("imported_count")
+  updatedCount       Int                  @map("updated_count")
+  skippedCount       Int                  @map("skipped_count")
+  invalidCount       Int                  @map("invalid_count")
+  assignmentMode     ImportAssignmentMode @map("assignment_mode")
+  assignedEmployeeId String?              @map("assigned_employee_id")
+  assignedEmployee   User?                @relation("ImportSingleTarget", fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  errorReport        Json?                @map("error_report")
+  createdAt          DateTime             @default(now()) @map("created_at")
+
+  leads Lead[]
+
+  @@index([uploadedById, createdAt])
+  @@map("lead_imports")
+}
