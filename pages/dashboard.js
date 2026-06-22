@@ -1319,6 +1319,7 @@ export default function Dashboard({ initialUser }) {
       <Head>
         <title>{lang === 'ar' ? 'لوحة الطالب — بشار العسلي' : 'Student Dashboard — Bashar Al-Asali'}</title>
         <meta name="robots" content="noindex" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
@@ -1354,9 +1355,8 @@ export default function Dashboard({ initialUser }) {
           background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(74,222,128,0.06), transparent) }
         /* ── Mobile layout ── */
         @media (max-width: 720px) {
-          .dash-sidebar { transform: translateX(100%); transition: transform 0.3s; }
-          .dash-sidebar.open { transform: translateX(0); }
-          .dash-sidebar > aside { width: 240px !important; }
+          .dash-sidebar > aside { width: 240px !important; transform: translateX(100%); transition: transform 0.3s; }
+          .dash-sidebar.open > aside { transform: translateX(0); }
           .dash-main { margin-right: 0 !important; }
           .dash-stats-grid { grid-template-columns: 1fr 1fr !important; }
           .dash-milestones { flex-wrap: wrap; gap: 12px !important; justify-content: center !important; }

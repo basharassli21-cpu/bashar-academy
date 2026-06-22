@@ -1720,6 +1720,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
       <Head>
         <title>{lang === 'ar' ? 'لوحة الإدارة — بشار العسلي' : 'Admin Panel — Bashar Al-Asali'}</title>
         <meta name="robots" content="noindex" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />

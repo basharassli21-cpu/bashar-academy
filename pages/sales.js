@@ -470,6 +470,7 @@ export default function SalesPage({ initialUser }) {
       <Head>
         <title>{lang === 'ar' ? 'لوحة المبيعات — بشار العسلي' : 'Sales Dashboard — Bashar Al-Asali'}</title>
         <meta name="robots" content="noindex" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
@@ -481,9 +482,8 @@ export default function SalesPage({ initialUser }) {
         ::-webkit-scrollbar-thumb { background: rgba(74,222,128,0.28); border-radius: 999px }
         ::-webkit-scrollbar-thumb:hover { background: rgba(74,222,128,0.48) }
         @media (max-width: 720px) {
-          .sales-sidebar { transform: translateX(100%); transition: transform 0.3s; }
-          .sales-sidebar.open { transform: translateX(0); }
-          .sales-sidebar > aside { width: 240px !important; }
+          .sales-sidebar > aside { width: 240px !important; transform: translateX(100%); transition: transform 0.3s; }
+          .sales-sidebar.open > aside { transform: translateX(0); }
           .sales-main { margin-right: 0 !important; }
           .sales-hamburger { display: flex !important; }
           .sales-stats-grid { grid-template-columns: 1fr 1fr !important; }
