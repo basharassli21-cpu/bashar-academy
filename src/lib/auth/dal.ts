@@ -19,6 +19,7 @@ export type CurrentUser = {
   role: Role;
   teamLeaderId: string | null;
   monthlyTarget: number | null;
+  totpEnabled: boolean;
 };
 
 // Secure: re-reads the live row from the database (catches deactivation,
@@ -36,11 +37,14 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       role: true,
       teamLeaderId: true,
       monthlyTarget: true,
+      totpEnabled: true,
       isActive: true,
+      sessionVersion: true,
     },
   });
 
   if (!user || !user.isActive) return null;
+  if (user.sessionVersion !== session.sessionVersion) return null;
   return user;
 });
 

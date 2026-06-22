@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const role = searchParams.get("role") as Role | null;
     const q = searchParams.get("q")?.trim();
     const teamLeaderId = searchParams.get("teamLeaderId");
+    const isActiveParam = searchParams.get("isActive");
     const { page, pageSize, skip, take } = parsePagination(searchParams);
 
     if (role !== "SALES_EMPLOYEE" && role !== "TEAM_LEADER") {
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     const where: Prisma.UserWhereInput = {
       role,
       ...(teamLeaderId ? { teamLeaderId } : {}),
+      ...(isActiveParam !== null ? { isActive: isActiveParam === "true" } : {}),
       ...(q
         ? {
             OR: [

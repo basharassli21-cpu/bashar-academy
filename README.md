@@ -20,6 +20,26 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing
+
+End-to-end smoke tests (login, route guards, and the full create → update →
+delete lead lifecycle) run with [Playwright](https://playwright.dev):
+
+```bash
+npm run test:e2e        # headless
+npm run test:e2e:ui     # interactive UI mode
+```
+
+This starts its own `next dev` server on port 3100 and creates/removes two
+dedicated `e2e-*-smoke-test` accounts (see `e2e/global-setup.ts` and
+`e2e/global-teardown.ts`) — it does not touch any other data. Requires
+`DATABASE_URL` and `JWT_SECRET` to already be set (e.g. via `.env`).
+
+`.github/workflows/ci.yml` runs lint, type checking, the production build,
+and this E2E suite on every push/PR against an ephemeral Postgres service
+container — it never touches the real database. This only runs once the
+repo is pushed to GitHub.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

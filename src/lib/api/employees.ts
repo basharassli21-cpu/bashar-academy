@@ -29,12 +29,14 @@ export async function fetchEmployees(params: {
   role: "SALES_EMPLOYEE" | "TEAM_LEADER";
   q?: string;
   teamLeaderId?: string;
+  isActive?: boolean;
   page?: number;
 }): Promise<PaginatedResult<EmployeeListItem>> {
   const search = new URLSearchParams();
   search.set("role", params.role);
   if (params.q) search.set("q", params.q);
   if (params.teamLeaderId) search.set("teamLeaderId", params.teamLeaderId);
+  if (params.isActive !== undefined) search.set("isActive", String(params.isActive));
   if (params.page) search.set("page", String(params.page));
   const res = await fetch(`/api/admin/employees?${search.toString()}`);
   return parseOrThrow(res);

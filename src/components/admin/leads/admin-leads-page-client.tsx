@@ -2,10 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Plus, Download } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,21 +24,54 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
+import { FollowupSlaBadge } from "@/components/followup-sla-badge";
+import { LeadTagsBadges } from "@/components/lead-tags";
+import { PhoneActions } from "@/components/phone-actions";
 import { PaginationControls } from "@/components/pagination-controls";
+import { FilterPresetsBar } from "@/components/filter-presets-bar";
 import { useTranslations } from "@/components/providers/locale-provider";
-import { fetchAdminLeads, LEAD_STATUS_VALUES, type LeadStatus } from "@/lib/api/leads";
+import {
+  fetchAdminLeads,
+  bulkTransferLeads,
+  bulkDeleteLeads,
+  buildLeadsExportUrl,
+  LEAD_STATUS_VALUES,
+  type LeadStatus,
+} from "@/lib/api/leads";
+import { fetchEmployees } from "@/lib/api/employees";
 import { LeadCreateDialog } from "@/components/admin/leads/lead-create-dialog";
 
 const ALL_STATUSES = "ALL";
 
+type AdminLeadsFilterPreset = {
+  q: string;
+  status: LeadStatus | typeof ALL_STATUSES;
+};
+
 export function AdminLeadsPageClient() {
   const t = useTranslations();
+  const queryClient = useQueryClient();
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<LeadStatus | typeof ALL_STATUSES>(ALL_STATUSES);
   const [page, setPage] = React.useState(1);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkTransferOpen, setBulkTransferOpen] = React.useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkTransferTo, setBulkTransferTo] = React.useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["leads", "admin", q, status, page],
@@ -43,14 +79,77 @@ export function AdminLeadsPageClient() {
       fetchAdminLeads({ q, status: status === ALL_STATUSES ? "" : status, page }),
   });
 
+  const employeesQuery = useQuery({
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
+    enabled: bulkTransferOpen,
+  });
+
+  function clearSelection() {
+    setSelectedIds([]);
+  }
+
+  function invalidateLeads() {
+    queryClient.invalidateQueries({ queryKey: ["leads", "admin"] });
+  }
+
+  const bulkTransferMutation = useMutation({
+    mutationFn: () => bulkTransferLeads(selectedIds, bulkTransferTo),
+    onSuccess: () => {
+      toast.success(t.leads.bulkTransferSuccess);
+      setBulkTransferOpen(false);
+      setBulkTransferTo("");
+      clearSelection();
+      invalidateLeads();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => bulkDeleteLeads(selectedIds),
+    onSuccess: () => {
+      toast.success(t.leads.bulkDeleteSuccess);
+      setBulkDeleteOpen(false);
+      clearSelection();
+      invalidateLeads();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const items = data?.items ?? [];
+  const allOnPageSelected = items.length > 0 && items.every((lead) => selectedIds.includes(lead.id));
+
+  function toggleAllOnPage(checked: boolean) {
+    setSelectedIds((prev) => {
+      const pageIds = items.map((lead) => lead.id);
+      if (checked) {
+        return [...new Set([...prev, ...pageIds])];
+      }
+      return prev.filter((id) => !pageIds.includes(id));
+    });
+  }
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t.leads.title}</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus />
-          {t.leads.create}
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href={buildLeadsExportUrl({ q, status: status === ALL_STATUSES ? "" : status })}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            <Download />
+            {t.leads.exportCsv}
+          </a>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus />
+            {t.leads.create}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -88,10 +187,43 @@ export function AdminLeadsPageClient() {
         </Select>
       </div>
 
+      <FilterPresetsBar<AdminLeadsFilterPreset>
+        storageKey="admin-leads-filter-presets"
+        currentFilters={{ q, status }}
+        onApply={(preset) => {
+          setQ(preset.q);
+          setStatus(preset.status);
+          setPage(1);
+        }}
+      />
+
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+          <span className="text-sm font-medium">
+            {selectedIds.length} {t.leads.selectedCount}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setBulkTransferOpen(true)}>
+            {t.leads.bulkTransfer}
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
+            {t.leads.bulkDelete}
+          </Button>
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={clearSelection}>
+            {t.leads.clearSelection}
+          </Button>
+        </div>
+      )}
+
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allOnPageSelected}
+                  onCheckedChange={(checked) => toggleAllOnPage(checked === true)}
+                />
+              </TableHead>
               <TableHead>{t.leads.customerName}</TableHead>
               <TableHead>{t.common.phone}</TableHead>
               <TableHead>{t.common.status}</TableHead>
@@ -103,27 +235,36 @@ export function AdminLeadsPageClient() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Skeleton className="h-6 w-full" />
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && data?.items.length === 0 && (
+            {!isLoading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   {t.common.noResults}
                 </TableCell>
               </TableRow>
             )}
-            {data?.items.map((lead) => (
+            {items.map((lead) => (
               <TableRow key={lead.id}>
-                <TableCell className="font-medium">
-                  <Link href={`/admin/leads/${lead.id}`} className="hover:underline">
-                    {lead.customerName}
-                  </Link>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.includes(lead.id)}
+                    onCheckedChange={(checked) => toggleOne(lead.id, checked === true)}
+                  />
                 </TableCell>
-                <TableCell className="text-muted-foreground" dir="ltr">
-                  {lead.phone}
+                <TableCell className="font-medium">
+                  <div className="flex flex-col gap-1">
+                    <Link href={`/admin/leads/${lead.id}`} className="hover:underline">
+                      {lead.customerName}
+                    </Link>
+                    <LeadTagsBadges tags={lead.tags} />
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <PhoneActions phone={lead.phone} />
                 </TableCell>
                 <TableCell>
                   <LeadStatusBadge status={lead.status} />
@@ -133,7 +274,14 @@ export function AdminLeadsPageClient() {
                   {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : "—"}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {lead.nextFollowupDate ? new Date(lead.nextFollowupDate).toLocaleDateString() : "—"}
+                  <div className="flex items-center gap-1.5">
+                    <span>
+                      {lead.nextFollowupDate
+                        ? new Date(lead.nextFollowupDate).toLocaleDateString()
+                        : "—"}
+                    </span>
+                    <FollowupSlaBadge nextFollowupDate={lead.nextFollowupDate} status={lead.status} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -146,6 +294,56 @@ export function AdminLeadsPageClient() {
       )}
 
       <LeadCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <Dialog open={bulkTransferOpen} onOpenChange={setBulkTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.leads.bulkTransferTitle}</DialogTitle>
+          </DialogHeader>
+          <Select
+            items={(employeesQuery.data?.items ?? []).map((employee) => ({
+              value: employee.id,
+              label: employee.fullName,
+            }))}
+            value={bulkTransferTo}
+            onValueChange={(v) => setBulkTransferTo(v ?? "")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t.teamLeaders.selectEmployee} />
+            </SelectTrigger>
+            <SelectContent>
+              {employeesQuery.data?.items.map((employee) => (
+                <SelectItem key={employee.id} value={employee.id}>
+                  {employee.fullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button
+              disabled={!bulkTransferTo || bulkTransferMutation.isPending}
+              onClick={() => bulkTransferMutation.mutate()}
+            >
+              {t.leads.bulkTransfer}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.leads.bulkDeleteConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.leads.bulkDeleteConfirmDesc}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkDeleteMutation.mutate()}>
+              {t.common.confirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

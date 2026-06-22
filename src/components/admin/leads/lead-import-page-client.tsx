@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import * as XLSX from "xlsx";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,50 +16,27 @@ import {
 import { useTranslations } from "@/components/providers/locale-provider";
 import {
   importLeads,
+  parseImportFile,
   type ImportAssignmentMode,
   type ImportRow,
   type LeadImportResult,
 } from "@/lib/api/leads";
 import { fetchEmployees } from "@/lib/api/employees";
 
-const NAME_ALIASES = [
-  "name", "customername", "fullname", "clientname",
-  "اسم", "الاسم", "اسمالعميل", "اسمالزبون",
-];
-const PHONE_ALIASES = [
-  "phone", "phonenumber", "mobile", "mobilenumber", "tel", "telephone",
-  "رقم", "الهاتف", "رقمالهاتف", "موبايل", "الموبايل", "جوال", "الجوال",
-];
-
-function normalizeKey(key: string) {
-  return key.trim().toLowerCase().replace(/[\s_-]/g, "");
-}
-
-function mapRows(rows: Record<string, unknown>[]): ImportRow[] {
-  if (rows.length === 0) return [];
-  const keys = Object.keys(rows[0]);
-  const nameKey = keys.find((k) => NAME_ALIASES.includes(normalizeKey(k)));
-  const phoneKey = keys.find((k) => PHONE_ALIASES.includes(normalizeKey(k)));
-  if (!nameKey || !phoneKey) throw new Error("missing required columns");
-  return rows.map((row) => ({
-    customerName: String(row[nameKey] ?? "").trim(),
-    phone: String(row[phoneKey] ?? "").trim(),
-  }));
-}
-
 export function LeadImportPageClient() {
   const t = useTranslations();
   const [fileName, setFileName] = React.useState("");
   const [rows, setRows] = React.useState<ImportRow[] | null>(null);
   const [parseError, setParseError] = React.useState(false);
+  const [parsing, setParsing] = React.useState(false);
   const [mode, setMode] = React.useState<ImportAssignmentMode>("OPENC");
   const [singleEmployeeId, setSingleEmployeeId] = React.useState("");
   const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>([]);
   const [result, setResult] = React.useState<LeadImportResult | null>(null);
 
   const employeesQuery = useQuery({
-    queryKey: ["employees", "SALES_EMPLOYEE", "all"],
-    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE" }),
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
   });
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -68,18 +44,16 @@ export function LeadImportPageClient() {
     if (!file) return;
     setFileName(file.name);
     setResult(null);
+    setRows(null);
+    setParseError(false);
+    setParsing(true);
     try {
-      const isCsv = file.name.toLowerCase().endsWith(".csv");
-      const workbook = isCsv
-        ? XLSX.read(await file.text(), { type: "string" })
-        : XLSX.read(await file.arrayBuffer(), { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      setRows(mapRows(json));
-      setParseError(false);
+      const { rows: parsedRows } = await parseImportFile(file);
+      setRows(parsedRows);
     } catch {
-      setRows(null);
       setParseError(true);
+    } finally {
+      setParsing(false);
     }
   }
 
@@ -101,6 +75,7 @@ export function LeadImportPageClient() {
   });
 
   const canSubmit =
+    !parsing &&
     !!rows?.length &&
     (mode === "OPENC" ||
       (mode === "SINGLE_EMPLOYEE" && !!singleEmployeeId) ||
@@ -120,6 +95,8 @@ export function LeadImportPageClient() {
             onChange={handleFileChange}
             className="text-sm"
           />
+          <p className="text-sm text-muted-foreground">{t.leadImport.supportedColumnsHint}</p>
+          {parsing && <p className="text-sm text-muted-foreground">{t.common.loading}</p>}
           {parseError && <p className="text-sm text-destructive">{t.leadImport.parseError}</p>}
           {rows && (
             <p className="text-sm text-muted-foreground">

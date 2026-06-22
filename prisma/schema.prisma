@@ -37,6 +37,7 @@ enum ImportAssignmentMode {
 enum AuditAction {
   LOGIN
   LOGIN_FAILED
+  LOGIN_RATE_LIMITED
   LOGOUT
   PASSWORD_CHANGED
   EMPLOYEE_CREATED
@@ -56,32 +57,86 @@ enum AuditAction {
   LEAD_CLAIM_FAILED
   LEADS_IMPORTED
   LEADS_DISTRIBUTED
+  LEADS_BULK_TRANSFERRED
+  LEADS_BULK_DELETED
+  LEADS_EXPORTED
+  WEBHOOK_CREATED
+  WEBHOOK_UPDATED
+  WEBHOOK_DELETED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+}
+
+enum NotificationType {
+  LEAD_ASSIGNED
+  TEAM_ASSIGNMENT
+}
+
+enum WebhookEvent {
+  LEAD_CREATED
+  LEAD_CLOSED_SALE
+  LEAD_ASSIGNED
+}
+
+model Webhook {
+  id              String       @id @default(cuid())
+  url             String
+  event           WebhookEvent
+  secret          String
+  isActive        Boolean      @default(true) @map("is_active")
+  lastTriggeredAt DateTime?    @map("last_triggered_at")
+  lastStatus      String?      @map("last_status")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([event, isActive])
+  @@map("webhooks")
 }
 
 model User {
-  id            String   @id @default(cuid())
-  username      String   @unique
-  passwordHash  String   @map("password_hash")
-  fullName      String   @map("full_name")
-  role          Role
-  teamLeaderId  String?  @map("team_leader_id")
-  teamLeader    User?    @relation("LeaderToEmployees", fields: [teamLeaderId], references: [id], onDelete: SetNull)
-  employees     User[]   @relation("LeaderToEmployees")
-  monthlyTarget Int?     @map("monthly_target")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  fullName        String   @map("full_name")
+  role            Role
+  teamLeaderId    String?  @map("team_leader_id")
+  teamLeader      User?    @relation("LeaderToEmployees", fields: [teamLeaderId], references: [id], onDelete: SetNull)
+  employees       User[]   @relation("LeaderToEmployees")
+  monthlyTarget   Int?     @map("monthly_target")
+  isActive        Boolean  @default(true) @map("is_active")
+  totpSecret      String?  @map("totp_secret")
+  totpEnabled     Boolean  @default(false) @map("totp_enabled")
+  totpBackupCodes String[] @default([]) @map("totp_backup_codes")
+  sessionVersion  Int      @default(0) @map("session_version")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  ownedLeads       Lead[]       @relation("LeadOwner")
-  createdLeads     Lead[]       @relation("LeadCreator")
+  ownedLeads       Lead[]         @relation("LeadOwner")
+  createdLeads     Lead[]         @relation("LeadCreator")
   leadNotes        LeadNote[]
-  auditLogs        AuditLog[]   @relation("AuditActor")
-  leadImports      LeadImport[] @relation("ImportUploader")
-  importedAsTarget LeadImport[] @relation("ImportSingleTarget")
+  auditLogs        AuditLog[]     @relation("AuditActor")
+  leadImports      LeadImport[]   @relation("ImportUploader")
+  importedAsTarget LeadImport[]   @relation("ImportSingleTarget")
+  notifications    Notification[]
 
   @@index([role, isActive])
   @@index([teamLeaderId])
   @@map("users")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  data       Json?
+  entityType String?          @map("entity_type")
+  entityId   String?          @map("entity_id")
+  isRead     Boolean          @default(false) @map("is_read")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }
 
 model Lead {
@@ -102,6 +157,7 @@ model Lead {
   source           LeadSource  @default(MANUAL)
   importId         String?     @map("import_id")
   import           LeadImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  tags             String[]    @default([]) @map("tags")
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
 

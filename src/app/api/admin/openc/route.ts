@@ -10,10 +10,15 @@ export async function GET(request: Request) {
     await requireApiRole(["ADMIN"]);
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q")?.trim();
+    // bucket=fresh -> never-contacted unowned leads (admin-distribute only).
+    // Default ("open_sea") -> previously-contacted unowned leads, the same
+    // set employees can see and claim. The two are mutually exclusive.
+    const bucket = searchParams.get("bucket") === "fresh" ? "fresh" : "open_sea";
     const { page, pageSize, skip, take } = parsePagination(searchParams);
 
     const where: Prisma.LeadWhereInput = {
       ownerEmployeeId: null,
+      notes: bucket === "fresh" ? { none: {} } : { some: {} },
       ...(q
         ? {
             OR: [

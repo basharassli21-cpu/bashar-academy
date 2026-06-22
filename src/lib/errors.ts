@@ -35,6 +35,12 @@ export class ValidationError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  constructor(message = "Too many attempts. Please try again later.") {
+    super(message, 429);
+  }
+}
+
 export function errorResponseBody(error: unknown): { message: string; status: number } {
   if (error instanceof AppError) {
     return { message: error.message, status: error.status };

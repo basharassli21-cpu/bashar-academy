@@ -28,6 +28,8 @@ export function LoginForm() {
   const router = useRouter();
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [needsTwoFactor, setNeedsTwoFactor] = React.useState(false);
+  const [twoFactorCode, setTwoFactorCode] = React.useState("");
 
   const {
     register,
@@ -46,7 +48,11 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setServerError(t.auth.invalidCredentials);
+        setServerError(res.status === 429 ? t.auth.tooManyAttempts : t.auth.invalidCredentials);
+        return;
+      }
+      if (data.requires2fa) {
+        setNeedsTwoFactor(true);
         return;
       }
       router.push(roleHome[data.role] ?? "/login");
@@ -56,6 +62,63 @@ export function LoginForm() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function onSubmitTwoFactor(event: React.FormEvent) {
+    event.preventDefault();
+    setServerError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/login/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: twoFactorCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setServerError(res.status === 429 ? t.auth.tooManyAttempts : t.auth.invalidTwoFactorCode);
+        return;
+      }
+      router.push(roleHome[data.role] ?? "/login");
+      router.refresh();
+    } catch {
+      setServerError(t.common.error);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (needsTwoFactor) {
+    return (
+      <form onSubmit={onSubmitTwoFactor} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="twoFactorCode">{t.auth.twoFactorCodeLabel}</Label>
+          <Input
+            id="twoFactorCode"
+            autoComplete="one-time-code"
+            placeholder={t.auth.twoFactorCodePlaceholder}
+            autoFocus
+            value={twoFactorCode}
+            onChange={(e) => setTwoFactorCode(e.target.value.trim())}
+          />
+        </div>
+        {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+        <Button type="submit" disabled={submitting || !twoFactorCode} className="mt-2">
+          {t.auth.verifyCode}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            setNeedsTwoFactor(false);
+            setTwoFactorCode("");
+            setServerError(null);
+          }}
+        >
+          {t.auth.backToLogin}
+        </Button>
+      </form>
+    );
   }
 
   return (

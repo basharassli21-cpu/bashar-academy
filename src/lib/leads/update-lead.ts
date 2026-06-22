@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { NotFoundError } from "@/lib/errors";
+import { triggerWebhooks } from "@/lib/webhooks";
 import type { LeadStatus } from "@/generated/prisma/enums";
 
 /**
@@ -18,7 +19,7 @@ export async function applyLeadUpdate(params: {
 }) {
   const { leadId, employeeId, ownerEmployeeId, status, note, nextFollowupDate } = params;
 
-  return prisma.$transaction(async (tx) => {
+  const { lead, note: leadNote, isNewlyClosed } = await prisma.$transaction(async (tx) => {
     const existing = await tx.lead.findFirst({
       where: { id: leadId, ...(ownerEmployeeId ? { ownerEmployeeId } : {}) },
       select: { closedAt: true },
@@ -26,6 +27,7 @@ export async function applyLeadUpdate(params: {
     if (!existing) throw new NotFoundError();
 
     const closedAt = status === "CLOSED_SALE" ? existing.closedAt ?? new Date() : null;
+    const isNewlyClosed = status === "CLOSED_SALE" && existing.closedAt === null;
 
     const lead = await tx.lead.update({
       where: { id: leadId },
@@ -36,6 +38,12 @@ export async function applyLeadUpdate(params: {
       data: { leadId, employeeId, note, statusAtTime: status },
     });
 
-    return { lead, note: leadNote };
+    return { lead, note: leadNote, isNewlyClosed };
   });
+
+  if (isNewlyClosed) {
+    void triggerWebhooks("LEAD_CLOSED_SALE", { leadId: lead.id, customerName: lead.customerName });
+  }
+
+  return { lead, note: leadNote };
 }

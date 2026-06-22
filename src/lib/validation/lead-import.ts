@@ -1,10 +1,20 @@
 import { z } from "zod";
+import { leadStatusValues } from "@/lib/validation/lead";
 
 export const importLeadsSchema = z
   .object({
     filename: z.string().trim().min(1),
     rows: z
-      .array(z.object({ customerName: z.string(), phone: z.string() }))
+      .array(
+        z.object({
+          customerName: z.string(),
+          phone: z.string(),
+          status: z.enum(leadStatusValues).optional(),
+          note: z.string().optional(),
+          lastCallDate: z.string().nullish(),
+          nextFollowupDate: z.string().nullish(),
+        })
+      )
       .min(1)
       .max(5000),
     assignmentMode: z.enum(["SINGLE_EMPLOYEE", "ROUND_ROBIN", "OPENC"]),

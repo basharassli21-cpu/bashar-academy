@@ -11,10 +11,14 @@ export type AdminDashboardStats = {
   openPoolCount: number;
   activeSalesEmployees: number;
   activeTeamLeaders: number;
+  freshLeadsCount: number;
   newLeadsToday: number;
+  closedToday: number;
   callsToday: number;
+  callsThisMonth: number;
   closedThisMonth: number;
   conversionRate: number;
+  overdueFollowups: number;
 };
 
 export async function fetchAdminDashboard(): Promise<AdminDashboardStats> {

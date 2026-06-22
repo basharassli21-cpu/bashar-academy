@@ -24,6 +24,7 @@ export async function GET(
         lastContactDate: true,
         nextFollowupDate: true,
         closedAt: true,
+        tags: true,
         createdAt: true,
         notes: {
           orderBy: { createdAt: "desc" },

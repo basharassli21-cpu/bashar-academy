@@ -26,6 +26,7 @@ export async function GET(
         lastContactDate: true,
         nextFollowupDate: true,
         closedAt: true,
+        tags: true,
         createdAt: true,
         createdBy: { select: { id: true, fullName: true } },
         notes: {

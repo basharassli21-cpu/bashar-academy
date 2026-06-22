@@ -9,6 +9,8 @@ export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
+  // One-time post-hydration flag — there is no external store to subscribe to here.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   React.useEffect(() => setMounted(true), []);
 
   if (!mounted) return <Button variant="ghost" size="icon" disabled aria-hidden />;

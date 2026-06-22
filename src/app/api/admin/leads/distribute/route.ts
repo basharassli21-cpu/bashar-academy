@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiRole } from "@/lib/auth/dal";
 import { writeAuditLog } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
 import { distributeLeadsSchema } from "@/lib/validation/lead-import";
 import { ValidationError, errorResponseBody } from "@/lib/errors";
 
@@ -19,20 +20,27 @@ export async function POST(request: Request) {
       throw new ValidationError("employeeIds must reference at least one active sales employee");
     }
 
+    // Distribute only ever sweeps Fresh (never-contacted) leads. Open Sea
+    // leads already have a path out of the pool (employee self-claim) and
+    // must not be silently reassigned out from under that.
     const openLeads = await prisma.lead.findMany({
-      where: { ownerEmployeeId: null },
+      where: { ownerEmployeeId: null, notes: { none: {} } },
       select: { id: true },
       orderBy: { createdAt: "asc" },
     });
 
+    const countByEmployeeId = new Map<string, number>();
+
     if (openLeads.length > 0) {
       await prisma.$transaction(
-        openLeads.map((lead, i) =>
-          prisma.lead.update({
+        openLeads.map((lead, i) => {
+          const employeeId = employees[i % employees.length].id;
+          countByEmployeeId.set(employeeId, (countByEmployeeId.get(employeeId) ?? 0) + 1);
+          return prisma.lead.update({
             where: { id: lead.id },
-            data: { ownerEmployeeId: employees[i % employees.length].id },
-          })
-        )
+            data: { ownerEmployeeId: employeeId },
+          });
+        })
       );
     }
 
@@ -42,6 +50,12 @@ export async function POST(request: Request) {
       action: "LEADS_DISTRIBUTED",
       details: { distributedCount: openLeads.length, employeeIds: employees.map((e) => e.id) },
     });
+
+    await Promise.all(
+      Array.from(countByEmployeeId.entries()).map(([employeeId, count]) =>
+        createNotification({ userId: employeeId, type: "LEAD_ASSIGNED", data: { count } })
+      )
+    );
 
     return NextResponse.json({ distributedCount: openLeads.length });
   } catch (error) {

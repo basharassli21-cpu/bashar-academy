@@ -36,7 +36,7 @@ function getSchema(mode: "create" | "edit") {
       mode === "create"
         ? z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,20}$/)
         : z.string(),
-    password: mode === "create" ? z.string().min(6) : z.string().min(6).or(z.literal("")),
+    password: mode === "create" ? z.string().min(8) : z.string().min(8).or(z.literal("")),
     fullName: z.string().trim().min(1),
     monthlyTarget: z.string().optional(),
   });
@@ -134,7 +134,7 @@ export function EmployeeFormDialog({
               {mode === "create" ? t.auth.password : t.employees.newPasswordOptional}
             </Label>
             <Input id="password" type="password" {...register("password")} />
-            {errors.password && <p className="text-sm text-destructive">{t.common.required} (6+)</p>}
+            {errors.password && <p className="text-sm text-destructive">{t.common.required} (8+)</p>}
           </div>
           {role === "SALES_EMPLOYEE" && (
             <div className="flex flex-col gap-2">

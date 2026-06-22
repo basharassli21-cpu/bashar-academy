@@ -12,7 +12,10 @@ export async function PATCH(
     const actor = await requireApiRole(["ADMIN"]);
     const { id } = await params;
 
-    const lead = await prisma.lead.findUnique({ where: { id }, select: { ownerEmployeeId: true } });
+    const lead = await prisma.lead.findUnique({
+      where: { id },
+      select: { ownerEmployeeId: true, _count: { select: { notes: true } } },
+    });
     if (!lead) throw new NotFoundError();
 
     const updated = await prisma.lead.update({
@@ -27,7 +30,10 @@ export async function PATCH(
       action: "LEAD_PULLED_TO_OPENC",
       entityType: "Lead",
       entityId: id,
-      details: { fromEmployeeId: lead.ownerEmployeeId },
+      details: {
+        fromEmployeeId: lead.ownerEmployeeId,
+        resultingBucket: lead._count.notes > 0 ? "OPEN_SEA" : "FRESH",
+      },
     });
 
     return NextResponse.json(updated);

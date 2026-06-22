@@ -15,8 +15,11 @@ export async function POST(
     // The WHERE clause is the lock: only one concurrent claim can match a row
     // that still has ownerEmployeeId IS NULL, so Postgres guarantees exactly
     // one of two simultaneous claims succeeds without needing a transaction.
+    // notes: some enforces server-side that only Open Sea (previously
+    // contacted) leads are claimable — Fresh leads are admin-distribute only,
+    // even if someone calls this endpoint directly with a guessed id.
     const result = await prisma.lead.updateMany({
-      where: { id, ownerEmployeeId: null },
+      where: { id, ownerEmployeeId: null, notes: { some: {} } },
       data: { ownerEmployeeId: actor.id, claimedAt: new Date(), source: "OPENC_CLAIM" },
     });
 
@@ -37,6 +40,7 @@ export async function POST(
       action: "LEAD_CLAIMED",
       entityType: "Lead",
       entityId: id,
+      details: { fromBucket: "OPEN_SEA", toEmployeeId: actor.id },
     });
 
     return NextResponse.json({ ok: true });

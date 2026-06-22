@@ -31,6 +31,7 @@ export function SalesOpenCPageClient() {
   const { data, isLoading } = useQuery({
     queryKey: ["leads", "sales", "openc", q, page],
     queryFn: () => fetchSalesOpenC({ q, page }),
+    refetchInterval: 10000,
   });
 
   const claimMutation = useMutation({

@@ -18,8 +18,13 @@ export type LeadListItem = {
   owner?: { id: string; fullName: string } | null;
   lastContactDate: string | null;
   nextFollowupDate: string | null;
+  tags?: string[];
   createdAt: string;
+  latestNote?: string | null;
 };
+
+export type LeadSortField = "customerName" | "status" | "lastContactDate" | "nextFollowupDate";
+export type SortDir = "asc" | "desc";
 
 export type LeadNoteItem = {
   id: string;
@@ -49,12 +54,23 @@ async function parseOrThrow(res: Response) {
   return data;
 }
 
-function buildLeadSearch(params: { q?: string; status?: LeadStatus | ""; ownerEmployeeId?: string; page?: number }) {
+function buildLeadSearch(params: {
+  q?: string;
+  status?: LeadStatus | "";
+  ownerEmployeeId?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: LeadSortField;
+  sortDir?: SortDir;
+}) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.status) search.set("status", params.status);
   if (params.ownerEmployeeId) search.set("ownerEmployeeId", params.ownerEmployeeId);
   if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  if (params.sortBy) search.set("sortBy", params.sortBy);
+  if (params.sortDir) search.set("sortDir", params.sortDir);
   return search;
 }
 
@@ -103,6 +119,29 @@ export async function transferLead(id: string, employeeId: string) {
   return parseOrThrow(res);
 }
 
+export async function bulkTransferLeads(leadIds: string[], employeeId: string) {
+  const res = await fetch("/api/admin/leads/bulk-transfer", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ leadIds, employeeId }),
+  });
+  return parseOrThrow(res);
+}
+
+export async function bulkDeleteLeads(leadIds: string[]) {
+  const res = await fetch("/api/admin/leads/bulk-delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ leadIds }),
+  });
+  return parseOrThrow(res);
+}
+
+export function buildLeadsExportUrl(params: { q?: string; status?: LeadStatus | "" }): string {
+  const search = buildLeadSearch(params);
+  return `/api/admin/leads/export?${search.toString()}`;
+}
+
 export type UpdateLeadInput = {
   status: LeadStatus;
   note: string;
@@ -118,10 +157,22 @@ export async function updateLeadAdmin(id: string, input: UpdateLeadInput) {
   return parseOrThrow(res);
 }
 
+export async function updateAdminLeadTags(id: string, tags: string[]) {
+  const res = await fetch(`/api/admin/leads/${id}/tags`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags }),
+  });
+  return parseOrThrow(res);
+}
+
 export async function fetchSalesLeads(params: {
   q?: string;
   status?: LeadStatus | "";
   page?: number;
+  pageSize?: number;
+  sortBy?: LeadSortField;
+  sortDir?: SortDir;
 }): Promise<PaginatedResult<LeadListItem>> {
   const search = buildLeadSearch(params);
   const res = await fetch(`/api/sales/leads?${search.toString()}`);
@@ -138,6 +189,15 @@ export async function updateLeadSales(id: string, input: UpdateLeadInput) {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+  return parseOrThrow(res);
+}
+
+export async function updateSalesLeadTags(id: string, tags: string[]) {
+  const res = await fetch(`/api/sales/leads/${id}/tags`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags }),
   });
   return parseOrThrow(res);
 }
@@ -167,8 +227,10 @@ export type OpenCListItem = {
 export async function fetchAdminOpenC(params: {
   q?: string;
   page?: number;
+  bucket?: "fresh" | "open_sea";
 }): Promise<PaginatedResult<AdminOpenCListItem>> {
   const search = buildLeadSearch(params);
+  if (params.bucket) search.set("bucket", params.bucket);
   const res = await fetch(`/api/admin/openc?${search.toString()}`);
   return parseOrThrow(res);
 }
@@ -189,7 +251,14 @@ export async function claimOpenCLead(id: string) {
 
 export type ImportAssignmentMode = "SINGLE_EMPLOYEE" | "ROUND_ROBIN" | "OPENC";
 
-export type ImportRow = { customerName: string; phone: string };
+export type ImportRow = {
+  customerName: string;
+  phone: string;
+  status?: LeadStatus;
+  note?: string;
+  lastCallDate?: string | null;
+  nextFollowupDate?: string | null;
+};
 
 export type LeadImportResult = {
   id: string;
@@ -201,6 +270,13 @@ export type LeadImportResult = {
   invalidCount: number;
   errorReport: { row: number; reason: string; raw: ImportRow }[] | null;
 };
+
+export async function parseImportFile(file: File): Promise<{ rows: ImportRow[] }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/admin/leads/import/parse", { method: "POST", body: formData });
+  return parseOrThrow(res);
+}
 
 export async function importLeads(input: {
   filename: string;

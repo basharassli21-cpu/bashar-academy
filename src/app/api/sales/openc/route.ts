@@ -15,8 +15,13 @@ export async function GET(request: Request) {
     const q = searchParams.get("q")?.trim();
     const { page, pageSize, skip, take } = parsePagination(searchParams);
 
+    // Open Sea is for re-engagement only: a lead only belongs here once it
+    // has at least one note (someone has actually contacted it before).
+    // Untouched leads are "Fresh" and stay hidden until an admin distributes
+    // them, so they never compete with leads employees can self-claim.
     const where: Prisma.LeadWhereInput = {
       ownerEmployeeId: null,
+      notes: { some: {} },
       ...(q ? { customerName: { contains: q, mode: "insensitive" } } : {}),
     };
 

@@ -5,10 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
 import { ProgressBar } from "@/components/progress-bar";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
 import { useTranslations } from "@/components/providers/locale-provider";
 import { fetchSalesDashboard } from "@/lib/api/dashboard";
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export function SalesDashboardClient() {
   const t = useTranslations();
@@ -61,23 +68,43 @@ export function SalesDashboardClient() {
 
           <Card>
             <CardHeader>
-              <CardTitle>{t.salesDashboard.dueToday}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {t.salesDashboard.dueToday}
+                {data.dueToday.length > 0 && (
+                  <Badge variant="secondary">{data.dueToday.length}</Badge>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {data.dueToday.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t.salesDashboard.noDueToday}</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {data.dueToday.map((lead) => (
-                    <Link
-                      key={lead.id}
-                      href={`/sales/leads/${lead.id}`}
-                      className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm hover:bg-accent"
-                    >
-                      <span className="font-medium">{lead.customerName}</span>
-                      <LeadStatusBadge status={lead.status} />
-                    </Link>
-                  ))}
+                  {data.dueToday.map((lead) => {
+                    const isOverdue =
+                      !!lead.nextFollowupDate && new Date(lead.nextFollowupDate) < startOfToday();
+                    return (
+                      <Link
+                        key={lead.id}
+                        href={`/sales/leads/${lead.id}`}
+                        className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm hover:bg-accent"
+                      >
+                        <span className="font-medium">{lead.customerName}</span>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={
+                              isOverdue
+                                ? "text-xs font-medium text-destructive"
+                                : "text-xs text-muted-foreground"
+                            }
+                          >
+                            {isOverdue ? t.salesDashboard.overdue : t.salesDashboard.dueTodayLabel}
+                          </span>
+                          <LeadStatusBadge status={lead.status} />
+                        </span>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

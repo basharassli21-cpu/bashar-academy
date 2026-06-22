@@ -6,6 +6,7 @@ import { normalizePhone } from "@/lib/phone/normalize";
 import { createLeadSchema } from "@/lib/validation/lead";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { ConflictError, ValidationError, errorResponseBody } from "@/lib/errors";
+import { triggerWebhooks } from "@/lib/webhooks";
 import type { Prisma } from "@/generated/prisma/client";
 import type { LeadStatus } from "@/generated/prisma/enums";
 
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
           owner: { select: { id: true, fullName: true } },
           lastContactDate: true,
           nextFollowupDate: true,
+          tags: true,
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },
@@ -104,6 +106,12 @@ export async function POST(request: Request) {
       entityType: "Lead",
       entityId: lead.id,
       details: { customerName: lead.customerName },
+    });
+
+    void triggerWebhooks("LEAD_CREATED", {
+      leadId: lead.id,
+      customerName: lead.customerName,
+      phone: lead.phone,
     });
 
     return NextResponse.json(lead, { status: 201 });

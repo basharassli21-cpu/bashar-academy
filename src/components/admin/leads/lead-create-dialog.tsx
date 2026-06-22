@@ -40,8 +40,8 @@ export function LeadCreateDialog({
   const [ownerEmployeeId, setOwnerEmployeeId] = React.useState(NO_OWNER);
 
   const employeesQuery = useQuery({
-    queryKey: ["employees", "SALES_EMPLOYEE", "all"],
-    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE" }),
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
     enabled: open,
   });
 

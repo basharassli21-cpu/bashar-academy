@@ -19,7 +19,7 @@ export function AdminDashboardClient() {
 
       {isLoading && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
@@ -27,14 +27,22 @@ export function AdminDashboardClient() {
 
       {data && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label={t.adminDashboard.totalLeads} value={data.totalLeads} />
-          <StatCard label={t.adminDashboard.openPool} value={data.openPoolCount} />
           <StatCard label={t.adminDashboard.activeEmployees} value={data.activeSalesEmployees} />
+          <StatCard label={t.adminDashboard.totalLeads} value={data.totalLeads} />
+          <StatCard label={t.adminDashboard.freshLeads} value={data.freshLeadsCount} />
+          <StatCard label={t.adminDashboard.openPool} value={data.openPoolCount} />
+          <StatCard label={t.adminDashboard.salesToday} value={data.closedToday} />
+          <StatCard label={t.adminDashboard.closedThisMonth} value={data.closedThisMonth} />
+          <StatCard label={t.adminDashboard.callsToday} value={data.callsToday} />
+          <StatCard label={t.adminDashboard.callsThisMonth} value={data.callsThisMonth} />
           <StatCard label={t.adminDashboard.activeTeamLeaders} value={data.activeTeamLeaders} />
           <StatCard label={t.adminDashboard.newLeadsToday} value={data.newLeadsToday} />
-          <StatCard label={t.adminDashboard.callsToday} value={data.callsToday} />
-          <StatCard label={t.adminDashboard.closedThisMonth} value={data.closedThisMonth} />
           <StatCard label={t.adminDashboard.conversionRate} value={`${data.conversionRate}%`} />
+          <StatCard
+            label={t.adminDashboard.overdueFollowups}
+            value={data.overdueFollowups}
+            tone="warning"
+          />
         </div>
       )}
     </div>

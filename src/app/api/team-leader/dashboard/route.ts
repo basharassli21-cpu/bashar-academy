@@ -18,6 +18,13 @@ export async function GET() {
       await Promise.all(employees.map((e) => getEmployeeSummary(e.id)))
     ).filter((s): s is NonNullable<typeof s> => s !== null);
 
+    summaries.sort(
+      (a, b) =>
+        b.salesThisMonth - a.salesThisMonth ||
+        b.callsThisMonth - a.callsThisMonth ||
+        a.employee.fullName.localeCompare(b.employee.fullName)
+    );
+
     const teamSize = summaries.length;
     const callsTodayTotal = summaries.reduce((sum, s) => sum + s.callsToday, 0);
     const salesThisMonthTotal = summaries.reduce((sum, s) => sum + s.salesThisMonth, 0);

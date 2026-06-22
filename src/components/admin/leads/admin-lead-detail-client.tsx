@@ -35,10 +35,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
+import { FollowupSlaBadge } from "@/components/followup-sla-badge";
+import { LeadTagsEditor } from "@/components/lead-tags";
+import { PhoneActions } from "@/components/phone-actions";
 import { useTranslations } from "@/components/providers/locale-provider";
 import {
   fetchAdminLead,
   updateLeadAdmin,
+  updateAdminLeadTags,
   deleteLead,
   transferLead,
   pullLeadToOpenC,
@@ -65,16 +69,18 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
   const [pullOpen, setPullOpen] = React.useState(false);
   const [transferTo, setTransferTo] = React.useState("");
 
-  React.useEffect(() => {
-    if (lead) {
-      setStatus(lead.status);
-      setNextFollowupDate(lead.nextFollowupDate ? lead.nextFollowupDate.slice(0, 10) : "");
-    }
-  }, [lead]);
+  // Re-initialize the editable fields whenever a different lead's data
+  // arrives, without an Effect (https://react.dev/learn/you-might-not-need-an-effect).
+  const [syncedLead, setSyncedLead] = React.useState(lead);
+  if (lead && lead !== syncedLead) {
+    setSyncedLead(lead);
+    setStatus(lead.status);
+    setNextFollowupDate(lead.nextFollowupDate ? lead.nextFollowupDate.slice(0, 10) : "");
+  }
 
   const employeesQuery = useQuery({
-    queryKey: ["employees", "SALES_EMPLOYEE", "all"],
-    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE" }),
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
     enabled: transferOpen,
   });
 
@@ -84,6 +90,15 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
     onSuccess: () => {
       toast.success(t.leads.updateSuccess);
       setNote("");
+      queryClient.invalidateQueries({ queryKey: ["leads", "admin", "detail", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "admin"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const tagsMutation = useMutation({
+    mutationFn: (tags: string[]) => updateAdminLeadTags(leadId, tags),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads", "admin", "detail", leadId] });
       queryClient.invalidateQueries({ queryKey: ["leads", "admin"] });
     },
@@ -154,7 +169,7 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
       <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
         <div>
           <p className="text-sm text-muted-foreground">{t.common.phone}</p>
-          <p dir="ltr">{lead.phone}</p>
+          <PhoneActions phone={lead.phone} />
         </div>
         <div>
           <p className="text-sm text-muted-foreground">{t.common.status}</p>
@@ -166,10 +181,18 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
         </div>
         <div>
           <p className="text-sm text-muted-foreground">{t.leads.nextFollowup}</p>
-          <p>
-            {lead.nextFollowupDate ? new Date(lead.nextFollowupDate).toLocaleDateString() : "—"}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p>
+              {lead.nextFollowupDate ? new Date(lead.nextFollowupDate).toLocaleDateString() : "—"}
+            </p>
+            <FollowupSlaBadge nextFollowupDate={lead.nextFollowupDate} status={lead.status} />
+          </div>
         </div>
+      </div>
+
+      <div className="rounded-lg border p-4">
+        <p className="mb-2 text-sm text-muted-foreground">{t.leads.tags}</p>
+        <LeadTagsEditor tags={lead.tags ?? []} onChange={(tags) => tagsMutation.mutate(tags)} />
       </div>
 
       <div className="rounded-lg border p-4">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiRole } from "@/lib/auth/dal";
 import { writeAuditLog } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
 import { assignEmployeeSchema } from "@/lib/validation/employee";
 import { NotFoundError, ValidationError, errorResponseBody } from "@/lib/errors";
 
@@ -36,6 +37,14 @@ export async function POST(
       entityType: "User",
       entityId: employee.id,
       details: { teamLeaderId, employeeId: employee.id },
+    });
+
+    await createNotification({
+      userId: teamLeaderId,
+      type: "TEAM_ASSIGNMENT",
+      data: { employeeName: employee.fullName },
+      entityType: "User",
+      entityId: employee.id,
     });
 
     return NextResponse.json({ success: true });

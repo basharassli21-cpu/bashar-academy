@@ -9,9 +9,12 @@ import {
   Shuffle,
   Inbox,
   ScrollText,
+  Webhook,
+  ShieldCheck,
 } from "lucide-react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar, type NavGroup } from "@/components/app-sidebar";
+import { NotificationBell } from "@/components/notification-bell";
 import { useTranslations } from "@/components/providers/locale-provider";
 import type { CurrentUser } from "@/lib/auth/dal";
 
@@ -45,6 +48,13 @@ export function AdminShell({
       ],
     },
     {
+      label: t.nav.settings,
+      items: [
+        { href: "/admin/webhooks", label: t.nav.webhooks, icon: Webhook },
+        { href: "/admin/security", label: t.nav.security, icon: ShieldCheck },
+      ],
+    },
+    {
       items: [{ href: "/admin/audit-log", label: t.nav.auditLog, icon: ScrollText }],
     },
   ];
@@ -55,6 +65,9 @@ export function AdminShell({
       <SidebarInset>
         <header className="flex h-12 items-center gap-2 border-b px-4">
           <SidebarTrigger />
+          <div className="ms-auto">
+            <NotificationBell />
+          </div>
         </header>
         <div className="flex-1 p-4 md:p-6">{children}</div>
       </SidebarInset>

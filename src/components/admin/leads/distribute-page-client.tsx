@@ -27,13 +27,13 @@ export function DistributePageClient() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const employeesQuery = useQuery({
-    queryKey: ["employees", "SALES_EMPLOYEE", "all"],
-    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE" }),
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
   });
 
   const poolQuery = useQuery({
-    queryKey: ["leads", "admin", "openc", "count"],
-    queryFn: () => fetchAdminOpenC({ page: 1 }),
+    queryKey: ["leads", "admin", "openc", "fresh", "count"],
+    queryFn: () => fetchAdminOpenC({ page: 1, bucket: "fresh" }),
   });
 
   const distributeMutation = useMutation({

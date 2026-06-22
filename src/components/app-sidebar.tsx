@@ -26,6 +26,7 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  badgeCount?: number;
 };
 
 export type NavGroup = {
@@ -67,6 +68,11 @@ export function AppSidebar({
                           <Link href={item.href}>
                             <item.icon />
                             <span>{item.label}</span>
+                            {!!item.badgeCount && (
+                              <Badge variant="destructive" className="ms-auto">
+                                {item.badgeCount}
+                              </Badge>
+                            )}
                           </Link>
                         }
                       />

@@ -8,7 +8,7 @@ export const usernameSchema = z
 
 export const createEmployeeSchema = z.object({
   username: usernameSchema,
-  password: z.string().min(6),
+  password: z.string().min(8),
   fullName: z.string().trim().min(1),
   role: z.enum(["SALES_EMPLOYEE", "TEAM_LEADER"]),
   monthlyTarget: z.coerce.number().int().positive().nullish(),
@@ -18,7 +18,7 @@ export const createEmployeeSchema = z.object({
 export const updateEmployeeSchema = z.object({
   fullName: z.string().trim().min(1).optional(),
   monthlyTarget: z.coerce.number().int().positive().nullish(),
-  newPassword: z.union([z.string().min(6), z.literal("")]).optional(),
+  newPassword: z.union([z.string().min(8), z.literal("")]).optional(),
   teamLeaderId: z.string().nullish(),
 });
 

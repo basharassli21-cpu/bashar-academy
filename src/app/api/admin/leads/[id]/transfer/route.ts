@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiRole } from "@/lib/auth/dal";
 import { writeAuditLog } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
+import { triggerWebhooks } from "@/lib/webhooks";
 import { transferLeadSchema } from "@/lib/validation/lead";
 import { NotFoundError, ValidationError, errorResponseBody } from "@/lib/errors";
 
@@ -17,7 +19,10 @@ export async function PATCH(
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message);
     const { employeeId } = parsed.data;
 
-    const lead = await prisma.lead.findUnique({ where: { id }, select: { ownerEmployeeId: true } });
+    const lead = await prisma.lead.findUnique({
+      where: { id },
+      select: { ownerEmployeeId: true, customerName: true },
+    });
     if (!lead) throw new NotFoundError();
 
     const employee = await prisma.user.findUnique({ where: { id: employeeId } });
@@ -38,6 +43,20 @@ export async function PATCH(
       entityType: "Lead",
       entityId: id,
       details: { fromEmployeeId: lead.ownerEmployeeId, toEmployeeId: employeeId },
+    });
+
+    await createNotification({
+      userId: employeeId,
+      type: "LEAD_ASSIGNED",
+      data: { customerName: lead.customerName, count: 1 },
+      entityType: "Lead",
+      entityId: id,
+    });
+
+    void triggerWebhooks("LEAD_ASSIGNED", {
+      leadId: id,
+      customerName: lead.customerName,
+      employeeId,
     });
 
     return NextResponse.json(updated);

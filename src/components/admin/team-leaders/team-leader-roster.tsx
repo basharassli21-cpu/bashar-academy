@@ -45,8 +45,8 @@ export function TeamLeaderRoster({
   });
 
   const allEmployeesQuery = useQuery({
-    queryKey: ["employees", "SALES_EMPLOYEE", "all"],
-    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE" }),
+    queryKey: ["employees", "SALES_EMPLOYEE", "active"],
+    queryFn: () => fetchEmployees({ role: "SALES_EMPLOYEE", isActive: true }),
   });
 
   function invalidate() {

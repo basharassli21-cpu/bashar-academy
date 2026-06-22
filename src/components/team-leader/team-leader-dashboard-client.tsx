@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Trophy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -51,11 +52,12 @@ export function TeamLeaderDashboardClient() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <h2 className="font-semibold">{t.teamLeaderDashboard.rosterTitle}</h2>
+            <h2 className="font-semibold">{t.teamLeaderDashboard.leaderboardTitle}</h2>
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">{t.teamLeaderDashboard.rankLabel}</TableHead>
                     <TableHead>{t.employees.fullName}</TableHead>
                     <TableHead>{t.salesDashboard.callsToday}</TableHead>
                     <TableHead>{t.salesDashboard.salesThisMonth}</TableHead>
@@ -66,13 +68,20 @@ export function TeamLeaderDashboardClient() {
                 <TableBody>
                   {data.employees.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         {t.teamLeaders.noEmployees}
                       </TableCell>
                     </TableRow>
                   )}
-                  {data.employees.map((summary) => (
+                  {data.employees.map((summary, index) => (
                     <TableRow key={summary.employee.id}>
+                      <TableCell className="text-muted-foreground">
+                        {index === 0 ? (
+                          <Trophy className="size-4 text-amber-500" />
+                        ) : (
+                          index + 1
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         <Link
                           href={`/team-leader/employees/${summary.employee.id}`}

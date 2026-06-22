@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
@@ -7,6 +7,7 @@ import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import {
   defaultLocale,
   localeDirection,
@@ -23,6 +24,18 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "Sales CRM",
   description: "Sales lead management CRM",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    title: "Sales CRM",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#171717" },
+  ],
 };
 
 export default async function RootLayout({
@@ -57,6 +70,7 @@ export default async function RootLayout({
             </QueryProvider>
           </LocaleProvider>
         </ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

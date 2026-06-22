@@ -89,17 +89,40 @@ export async function POST(request: Request) {
         roundRobinIndex++;
       }
 
-      await prisma.lead.create({
+      const status = row.status ?? "NEW";
+      const lastContactDate = row.lastCallDate ? new Date(row.lastCallDate) : null;
+      const nextFollowupDate = row.nextFollowupDate ? new Date(row.nextFollowupDate) : null;
+      const closedAt = status === "CLOSED_SALE" ? new Date() : null;
+
+      const createdLead = await prisma.lead.create({
         data: {
           customerName,
           phone: rawPhone,
           phoneNormalized,
+          status,
+          lastContactDate: lastContactDate && !isNaN(lastContactDate.getTime()) ? lastContactDate : null,
+          nextFollowupDate: nextFollowupDate && !isNaN(nextFollowupDate.getTime()) ? nextFollowupDate : null,
+          closedAt,
           ownerEmployeeId,
           createdById: actor.id,
           source: "IMPORT",
           importId: leadImport.id,
         },
       });
+
+      // Imported call history has no specific employee attached to it yet
+      // (especially for OpenC rows), so the note is attributed to the
+      // importing admin rather than left orphaned.
+      if (row.note?.trim()) {
+        await prisma.leadNote.create({
+          data: {
+            leadId: createdLead.id,
+            employeeId: actor.id,
+            note: row.note.trim(),
+            statusAtTime: status,
+          },
+        });
+      }
       importedCount++;
     }
 

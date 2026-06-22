@@ -39,7 +39,7 @@ export async function PATCH(
         fullName: data.fullName,
         monthlyTarget: data.monthlyTarget,
         teamLeaderId: data.teamLeaderId,
-        ...(passwordHash ? { passwordHash } : {}),
+        ...(passwordHash ? { passwordHash, sessionVersion: { increment: 1 } } : {}),
       },
       select: {
         id: true,

@@ -27,19 +27,33 @@ export async function GET() {
       openPoolCount,
       activeSalesEmployees,
       activeTeamLeaders,
+      freshLeadsCount,
       newLeadsToday,
+      closedToday,
       callsToday,
+      callsThisMonth,
       closedThisMonth,
       totalClosed,
+      overdueFollowups,
     ] = await Promise.all([
       prisma.lead.count(),
-      prisma.lead.count({ where: { ownerEmployeeId: null } }),
+      prisma.lead.count({ where: { ownerEmployeeId: null, notes: { some: {} } } }),
       prisma.user.count({ where: { role: "SALES_EMPLOYEE", isActive: true } }),
       prisma.user.count({ where: { role: "TEAM_LEADER", isActive: true } }),
+      prisma.lead.count({ where: { ownerEmployeeId: null, notes: { none: {} } } }),
       prisma.lead.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.lead.count({ where: { status: "CLOSED_SALE", closedAt: { gte: todayStart } } }),
       prisma.leadNote.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.leadNote.count({ where: { createdAt: { gte: monthStart } } }),
       prisma.lead.count({ where: { status: "CLOSED_SALE", closedAt: { gte: monthStart } } }),
       prisma.lead.count({ where: { status: "CLOSED_SALE" } }),
+      prisma.lead.count({
+        where: {
+          ownerEmployeeId: { not: null },
+          nextFollowupDate: { lt: todayStart },
+          status: { notIn: ["CLOSED_SALE", "CANCELLED"] },
+        },
+      }),
     ]);
 
     const conversionRate = totalLeads > 0 ? Math.round((totalClosed / totalLeads) * 100) : 0;
@@ -49,10 +63,14 @@ export async function GET() {
       openPoolCount,
       activeSalesEmployees,
       activeTeamLeaders,
+      freshLeadsCount,
       newLeadsToday,
+      closedToday,
       callsToday,
+      callsThisMonth,
       closedThisMonth,
       conversionRate,
+      overdueFollowups,
     });
   } catch (error) {
     const { message, status } = errorResponseBody(error);

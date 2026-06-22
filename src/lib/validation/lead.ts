@@ -24,6 +24,19 @@ export const updateLeadSchema = z.object({
     .transform((val) => (val ? new Date(val) : null)),
 });
 
+export const updateLeadTagsSchema = z.object({
+  tags: z.array(z.string().trim().min(1).max(40)).max(20),
+});
+
 export const transferLeadSchema = z.object({
   employeeId: z.string().min(1),
+});
+
+export const bulkTransferLeadsSchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1),
+  employeeId: z.string().min(1),
+});
+
+export const bulkDeleteLeadsSchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1),
 });
