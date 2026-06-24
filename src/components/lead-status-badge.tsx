@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/components/providers/locale-provider";
 import type { LeadStatus } from "@/lib/api/leads";
 
-const STATUS_CLASSES: Record<LeadStatus, string> = {
+export const STATUS_CLASSES: Record<LeadStatus, string> = {
   NEW: "border-transparent bg-blue-500/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400",
   CONTACTED:
     "border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400",

@@ -20,6 +20,8 @@ export type CurrentUser = {
   teamLeaderId: string | null;
   monthlyTarget: number | null;
   totpEnabled: boolean;
+  notificationsMuted: boolean;
+  notificationDigestMode: boolean;
 };
 
 // Secure: re-reads the live row from the database (catches deactivation,
@@ -38,6 +40,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       teamLeaderId: true,
       monthlyTarget: true,
       totpEnabled: true,
+      notificationsMuted: true,
+      notificationDigestMode: true,
       isActive: true,
       sessionVersion: true,
     },
@@ -56,6 +60,8 @@ function roleHome(role: Role): string {
       return "/team-leader";
     case "SALES_EMPLOYEE":
       return "/sales";
+    case "STUDENT":
+      return "/academy";
   }
 }
 

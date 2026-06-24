@@ -19,8 +19,8 @@ export async function PATCH(
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message);
     const { employeeId } = parsed.data;
 
-    const lead = await prisma.lead.findUnique({
-      where: { id },
+    const lead = await prisma.lead.findFirst({
+      where: { id, deletedAt: null },
       select: { ownerEmployeeId: true, customerName: true },
     });
     if (!lead) throw new NotFoundError();

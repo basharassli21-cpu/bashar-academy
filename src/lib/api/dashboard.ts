@@ -6,6 +6,10 @@ async function parseOrThrow(res: Response) {
   return data;
 }
 
+export type StatusBreakdownItem = { status: LeadStatus; count: number };
+
+export type TrendPoint = { date: string; primary: number; secondary: number };
+
 export type AdminDashboardStats = {
   totalLeads: number;
   openPoolCount: number;
@@ -19,6 +23,8 @@ export type AdminDashboardStats = {
   closedThisMonth: number;
   conversionRate: number;
   overdueFollowups: number;
+  statusBreakdown: StatusBreakdownItem[];
+  trend: TrendPoint[];
 };
 
 export async function fetchAdminDashboard(): Promise<AdminDashboardStats> {
@@ -41,6 +47,8 @@ export type EmployeeSummary = {
   salesThisMonth: number;
   activeLeadsCount: number;
   progressPct: number | null;
+  expectedPacePct: number | null;
+  streakDays: number;
 };
 
 export type DueTodayLead = {
@@ -50,7 +58,10 @@ export type DueTodayLead = {
   nextFollowupDate: string | null;
 };
 
-export type SalesDashboardStats = EmployeeSummary & { dueToday: DueTodayLead[] };
+export type SalesDashboardStats = EmployeeSummary & {
+  dueToday: DueTodayLead[];
+  trend: TrendPoint[];
+};
 
 export async function fetchSalesDashboard(): Promise<SalesDashboardStats> {
   const res = await fetch("/api/sales/dashboard");
@@ -63,6 +74,8 @@ export type TeamLeaderDashboardStats = {
   salesThisMonthTotal: number;
   avgProgressPct: number | null;
   employees: EmployeeSummary[];
+  statusBreakdown: StatusBreakdownItem[];
+  trend: TrendPoint[];
 };
 
 export async function fetchTeamLeaderDashboard(): Promise<TeamLeaderDashboardStats> {
@@ -78,7 +91,10 @@ export type ActivityItem = {
   lead: { id: string; customerName: string };
 };
 
-export type EmployeeDetailStats = EmployeeSummary & { activity: PaginatedResult<ActivityItem> };
+export type EmployeeDetailStats = EmployeeSummary & {
+  activity: PaginatedResult<ActivityItem>;
+  trend: TrendPoint[];
+};
 
 export async function fetchAdminEmployeeStats(
   id: string,

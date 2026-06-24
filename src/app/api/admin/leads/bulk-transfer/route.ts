@@ -6,6 +6,8 @@ import { createNotification } from "@/lib/notifications";
 import { bulkTransferLeadsSchema } from "@/lib/validation/lead";
 import { ValidationError, errorResponseBody } from "@/lib/errors";
 
+export const maxDuration = 60;
+
 export async function PATCH(request: Request) {
   try {
     const actor = await requireApiRole(["ADMIN"]);
@@ -20,7 +22,7 @@ export async function PATCH(request: Request) {
     }
 
     const result = await prisma.lead.updateMany({
-      where: { id: { in: leadIds } },
+      where: { id: { in: leadIds }, deletedAt: null },
       data: { ownerEmployeeId: employeeId },
     });
 

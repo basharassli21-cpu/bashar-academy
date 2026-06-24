@@ -14,8 +14,8 @@ export async function GET(
     await requireApiRole(["ADMIN"]);
     const { id } = await params;
 
-    const lead = await prisma.lead.findUnique({
-      where: { id },
+    const lead = await prisma.lead.findFirst({
+      where: { id, deletedAt: null },
       select: {
         id: true,
         customerName: true,
@@ -100,7 +100,28 @@ export async function DELETE(
     });
     if (!lead) throw new NotFoundError();
 
-    await prisma.lead.delete({ where: { id } });
+    // A lead that's already in Trash gets permanently erased on a second
+    // Delete — the same endpoint just branches on current state, so the
+    // Trash page's "Delete Permanently" action can call this unchanged.
+    if (lead.deletedAt) {
+      await prisma.lead.delete({ where: { id } });
+
+      await writeAuditLog({
+        actorUserId: actor.id,
+        actorRole: actor.role,
+        action: "LEAD_PERMANENTLY_DELETED",
+        entityType: "Lead",
+        entityId: id,
+        details: JSON.parse(JSON.stringify({ snapshot: lead })),
+      });
+
+      return NextResponse.json({ ok: true, permanent: true });
+    }
+
+    await prisma.lead.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedById: actor.id },
+    });
 
     await writeAuditLog({
       actorUserId: actor.id,
@@ -111,7 +132,7 @@ export async function DELETE(
       details: JSON.parse(JSON.stringify({ snapshot: lead })),
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, permanent: false });
   } catch (error) {
     const { message, status } = errorResponseBody(error);
     return NextResponse.json({ message }, { status });

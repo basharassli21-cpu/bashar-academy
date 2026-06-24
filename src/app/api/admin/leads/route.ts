@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireApiRole } from "@/lib/auth/dal";
 import { writeAuditLog } from "@/lib/audit";
 import { normalizePhone } from "@/lib/phone/normalize";
+import { getAppSettings } from "@/lib/settings";
 import { createLeadSchema } from "@/lib/validation/lead";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { ConflictError, ValidationError, errorResponseBody } from "@/lib/errors";
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     const { page, pageSize, skip, take } = parsePagination(searchParams);
 
     const where: Prisma.LeadWhereInput = {
+      deletedAt: null,
       ...(status ? { status } : {}),
       ...(ownerEmployeeId ? { ownerEmployeeId } : {}),
       ...(q
@@ -76,7 +78,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const phoneNormalized = normalizePhone(data.phone);
+    const settings = await getAppSettings();
+    const phoneNormalized = normalizePhone(data.phone, settings.defaultCountryCode);
+    // Trashed leads keep their phoneNormalized slot reserved (it's still a
+    // live DB row, just hidden) — restore or permanently delete from Trash
+    // to free the number up for a new lead.
     const existing = await prisma.lead.findUnique({ where: { phoneNormalized } });
     if (existing) throw new ConflictError("leads.phoneTaken");
 

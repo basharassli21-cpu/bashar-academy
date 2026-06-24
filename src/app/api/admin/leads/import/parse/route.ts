@@ -3,6 +3,8 @@ import { requireApiRole } from "@/lib/auth/dal";
 import { parseImportFile } from "@/lib/leads/import-parser";
 import { ValidationError, errorResponseBody } from "@/lib/errors";
 
+export const maxDuration = 60;
+
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {

@@ -1,5 +1,8 @@
 import type { PaginatedResult } from "@/lib/api/leads";
 import type { Role } from "@/generated/prisma/enums";
+import type { AnomalyAlert } from "@/lib/audit/anomaly-detection";
+
+export type { AnomalyAlert, AnomalySeverity, AnomalyType } from "@/lib/audit/anomaly-detection";
 
 export const AUDIT_ACTION_VALUES = [
   "LOGIN",
@@ -32,6 +35,9 @@ export const AUDIT_ACTION_VALUES = [
   "WEBHOOK_DELETED",
   "TWO_FACTOR_ENABLED",
   "TWO_FACTOR_DISABLED",
+  "SETTINGS_UPDATED",
+  "LEAD_RESTORED",
+  "LEAD_PERMANENTLY_DELETED",
 ] as const;
 
 export type AuditActionValue = (typeof AUDIT_ACTION_VALUES)[number];
@@ -74,5 +80,10 @@ export type AuditActorItem = { id: string; fullName: string };
 
 export async function fetchAuditLogActors(): Promise<{ items: AuditActorItem[] }> {
   const res = await fetch("/api/admin/audit-log/actors");
+  return parseOrThrow(res);
+}
+
+export async function fetchAuditLogAnomalies(): Promise<{ items: AnomalyAlert[] }> {
+  const res = await fetch("/api/admin/audit-log/anomalies");
   return parseOrThrow(res);
 }

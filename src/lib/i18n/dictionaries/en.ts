@@ -60,6 +60,45 @@ export interface Dictionary {
     ADMIN: string;
     TEAM_LEADER: string;
     SALES_EMPLOYEE: string;
+    STUDENT: string;
+  };
+  academy: {
+    title: string;
+    subtitle: string;
+    myCourses: string;
+    allCourses: string;
+    continueLearning: string;
+    completed: string;
+    inProgress: string;
+    notStarted: string;
+    courseDetails: string;
+    startCourse: string;
+    resumeCourse: string;
+    lessons: string;
+    modules: string;
+    resources: string;
+    notes: string;
+    comments: string;
+    quizzes: string;
+    certificate: string;
+    bookmark: string;
+    downloadResource: string;
+    markComplete: string;
+    nextLesson: string;
+    prevLesson: string;
+    bookConsultation: string;
+    myBookings: string;
+    availableSlots: string;
+    noSlots: string;
+    students: string;
+    instructors: string;
+    level: string;
+    duration: string;
+    lectures: string;
+    price: string;
+    free: string;
+    enrolled: string;
+    popular: string;
   };
   status: {
     NEW: string;
@@ -68,6 +107,24 @@ export interface Dictionary {
     NOT_INTERESTED: string;
     CLOSED_SALE: string;
     CANCELLED: string;
+  };
+  pipeline: {
+    title: string;
+    description: string;
+  };
+  trend: {
+    adminTitle: string;
+    adminDescription: string;
+    teamTitle: string;
+    teamDescription: string;
+    myTitle: string;
+    myDescription: string;
+    employeeTitle: string;
+    employeeDescription: string;
+    newLeadsLabel: string;
+    closedSalesLabel: string;
+    callsLabel: string;
+    salesLabel: string;
   };
   nav: {
     dashboard: string;
@@ -78,10 +135,14 @@ export interface Dictionary {
     distribute: string;
     openc: string;
     auditLog: string;
+    errorLog: string;
     myLeads: string;
     settings: string;
+    generalSettings: string;
     webhooks: string;
     security: string;
+    trash: string;
+    workQueue: string;
   };
   theme: {
     light: string;
@@ -181,6 +242,66 @@ export interface Dictionary {
     presetNameLabel: string;
     presetNamePlaceholder: string;
     noPresets: string;
+    quickStatusChangeNote: string;
+    quickStatusChangeSuccess: string;
+    quickRepliesLabel: string;
+  };
+  leadScore: {
+    bandLabels: {
+      hot: string;
+      warm: string;
+      cold: string;
+    };
+    reasonLabels: {
+      STATUS_INTERESTED: string;
+      STATUS_CONTACTED: string;
+      STATUS_NEW: string;
+      FOLLOWUP_OVERDUE: string;
+      FOLLOWUP_DUE_TODAY: string;
+      FOLLOWUP_DUE_SOON: string;
+      NO_FOLLOWUP_SCHEDULED: string;
+      CONTACTED_RECENTLY: string;
+      CONTACT_STALE: string;
+      NEVER_CONTACTED_AGING: string;
+    };
+  };
+  leadNextAction: {
+    messages: {
+      CALL_FIRST_CONTACT: string;
+      CALL_OVERDUE_FOLLOWUP: string;
+      CALL_DUE_TODAY: string;
+      SCHEDULE_FOLLOWUP: string;
+      RE_ENGAGE_STALE: string;
+      WAIT_FOLLOWUP_SCHEDULED: string;
+    };
+    shortLabels: {
+      CALL_FIRST_CONTACT: string;
+      CALL_OVERDUE_FOLLOWUP: string;
+      CALL_DUE_TODAY: string;
+      SCHEDULE_FOLLOWUP: string;
+      RE_ENGAGE_STALE: string;
+      WAIT_FOLLOWUP_SCHEDULED: string;
+    };
+  };
+  workQueue: {
+    title: string;
+    description: string;
+    empty: string;
+  };
+  callNoteTemplates: {
+    NO_ANSWER: string;
+    VOICEMAIL_LEFT: string;
+    WRONG_NUMBER: string;
+    ASKED_CALLBACK_LATER: string;
+    REQUESTED_MORE_INFO: string;
+    SENT_WHATSAPP_INFO: string;
+    REQUESTED_QUOTE: string;
+    NOT_INTERESTED_PRICE: string;
+    NOT_INTERESTED_NO_NEED: string;
+    DO_NOT_CALL_AGAIN: string;
+    ALREADY_CUSTOMER: string;
+    PAYMENT_CONFIRMED: string;
+    CUSTOMER_CANCELLED: string;
   };
   openc: {
     title: string;
@@ -253,6 +374,9 @@ export interface Dictionary {
     noDueToday: string;
     overdue: string;
     dueTodayLabel: string;
+    paceOnTrack: string;
+    paceSlightlyBehind: string;
+    paceBehind: string;
   };
   teamLeaderDashboard: {
     title: string;
@@ -262,6 +386,16 @@ export interface Dictionary {
     avgProgress: string;
     leaderboardTitle: string;
     rankLabel: string;
+    streakLabel: string;
+  };
+  gamification: {
+    badgeLabels: {
+      TOP_PERFORMER: string;
+      TARGET_HIT: string;
+      POWER_CALLER: string;
+    };
+    streakDaysSuffix: string;
+    streakStatCardLabel: string;
   };
   auditLog: {
     title: string;
@@ -308,7 +442,39 @@ export interface Dictionary {
       WEBHOOK_DELETED: string;
       TWO_FACTOR_ENABLED: string;
       TWO_FACTOR_DISABLED: string;
+      SETTINGS_UPDATED: string;
+      LEAD_RESTORED: string;
+      LEAD_PERMANENTLY_DELETED: string;
     };
+    anomalies: {
+      title: string;
+      description: string;
+      allClear: string;
+      severityLabels: {
+        high: string;
+        medium: string;
+        low: string;
+      };
+      messages: {
+        LOGIN_BRUTE_FORCE: string;
+        LOGIN_RATE_LIMITED: string;
+        OFF_HOURS_SENSITIVE_ACTION: string;
+        LARGE_BULK_DELETE: string;
+        LARGE_EXPORT: string;
+        PERMANENT_DELETE: string;
+        TWO_FACTOR_DISABLED: string;
+        HIGH_ACTIVITY_VOLUME: string;
+      };
+    };
+  };
+  errorLog: {
+    title: string;
+    description: string;
+    columnTime: string;
+    columnMessage: string;
+    showStack: string;
+    hideStack: string;
+    empty: string;
   };
   notifications: {
     title: string;
@@ -317,6 +483,13 @@ export interface Dictionary {
     leadAssignedOne: string;
     leadAssignedMany: string;
     teamAssignment: string;
+    teamAssignmentMany: string;
+    preferencesButtonLabel: string;
+    preferencesTitle: string;
+    muteLabel: string;
+    muteHint: string;
+    digestLabel: string;
+    digestHint: string;
   };
   webhooks: {
     title: string;
@@ -386,6 +559,33 @@ export interface Dictionary {
     changePasswordButton: string;
     passwordChangedSuccess: string;
   };
+  settings: {
+    title: string;
+    description: string;
+    defaultCountryCodeLabel: string;
+    defaultCountryCodeHint: string;
+    savedSuccess: string;
+  };
+  leadsTrash: {
+    title: string;
+    description: string;
+    columnDeletedAt: string;
+    columnDeletedBy: string;
+    restoreButton: string;
+    restoreSuccess: string;
+    permanentDeleteButton: string;
+    permanentDeleteConfirmTitle: string;
+    permanentDeleteConfirmDesc: string;
+    permanentDeleteSuccess: string;
+    empty: string;
+  };
+  commandPalette: {
+    placeholder: string;
+    noResults: string;
+    navigationGroup: string;
+    leadsGroup: string;
+    openButtonLabel: string;
+  };
 }
 
 const en: Dictionary = {
@@ -450,6 +650,7 @@ const en: Dictionary = {
     ADMIN: "Admin",
     TEAM_LEADER: "Team Leader",
     SALES_EMPLOYEE: "Sales Employee",
+    STUDENT: "Student",
   },
   status: {
     NEW: "New",
@@ -458,6 +659,24 @@ const en: Dictionary = {
     NOT_INTERESTED: "Not Interested",
     CLOSED_SALE: "Closed Sale",
     CANCELLED: "Cancelled",
+  },
+  pipeline: {
+    title: "Pipeline",
+    description: "Number of leads currently in each stage",
+  },
+  trend: {
+    adminTitle: "Trends (Last 14 Days)",
+    adminDescription: "Daily new leads vs. closed sales",
+    teamTitle: "Team Trends (Last 14 Days)",
+    teamDescription: "Daily team calls vs. team sales",
+    myTitle: "My Trends (Last 14 Days)",
+    myDescription: "Your daily calls vs. your sales",
+    employeeTitle: "Performance History (Last 14 Days)",
+    employeeDescription: "Daily calls vs. sales",
+    newLeadsLabel: "New Leads",
+    closedSalesLabel: "Closed Sales",
+    callsLabel: "Calls",
+    salesLabel: "Sales",
   },
   nav: {
     dashboard: "Dashboard",
@@ -468,10 +687,14 @@ const en: Dictionary = {
     distribute: "Distribute",
     openc: "OpenC",
     auditLog: "Audit Log",
+    errorLog: "Error Log",
     myLeads: "My Leads",
     settings: "Settings",
+    generalSettings: "General",
     webhooks: "Webhooks",
     security: "Security",
+    trash: "Trash",
+    workQueue: "Today's Queue",
   },
   theme: {
     light: "Light",
@@ -545,7 +768,8 @@ const en: Dictionary = {
     transferTitle: "Transfer Lead to Another Employee",
     transferSuccess: "Lead transferred",
     deleteConfirmTitle: "Delete this lead?",
-    deleteConfirmDesc: "This permanently removes the lead and its call history. This cannot be undone.",
+    deleteConfirmDesc:
+      "This moves the lead to Trash. You can restore it later, or delete it permanently from the Trash page.",
     deleteSuccess: "Lead deleted",
     backToList: "Back to Leads",
     pullToOpenC: "Pull to OpenC",
@@ -560,7 +784,7 @@ const en: Dictionary = {
     bulkDelete: "Bulk Delete",
     bulkDeleteConfirmTitle: "Delete selected leads?",
     bulkDeleteConfirmDesc:
-      "This permanently removes all selected leads and their call history. This cannot be undone.",
+      "This moves all selected leads to Trash. You can restore them later, or delete them permanently from the Trash page.",
     bulkDeleteSuccess: "Leads deleted",
     exportCsv: "Export CSV",
     tableView: "Table",
@@ -572,6 +796,66 @@ const en: Dictionary = {
     presetNameLabel: "Preset name",
     presetNamePlaceholder: "e.g. Hot leads this week",
     noPresets: "No saved presets yet",
+    quickStatusChangeNote: "Status changed via quick update",
+    quickStatusChangeSuccess: "Status updated",
+    quickRepliesLabel: "Quick replies:",
+  },
+  leadScore: {
+    bandLabels: {
+      hot: "Hot",
+      warm: "Warm",
+      cold: "Cold",
+    },
+    reasonLabels: {
+      STATUS_INTERESTED: "Marked as interested",
+      STATUS_CONTACTED: "Already in contact",
+      STATUS_NEW: "New, not yet contacted",
+      FOLLOWUP_OVERDUE: "Follow-up is overdue",
+      FOLLOWUP_DUE_TODAY: "Follow-up due today",
+      FOLLOWUP_DUE_SOON: "Follow-up due within 3 days",
+      NO_FOLLOWUP_SCHEDULED: "No follow-up scheduled",
+      CONTACTED_RECENTLY: "Contacted in the last 2 days",
+      CONTACT_STALE: "Not contacted in over a week",
+      NEVER_CONTACTED_AGING: "Sitting uncontacted for days",
+    },
+  },
+  leadNextAction: {
+    messages: {
+      CALL_FIRST_CONTACT: "Call now — this is a new lead that hasn't been contacted yet.",
+      CALL_OVERDUE_FOLLOWUP: "Call now — the scheduled follow-up is overdue.",
+      CALL_DUE_TODAY: "Call today — a follow-up is scheduled for today.",
+      SCHEDULE_FOLLOWUP: "Schedule a follow-up date so this lead doesn't fall through the cracks.",
+      RE_ENGAGE_STALE: "Re-engage — it's been over a week since the last contact.",
+      WAIT_FOLLOWUP_SCHEDULED: "No action needed right now — the next follow-up is already scheduled.",
+    },
+    shortLabels: {
+      CALL_FIRST_CONTACT: "First contact",
+      CALL_OVERDUE_FOLLOWUP: "Overdue",
+      CALL_DUE_TODAY: "Due today",
+      SCHEDULE_FOLLOWUP: "Needs follow-up",
+      RE_ENGAGE_STALE: "Going cold",
+      WAIT_FOLLOWUP_SCHEDULED: "Scheduled",
+    },
+  },
+  workQueue: {
+    title: "Today's Work Queue",
+    description: "Leads that need your attention right now, most urgent first.",
+    empty: "You're all caught up — no leads need action right now.",
+  },
+  callNoteTemplates: {
+    NO_ANSWER: "No answer",
+    VOICEMAIL_LEFT: "Left a voicemail",
+    WRONG_NUMBER: "Wrong number",
+    ASKED_CALLBACK_LATER: "Asked to call back later",
+    REQUESTED_MORE_INFO: "Requested more information",
+    SENT_WHATSAPP_INFO: "Sent details via WhatsApp",
+    REQUESTED_QUOTE: "Requested a price quote",
+    NOT_INTERESTED_PRICE: "Not interested — price too high",
+    NOT_INTERESTED_NO_NEED: "Not interested — no current need",
+    DO_NOT_CALL_AGAIN: "Asked not to be contacted again",
+    ALREADY_CUSTOMER: "Already a customer",
+    PAYMENT_CONFIRMED: "Payment confirmed",
+    CUSTOMER_CANCELLED: "Customer cancelled",
   },
   openc: {
     title: "OpenC Pool",
@@ -645,6 +929,9 @@ const en: Dictionary = {
     noDueToday: "No follow-ups due today",
     overdue: "Overdue",
     dueTodayLabel: "Today",
+    paceOnTrack: "On track",
+    paceSlightlyBehind: "Slightly behind pace",
+    paceBehind: "Behind pace",
   },
   teamLeaderDashboard: {
     title: "Team Overview",
@@ -654,6 +941,16 @@ const en: Dictionary = {
     avgProgress: "Average Target Progress",
     leaderboardTitle: "Leaderboard",
     rankLabel: "Rank",
+    streakLabel: "Streak",
+  },
+  gamification: {
+    badgeLabels: {
+      TOP_PERFORMER: "Top performer this month — #1 on the leaderboard",
+      TARGET_HIT: "Hit 100% of monthly target",
+      POWER_CALLER: "Power caller — 10+ calls logged today",
+    },
+    streakDaysSuffix: "day streak of logging at least one call",
+    streakStatCardLabel: "Current Streak",
   },
   auditLog: {
     title: "Audit Log",
@@ -700,7 +997,39 @@ const en: Dictionary = {
       WEBHOOK_DELETED: "Webhook deleted",
       TWO_FACTOR_ENABLED: "Two-factor authentication enabled",
       TWO_FACTOR_DISABLED: "Two-factor authentication disabled",
+      SETTINGS_UPDATED: "Settings updated",
+      LEAD_RESTORED: "Lead restored",
+      LEAD_PERMANENTLY_DELETED: "Lead permanently deleted",
     },
+    anomalies: {
+      title: "Unusual Activity",
+      description: "Rule-based checks over the last 7 days.",
+      allClear: "No unusual activity detected in the last 7 days.",
+      severityLabels: {
+        high: "High",
+        medium: "Medium",
+        low: "Low",
+      },
+      messages: {
+        LOGIN_BRUTE_FORCE: "failed login attempts in a short window",
+        LOGIN_RATE_LIMITED: "Login blocked after repeated failures",
+        OFF_HOURS_SENSITIVE_ACTION: "performed a sensitive action outside business hours:",
+        LARGE_BULK_DELETE: "bulk-deleted an unusually large number of leads",
+        LARGE_EXPORT: "exported an unusually large number of leads",
+        PERMANENT_DELETE: "permanently deleted a lead",
+        TWO_FACTOR_DISABLED: "disabled two-factor authentication",
+        HIGH_ACTIVITY_VOLUME: "actions within one hour — unusually high volume",
+      },
+    },
+  },
+  errorLog: {
+    title: "Error Log",
+    description: "Unexpected server errors, most recent first.",
+    columnTime: "Time",
+    columnMessage: "Message",
+    showStack: "Show details",
+    hideStack: "Hide details",
+    empty: "No errors recorded",
   },
   notifications: {
     title: "Notifications",
@@ -709,6 +1038,13 @@ const en: Dictionary = {
     leadAssignedOne: "New lead assigned:",
     leadAssignedMany: "new leads assigned to you",
     teamAssignment: "joined your team",
+    teamAssignmentMany: "employees joined your team",
+    preferencesButtonLabel: "Notification settings",
+    preferencesTitle: "Notification Preferences",
+    muteLabel: "Mute notifications",
+    muteHint: "Stop new notifications from being created for you.",
+    digestLabel: "Group into a digest",
+    digestHint: "Combine unread notifications of the same type into a single summary instead of listing each one.",
   },
   webhooks: {
     title: "Webhooks",
@@ -751,7 +1087,7 @@ const en: Dictionary = {
   },
   security: {
     title: "Security",
-    description: "Manage extra protection for your admin account.",
+    description: "Manage extra protection for your account.",
     twoFactorTitle: "Two-factor authentication",
     twoFactorDescription: "Require a one-time code from an authenticator app when logging in.",
     enabled: "Enabled",
@@ -777,6 +1113,73 @@ const en: Dictionary = {
     newPasswordLabel: "New password (8+ characters)",
     changePasswordButton: "Change password",
     passwordChangedSuccess: "Password changed",
+  },
+  settings: {
+    title: "General Settings",
+    description: "System-wide configuration that applies across the CRM.",
+    defaultCountryCodeLabel: "Default country code",
+    defaultCountryCodeHint:
+      "Used to complete phone numbers entered without a country code, for click-to-call and WhatsApp links (e.g. 962 for Jordan).",
+    savedSuccess: "Settings saved",
+  },
+  leadsTrash: {
+    title: "Trash",
+    description: "Leads moved to Trash. Restore them or delete them permanently.",
+    columnDeletedAt: "Deleted At",
+    columnDeletedBy: "Deleted By",
+    restoreButton: "Restore",
+    restoreSuccess: "Lead restored",
+    permanentDeleteButton: "Delete Permanently",
+    permanentDeleteConfirmTitle: "Permanently delete this lead?",
+    permanentDeleteConfirmDesc:
+      "This cannot be undone. The lead and its full call history will be erased forever.",
+    permanentDeleteSuccess: "Lead permanently deleted",
+    empty: "Trash is empty",
+  },
+  commandPalette: {
+    placeholder: "Search or jump to...",
+    noResults: "No results found",
+    navigationGroup: "Navigation",
+    leadsGroup: "Leads",
+    openButtonLabel: "Search",
+  },
+  academy: {
+    title: "Academy",
+    subtitle: "Learn eBay e-commerce",
+    myCourses: "My Courses",
+    allCourses: "All Courses",
+    continueLearning: "Continue Learning",
+    completed: "Completed",
+    inProgress: "In Progress",
+    notStarted: "Not Started",
+    courseDetails: "Course Details",
+    startCourse: "Start Course",
+    resumeCourse: "Resume Course",
+    lessons: "Lessons",
+    modules: "Modules",
+    resources: "Resources",
+    notes: "Notes",
+    comments: "Comments",
+    quizzes: "Quizzes",
+    certificate: "Certificate",
+    bookConsultation: "Book a Consultation",
+    myBookings: "My Bookings",
+    availableSlots: "Available Slots",
+    noSlots: "No available slots",
+    students: "Students",
+    instructors: "Instructors",
+    level: "Level",
+    duration: "Duration",
+    lectures: "Lectures",
+    price: "Price",
+    free: "Free",
+    enrolled: "Enrolled",
+    popular: "Popular",
+    bookmark: "Bookmark",
+    downloadResource: "Download Resource",
+    markComplete: "Mark Complete",
+    nextLesson: "Next Lesson",
+    prevLesson: "Previous Lesson",
   },
 };
 

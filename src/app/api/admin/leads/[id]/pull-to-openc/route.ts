@@ -12,8 +12,8 @@ export async function PATCH(
     const actor = await requireApiRole(["ADMIN"]);
     const { id } = await params;
 
-    const lead = await prisma.lead.findUnique({
-      where: { id },
+    const lead = await prisma.lead.findFirst({
+      where: { id, deletedAt: null },
       select: { ownerEmployeeId: true, _count: { select: { notes: true } } },
     });
     if (!lead) throw new NotFoundError();

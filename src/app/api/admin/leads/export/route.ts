@@ -7,6 +7,8 @@ import { errorResponseBody } from "@/lib/errors";
 import type { Prisma } from "@/generated/prisma/client";
 import type { LeadStatus } from "@/generated/prisma/enums";
 
+export const maxDuration = 60;
+
 function formatDate(value: Date | null): string {
   return value ? value.toISOString().slice(0, 10) : "";
 }
@@ -19,6 +21,7 @@ export async function GET(request: Request) {
     const status = searchParams.get("status") as LeadStatus | null;
 
     const where: Prisma.LeadWhereInput = {
+      deletedAt: null,
       ...(status ? { status } : {}),
       ...(q
         ? {

@@ -14,6 +14,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
 import { ProgressBar } from "@/components/progress-bar";
+import { GamificationBadges, StreakIndicator } from "@/components/gamification";
+import { PipelineFunnel } from "@/components/pipeline-funnel";
+import { TrendChart } from "@/components/trend-chart";
 import { useTranslations } from "@/components/providers/locale-provider";
 import { fetchTeamLeaderDashboard } from "@/lib/api/dashboard";
 
@@ -63,12 +66,13 @@ export function TeamLeaderDashboardClient() {
                     <TableHead>{t.salesDashboard.salesThisMonth}</TableHead>
                     <TableHead>{t.employees.monthlyTarget}</TableHead>
                     <TableHead>{t.salesDashboard.targetProgress}</TableHead>
+                    <TableHead>{t.teamLeaderDashboard.streakLabel}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.employees.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
                         {t.teamLeaders.noEmployees}
                       </TableCell>
                     </TableRow>
@@ -83,12 +87,20 @@ export function TeamLeaderDashboardClient() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">
-                        <Link
-                          href={`/team-leader/employees/${summary.employee.id}`}
-                          className="hover:underline"
-                        >
-                          {summary.employee.fullName}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/team-leader/employees/${summary.employee.id}`}
+                            className="hover:underline"
+                          >
+                            {summary.employee.fullName}
+                          </Link>
+                          <GamificationBadges
+                            rank={index}
+                            salesThisMonth={summary.salesThisMonth}
+                            progressPct={summary.progressPct}
+                            callsToday={summary.callsToday}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell>{summary.callsToday}</TableCell>
                       <TableCell>{summary.salesThisMonth}</TableCell>
@@ -96,7 +108,10 @@ export function TeamLeaderDashboardClient() {
                       <TableCell>
                         {summary.progressPct !== null ? (
                           <div className="flex items-center gap-2">
-                            <ProgressBar percent={summary.progressPct} />
+                            <ProgressBar
+                              percent={summary.progressPct}
+                              pacePercent={summary.expectedPacePct ?? undefined}
+                            />
                             <span className="text-xs text-muted-foreground">
                               {summary.progressPct}%
                             </span>
@@ -105,12 +120,25 @@ export function TeamLeaderDashboardClient() {
                           "—"
                         )}
                       </TableCell>
+                      <TableCell>
+                        <StreakIndicator days={summary.streakDays} />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
           </div>
+
+          <PipelineFunnel data={data.statusBreakdown} />
+
+          <TrendChart
+            title={t.trend.teamTitle}
+            description={t.trend.teamDescription}
+            data={data.trend}
+            primaryLabel={t.trend.callsLabel}
+            secondaryLabel={t.trend.salesLabel}
+          />
         </>
       )}
     </div>

@@ -5,6 +5,8 @@ import { writeAuditLog } from "@/lib/audit";
 import { bulkDeleteLeadsSchema } from "@/lib/validation/lead";
 import { ValidationError, errorResponseBody } from "@/lib/errors";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const actor = await requireApiRole(["ADMIN"]);
@@ -14,11 +16,14 @@ export async function POST(request: Request) {
     const { leadIds } = parsed.data;
 
     const leads = await prisma.lead.findMany({
-      where: { id: { in: leadIds } },
+      where: { id: { in: leadIds }, deletedAt: null },
       select: { id: true, customerName: true, phone: true, ownerEmployeeId: true },
     });
 
-    const result = await prisma.lead.deleteMany({ where: { id: { in: leadIds } } });
+    const result = await prisma.lead.updateMany({
+      where: { id: { in: leadIds }, deletedAt: null },
+      data: { deletedAt: new Date(), deletedById: actor.id },
+    });
 
     await writeAuditLog({
       actorUserId: actor.id,

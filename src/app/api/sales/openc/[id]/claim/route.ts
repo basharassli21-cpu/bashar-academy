@@ -19,7 +19,7 @@ export async function POST(
     // contacted) leads are claimable — Fresh leads are admin-distribute only,
     // even if someone calls this endpoint directly with a guessed id.
     const result = await prisma.lead.updateMany({
-      where: { id, ownerEmployeeId: null, notes: { some: {} } },
+      where: { id, ownerEmployeeId: null, notes: { some: {} }, deletedAt: null },
       data: { ownerEmployeeId: actor.id, claimedAt: new Date(), source: "OPENC_CLAIM" },
     });
 

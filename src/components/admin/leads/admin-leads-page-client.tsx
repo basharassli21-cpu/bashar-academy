@@ -36,8 +36,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LeadStatusBadge } from "@/components/lead-status-badge";
+import { LeadQuickStatusSelect } from "@/components/lead-quick-status-select";
 import { FollowupSlaBadge } from "@/components/followup-sla-badge";
+import { LeadScoreBadge } from "@/components/lead-score-badge";
 import { LeadTagsBadges } from "@/components/lead-tags";
 import { PhoneActions } from "@/components/phone-actions";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -48,6 +49,7 @@ import {
   bulkTransferLeads,
   bulkDeleteLeads,
   buildLeadsExportUrl,
+  updateLeadAdmin,
   LEAD_STATUS_VALUES,
   type LeadStatus,
 } from "@/lib/api/leads";
@@ -111,6 +113,16 @@ export function AdminLeadsPageClient() {
       toast.success(t.leads.bulkDeleteSuccess);
       setBulkDeleteOpen(false);
       clearSelection();
+      invalidateLeads();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const quickStatusMutation = useMutation({
+    mutationFn: ({ id, status, nextFollowupDate }: { id: string; status: LeadStatus; nextFollowupDate: string | null }) =>
+      updateLeadAdmin(id, { status, note: t.leads.quickStatusChangeNote, nextFollowupDate }),
+    onSuccess: () => {
+      toast.success(t.leads.quickStatusChangeSuccess);
       invalidateLeads();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -260,14 +272,27 @@ export function AdminLeadsPageClient() {
                     <Link href={`/admin/leads/${lead.id}`} className="hover:underline">
                       {lead.customerName}
                     </Link>
-                    <LeadTagsBadges tags={lead.tags} />
+                    <div className="flex flex-wrap items-center gap-1">
+                      <LeadScoreBadge lead={lead} />
+                      <LeadTagsBadges tags={lead.tags} />
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   <PhoneActions phone={lead.phone} />
                 </TableCell>
                 <TableCell>
-                  <LeadStatusBadge status={lead.status} />
+                  <LeadQuickStatusSelect
+                    status={lead.status}
+                    disabled={quickStatusMutation.isPending && quickStatusMutation.variables?.id === lead.id}
+                    onChange={(status) =>
+                      quickStatusMutation.mutate({
+                        id: lead.id,
+                        status,
+                        nextFollowupDate: lead.nextFollowupDate,
+                      })
+                    }
+                  />
                 </TableCell>
                 <TableCell>{lead.owner?.fullName ?? t.leads.unowned}</TableCell>
                 <TableCell className="text-muted-foreground">

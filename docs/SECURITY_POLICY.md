@@ -61,10 +61,11 @@ Before this review, the *only* way any password could change was an admin
 editing an employee/team-leader's record — there was no way for the admin
 to change their own password short of direct database access. Added
 `POST /api/auth/change-password` (current password + new password, any
-authenticated role) with a UI entry point on `/admin/security`. The same
-endpoint already works for Team Leader / Sales Employee accounts; they
-don't have a settings page to put it on yet, which is a small follow-up if
-self-service password change for those roles becomes a priority.
+authenticated role) with a UI entry point on `/admin/security`. Team Leader
+and Sales Employee accounts now have the same entry point at
+`/team-leader/security` and `/sales/security` respectively — both pages
+render the same shared component, so password change and 2FA enrollment
+are self-service for every role.
 
 ## Brute-force protection covers both factors
 

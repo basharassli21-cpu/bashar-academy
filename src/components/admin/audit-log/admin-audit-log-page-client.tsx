@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,15 +25,66 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useTranslations } from "@/components/providers/locale-provider";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import {
   fetchAuditLog,
   fetchAuditLogActors,
+  fetchAuditLogAnomalies,
   AUDIT_ACTION_VALUES,
   type AuditActionValue,
+  type AnomalyAlert,
+  type AnomalySeverity,
 } from "@/lib/api/audit-log";
 
 const ALL_ACTIONS = "ALL";
 const ALL_ACTORS = "ALL";
+
+const SEVERITY_CLASSES: Record<AnomalySeverity, string> = {
+  high: "border-transparent bg-red-500/10 text-red-600 dark:bg-red-500/15 dark:text-red-400",
+  medium:
+    "border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400",
+  low: "border-transparent bg-gray-500/10 text-gray-600 dark:bg-gray-500/15 dark:text-gray-400",
+};
+
+const ANOMALY_ACTION_MAP: Partial<Record<AnomalyAlert["type"], AuditActionValue>> = {
+  LOGIN_BRUTE_FORCE: "LOGIN_FAILED",
+  LOGIN_RATE_LIMITED: "LOGIN_RATE_LIMITED",
+  LARGE_BULK_DELETE: "LEADS_BULK_DELETED",
+  LARGE_EXPORT: "LEADS_EXPORTED",
+  PERMANENT_DELETE: "LEAD_PERMANENTLY_DELETED",
+  TWO_FACTOR_DISABLED: "TWO_FACTOR_DISABLED",
+};
+
+function describeAnomaly(t: Dictionary, alert: AnomalyAlert): string {
+  const m = t.auditLog.anomalies.messages;
+  const actorName = alert.actorName ?? t.auditLog.systemActor;
+  switch (alert.type) {
+    case "LOGIN_BRUTE_FORCE": {
+      const target = (alert.detail.ipAddress as string) || (alert.detail.username as string) || "";
+      return `${alert.count} ${m.LOGIN_BRUTE_FORCE}${target ? ` (${target})` : ""}`;
+    }
+    case "LOGIN_RATE_LIMITED": {
+      const target = (alert.detail.username as string) || "";
+      return `${m.LOGIN_RATE_LIMITED}${target ? ` (${target})` : ""}`;
+    }
+    case "OFF_HOURS_SENSITIVE_ACTION": {
+      const actionLabel = t.auditLog.actionLabels[alert.detail.action as AuditActionValue];
+      return `${actorName} ${m.OFF_HOURS_SENSITIVE_ACTION} ${actionLabel}`;
+    }
+    case "LARGE_BULK_DELETE":
+      return `${actorName} ${m.LARGE_BULK_DELETE} (${alert.count})`;
+    case "LARGE_EXPORT":
+      return `${actorName} ${m.LARGE_EXPORT} (${alert.count})`;
+    case "PERMANENT_DELETE":
+      return `${actorName} ${m.PERMANENT_DELETE}`;
+    case "TWO_FACTOR_DISABLED":
+      return `${actorName} ${m.TWO_FACTOR_DISABLED}`;
+    case "HIGH_ACTIVITY_VOLUME":
+      return `${actorName} — ${alert.count} ${m.HIGH_ACTIVITY_VOLUME}`;
+    default:
+      return "";
+  }
+}
 
 function summarizeDetails(details: unknown): string {
   if (!details || typeof details !== "object") return "—";
@@ -51,6 +103,7 @@ function summarizeDetails(details: unknown): string {
   if (typeof d.count === "number") parts.push(`${d.count} exported`);
   if (typeof d.resultingBucket === "string") parts.push(`→ ${d.resultingBucket}`);
   if (typeof d.fromBucket === "string") parts.push(`${d.fromBucket} →`);
+  if (typeof d.defaultCountryCode === "string") parts.push(`country code → ${d.defaultCountryCode}`);
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
@@ -66,6 +119,31 @@ export function AdminAuditLogPageClient() {
     queryKey: ["audit-log", "actors"],
     queryFn: fetchAuditLogActors,
   });
+
+  const anomaliesQuery = useQuery({
+    queryKey: ["audit-log", "anomalies"],
+    queryFn: fetchAuditLogAnomalies,
+    refetchInterval: 60_000,
+  });
+  const anomalies = anomaliesQuery.data?.items ?? [];
+
+  function investigateAnomaly(alert: AnomalyAlert) {
+    const mappedAction =
+      ANOMALY_ACTION_MAP[alert.type] ??
+      (alert.type === "OFF_HOURS_SENSITIVE_ACTION"
+        ? (alert.detail.action as AuditActionValue)
+        : undefined);
+    setAction(mappedAction ?? ALL_ACTIONS);
+    setActorUserId(alert.actorId ?? ALL_ACTORS);
+    const occurred = new Date(alert.occurredAt);
+    const fromDate = new Date(occurred);
+    fromDate.setDate(fromDate.getDate() - 1);
+    const toDate = new Date(occurred);
+    toDate.setDate(toDate.getDate() + 1);
+    setFrom(fromDate.toISOString().slice(0, 10));
+    setTo(toDate.toISOString().slice(0, 10));
+    setPage(1);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["audit-log", action, actorUserId, from, to, page],
@@ -94,6 +172,44 @@ export function AdminAuditLogPageClient() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">{t.auditLog.title}</h1>
+
+      {!anomaliesQuery.isLoading && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="text-sm font-semibold">{t.auditLog.anomalies.title}</h2>
+              {anomalies.length > 0 && <Badge variant="secondary">{anomalies.length}</Badge>}
+            </div>
+            <p className="text-xs text-muted-foreground">{t.auditLog.anomalies.description}</p>
+          </div>
+          {anomalies.length === 0 ? (
+            <p className="px-2 py-1 text-sm text-muted-foreground">{t.auditLog.anomalies.allClear}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {anomalies.slice(0, 8).map((alert) => (
+                <li key={alert.id}>
+                  <button
+                    type="button"
+                    onClick={() => investigateAnomaly(alert)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-start text-sm hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Badge variant="outline" className={SEVERITY_CLASSES[alert.severity]}>
+                        {t.auditLog.anomalies.severityLabels[alert.severity]}
+                      </Badge>
+                      <span>{describeAnomaly(t, alert)}</span>
+                    </span>
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {new Date(alert.occurredAt).toLocaleString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-2">
         <Select

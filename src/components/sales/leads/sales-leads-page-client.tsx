@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,9 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { LeadStatusBadge } from "@/components/lead-status-badge";
+import { LeadQuickStatusSelect } from "@/components/lead-quick-status-select";
 import { FollowupSlaBadge } from "@/components/followup-sla-badge";
+import { LeadScoreBadge } from "@/components/lead-score-badge";
 import { LeadTagsBadges } from "@/components/lead-tags";
 import { PhoneActions } from "@/components/phone-actions";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -31,6 +33,7 @@ import { FilterPresetsBar } from "@/components/filter-presets-bar";
 import { useTranslations } from "@/components/providers/locale-provider";
 import {
   fetchSalesLeads,
+  updateLeadSales,
   LEAD_STATUS_VALUES,
   type LeadListItem,
   type LeadStatus,
@@ -84,6 +87,7 @@ function SortableHead({
 
 export function SalesLeadsPageClient() {
   const t = useTranslations();
+  const queryClient = useQueryClient();
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<LeadStatus | typeof ALL_STATUSES>(ALL_STATUSES);
   const [page, setPage] = React.useState(1);
@@ -114,6 +118,16 @@ export function SalesLeadsPageClient() {
     }
     setPage(1);
   }
+
+  const quickStatusMutation = useMutation({
+    mutationFn: ({ id, status, nextFollowupDate }: { id: string; status: LeadStatus; nextFollowupDate: string | null }) =>
+      updateLeadSales(id, { status, note: t.leads.quickStatusChangeNote, nextFollowupDate }),
+    onSuccess: () => {
+      toast.success(t.leads.quickStatusChangeSuccess);
+      queryClient.invalidateQueries({ queryKey: ["leads", "sales"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -232,14 +246,27 @@ export function SalesLeadsPageClient() {
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
                         <span>{lead.customerName}</span>
-                        <LeadTagsBadges tags={lead.tags} />
+                        <div className="flex flex-wrap items-center gap-1">
+                          <LeadScoreBadge lead={lead} />
+                          <LeadTagsBadges tags={lead.tags} />
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       <PhoneActions phone={lead.phone} />
                     </TableCell>
                     <TableCell>
-                      <LeadStatusBadge status={lead.status} />
+                      <LeadQuickStatusSelect
+                        status={lead.status}
+                        disabled={quickStatusMutation.isPending && quickStatusMutation.variables?.id === lead.id}
+                        onChange={(status) =>
+                          quickStatusMutation.mutate({
+                            id: lead.id,
+                            status,
+                            nextFollowupDate: lead.nextFollowupDate,
+                          })
+                        }
+                      />
                     </TableCell>
                     <TableCell className="max-w-48 truncate text-muted-foreground">
                       {lead.latestNote || "—"}

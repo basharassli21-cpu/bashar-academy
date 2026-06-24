@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
+import { PipelineFunnel } from "@/components/pipeline-funnel";
+import { TrendChart } from "@/components/trend-chart";
 import { useTranslations } from "@/components/providers/locale-provider";
 import { fetchAdminDashboard } from "@/lib/api/dashboard";
 
@@ -44,6 +46,18 @@ export function AdminDashboardClient() {
             tone="warning"
           />
         </div>
+      )}
+
+      {data && <PipelineFunnel data={data.statusBreakdown} />}
+
+      {data && (
+        <TrendChart
+          title={t.trend.adminTitle}
+          description={t.trend.adminDescription}
+          data={data.trend}
+          primaryLabel={t.trend.newLeadsLabel}
+          secondaryLabel={t.trend.closedSalesLabel}
+        />
       )}
     </div>
   );

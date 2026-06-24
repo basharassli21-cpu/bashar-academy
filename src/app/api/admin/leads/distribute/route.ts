@@ -6,6 +6,8 @@ import { createNotification } from "@/lib/notifications";
 import { distributeLeadsSchema } from "@/lib/validation/lead-import";
 import { ValidationError, errorResponseBody } from "@/lib/errors";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const actor = await requireApiRole(["ADMIN"]);
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
     // leads already have a path out of the pool (employee self-claim) and
     // must not be silently reassigned out from under that.
     const openLeads = await prisma.lead.findMany({
-      where: { ownerEmployeeId: null, notes: { none: {} } },
+      where: { ownerEmployeeId: null, notes: { none: {} }, deletedAt: null },
       select: { id: true },
       orderBy: { createdAt: "asc" },
     });

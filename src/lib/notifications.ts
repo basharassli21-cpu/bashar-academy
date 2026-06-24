@@ -10,6 +10,12 @@ export async function createNotification(params: {
   entityType?: string;
   entityId?: string;
 }) {
+  const recipient = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: { notificationsMuted: true },
+  });
+  if (recipient?.notificationsMuted) return;
+
   await prisma.notification.create({
     data: {
       userId: params.userId,

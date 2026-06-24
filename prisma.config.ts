@@ -7,6 +7,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // Migrations need session-level locks that Neon's pooled (PgBouncer)
+    // connection doesn't support — the CLI always uses the direct URL,
+    // while the running app uses the pooled DATABASE_URL.
+    url: env("DATABASE_URL_UNPOOLED"),
   },
 });

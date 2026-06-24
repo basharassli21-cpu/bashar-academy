@@ -18,7 +18,7 @@ export async function PATCH(
     const { tags } = parsed.data;
 
     const existing = await prisma.lead.findFirst({
-      where: { id, ownerEmployeeId: actor.id },
+      where: { id, ownerEmployeeId: actor.id, deletedAt: null },
       select: { id: true },
     });
     if (!existing) throw new NotFoundError();

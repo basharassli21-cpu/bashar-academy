@@ -12,3 +12,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
   });
   return parseOrThrow(res);
 }
+
+export async function logout(): Promise<void> {
+  await fetch("/api/auth/logout", { method: "POST" });
+  window.location.href = "/login";
+}

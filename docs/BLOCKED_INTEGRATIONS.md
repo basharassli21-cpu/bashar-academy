@@ -3,9 +3,11 @@
 Everything in this CRM works today without any third-party accounts beyond
 Neon (database) and your own hosting. The items below are real upgrades the
 codebase is ready to receive, but each needs an account and API key/secret
-that only you can create — Claude Code cannot sign up for a service on your
-behalf or invent credentials. Pick whichever are worth it; none are required
-for the app to keep working as-is.
+— or, for a couple of items near the end, a console setting or plan change —
+that only you can create or authorize. Claude Code cannot sign up for a
+service, invent credentials, or change your Neon/Vercel billing plan on your
+behalf. Pick whichever are worth it; none are required for the app to keep
+working as-is.
 
 For each integration: what it unlocks today, what to sign up for, and the
 env vars it would add to `.env` (same pattern as `DATABASE_URL`/`JWT_SECRET`
@@ -81,13 +83,14 @@ VAPID_SUBJECT="mailto:you@yourdomain.com"
 Flagged here anyway since it's still a credential-shaped prerequisite before
 the feature could be built, and the keys must be generated and stored by you.
 
-## 4. SMS fallback for 2FA (relevant to upcoming task #32)
+## 4. SMS fallback for 2FA (relevant to task #32 / #55)
 
-Task #32 (TOTP 2FA) needs no external account — it's just an authenticator
-app on the admin's phone. This entry only applies **if** you also want an
-SMS-code fallback for admins who lose their authenticator device. Same
-Twilio credentials as item 2 would cover it; no separate signup needed if
-you already set up WhatsApp/SMS messaging above.
+TOTP 2FA (task #32, since extended to every role in task #55) needs no
+external account — it's just an authenticator app on the user's phone. This
+entry only applies **if** you also want an SMS-code fallback for users who
+lose their authenticator device. Same Twilio credentials as item 2 would
+cover it; no separate signup needed if you already set up WhatsApp/SMS
+messaging above.
 
 ## 5. Calendar sync (Google Calendar / Outlook)
 
@@ -118,6 +121,51 @@ instead of finding out from a user report. Not visible to end users at all.
 ```
 SENTRY_DSN="..."
 ```
+
+## 7. CAPTCHA on the login form
+
+**Currently:** `checkIpLoginRateLimit` and `checkAccountLoginRateLimit`
+(`src/lib/auth/rate-limit.ts`) already cap failed attempts per IP and per
+account, and the same limiter gates the 2FA code endpoint. That stops a
+single attacker from brute-forcing one account quickly, but it doesn't stop
+a *distributed* credential-stuffing run — many IPs, each staying under the
+per-IP threshold, trying common passwords across usernames.
+
+**Unlocks:** a visible/invisible challenge on the login form (and optionally
+before 2FA verification) that's cheap for a human, expensive for a bot
+farm — closing the gap rate-limiting alone leaves open.
+
+**Get a site key + secret key from one of:** Cloudflare Turnstile (free,
+privacy-friendly, simplest to self-host without a Google dependency),
+hCaptcha (free tier), or Google reCAPTCHA v3.
+
+**Would add:**
+```
+TURNSTILE_SITE_KEY="..."
+TURNSTILE_SECRET_KEY="..."
+```
+(or the equivalent pair for whichever provider you pick). No domain
+verification step beyond adding the domain in that provider's dashboard.
+
+## 8. Neon Point-in-Time Recovery (PITR) window
+
+**Different in kind from everything else on this page** — this isn't a
+credential to add to `.env`, it's a setting in the Neon console (or a plan
+upgrade) that only the account owner can change.
+
+**Currently:** the app has row-level recovery — soft-delete/Trash for leads
+(task #41) and the in-house audit log (task #38) — but no protection against
+a *database-level* mistake (a bad migration, an accidental `DROP`, a botched
+bulk operation run directly against the DB). Neon's free plan retains a
+point-in-time restore window of a few hours by default; paid plans (Launch
+and above) extend that to several days.
+
+**What only you can do:** decide how much restore window you want and, if
+that means moving off the free plan, upgrade the Neon project in the Neon
+console — Claude Code has no access to your Neon billing/account settings
+and shouldn't change them autonomously even if it could. Worth doing before
+this CRM holds data you'd be unhappy to lose; not urgent if the current
+Trash/audit-log coverage feels sufficient for now.
 
 ## Prerequisite for several of the above: a real production domain
 

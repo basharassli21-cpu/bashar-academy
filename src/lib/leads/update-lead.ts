@@ -21,7 +21,7 @@ export async function applyLeadUpdate(params: {
 
   const { lead, note: leadNote, isNewlyClosed } = await prisma.$transaction(async (tx) => {
     const existing = await tx.lead.findFirst({
-      where: { id: leadId, ...(ownerEmployeeId ? { ownerEmployeeId } : {}) },
+      where: { id: leadId, deletedAt: null, ...(ownerEmployeeId ? { ownerEmployeeId } : {}) },
       select: { closedAt: true },
     });
     if (!existing) throw new NotFoundError();

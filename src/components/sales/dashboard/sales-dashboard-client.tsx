@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
-import { ProgressBar } from "@/components/progress-bar";
+import { TargetProgressCard } from "@/components/target-progress-card";
+import { GamificationBadges } from "@/components/gamification";
+import { TrendChart } from "@/components/trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
@@ -26,7 +28,17 @@ export function SalesDashboardClient() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">{t.salesDashboard.title}</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-semibold">{t.salesDashboard.title}</h1>
+        {data && (
+          <GamificationBadges
+            rank={null}
+            salesThisMonth={data.salesThisMonth}
+            progressPct={data.progressPct}
+            callsToday={data.callsToday}
+          />
+        )}
+      </div>
 
       {isLoading && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -38,33 +50,20 @@ export function SalesDashboardClient() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <StatCard label={t.salesDashboard.callsToday} value={data.callsToday} />
             <StatCard label={t.salesDashboard.callsThisMonth} value={data.callsThisMonth} />
             <StatCard label={t.salesDashboard.salesThisMonth} value={data.salesThisMonth} />
             <StatCard label={t.salesDashboard.activeLeads} value={data.activeLeadsCount} />
+            <StatCard label={t.gamification.streakStatCardLabel} value={data.streakDays} />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.salesDashboard.targetProgress}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.employee.monthlyTarget ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                      {data.salesThisMonth} / {data.employee.monthlyTarget}
-                    </span>
-                    <span>{data.progressPct}%</span>
-                  </div>
-                  <ProgressBar percent={data.progressPct ?? 0} />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t.salesDashboard.noTarget}</p>
-              )}
-            </CardContent>
-          </Card>
+          <TargetProgressCard
+            monthlyTarget={data.employee.monthlyTarget}
+            salesThisMonth={data.salesThisMonth}
+            progressPct={data.progressPct}
+            expectedPacePct={data.expectedPacePct}
+          />
 
           <Card>
             <CardHeader>
@@ -109,6 +108,14 @@ export function SalesDashboardClient() {
               )}
             </CardContent>
           </Card>
+
+          <TrendChart
+            title={t.trend.myTitle}
+            description={t.trend.myDescription}
+            data={data.trend}
+            primaryLabel={t.trend.callsLabel}
+            secondaryLabel={t.trend.salesLabel}
+          />
         </>
       )}
     </div>

@@ -17,7 +17,10 @@ export async function PATCH(
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message);
     const { tags } = parsed.data;
 
-    const existing = await prisma.lead.findUnique({ where: { id }, select: { id: true } });
+    const existing = await prisma.lead.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
     if (!existing) throw new NotFoundError();
 
     const updated = await prisma.lead.update({

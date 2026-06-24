@@ -15,7 +15,7 @@ export async function GET(
     const { id } = await params;
 
     const lead = await prisma.lead.findFirst({
-      where: { id, ownerEmployeeId: actor.id },
+      where: { id, ownerEmployeeId: actor.id, deletedAt: null },
       select: {
         id: true,
         customerName: true,

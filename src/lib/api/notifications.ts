@@ -33,3 +33,28 @@ export async function markAllNotificationsRead() {
   const res = await fetch("/api/notifications/mark-all-read", { method: "PATCH" });
   return parseOrThrow(res);
 }
+
+export async function markNotificationTypeRead(type: NotificationType) {
+  const res = await fetch("/api/notifications/mark-type-read", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type }),
+  });
+  return parseOrThrow(res);
+}
+
+export type NotificationPreferences = {
+  notificationsMuted: boolean;
+  notificationDigestMode: boolean;
+};
+
+export async function updateNotificationPreferences(
+  input: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> {
+  const res = await fetch("/api/notifications/preferences", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseOrThrow(res);
+}

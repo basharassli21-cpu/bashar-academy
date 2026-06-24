@@ -110,6 +110,29 @@ export async function deleteLead(id: string) {
   return parseOrThrow(res);
 }
 
+export type TrashedLeadItem = {
+  id: string;
+  customerName: string;
+  phone: string;
+  status: LeadStatus;
+  owner?: { id: string; fullName: string } | null;
+  deletedAt: string;
+  deletedBy?: { id: string; fullName: string } | null;
+  createdAt: string;
+};
+
+export async function fetchLeadsTrash(params: { page?: number }): Promise<PaginatedResult<TrashedLeadItem>> {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  const res = await fetch(`/api/admin/leads/trash?${search.toString()}`);
+  return parseOrThrow(res);
+}
+
+export async function restoreLead(id: string) {
+  const res = await fetch(`/api/admin/leads/${id}/restore`, { method: "POST" });
+  return parseOrThrow(res);
+}
+
 export async function transferLead(id: string, employeeId: string) {
   const res = await fetch(`/api/admin/leads/${id}/transfer`, {
     method: "PATCH",

@@ -9,12 +9,12 @@ export async function setupTwoFactor(): Promise<{
   otpauthUri: string;
   qrCodeDataUrl: string;
 }> {
-  const res = await fetch("/api/admin/security/2fa/setup", { method: "POST" });
+  const res = await fetch("/api/auth/2fa/setup", { method: "POST" });
   return parseOrThrow(res);
 }
 
 export async function confirmTwoFactor(code: string): Promise<{ backupCodes: string[] }> {
-  const res = await fetch("/api/admin/security/2fa/confirm", {
+  const res = await fetch("/api/auth/2fa/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
@@ -23,7 +23,7 @@ export async function confirmTwoFactor(code: string): Promise<{ backupCodes: str
 }
 
 export async function disableTwoFactor(password: string): Promise<{ ok: boolean }> {
-  const res = await fetch("/api/admin/security/2fa/disable", {
+  const res = await fetch("/api/auth/2fa/disable", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password }),

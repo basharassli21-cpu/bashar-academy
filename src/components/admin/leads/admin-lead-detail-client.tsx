@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
 import { FollowupSlaBadge } from "@/components/followup-sla-badge";
+import { LeadNextActionBanner } from "@/components/lead-next-action-banner";
+import { CallNoteTemplates } from "@/components/call-note-templates";
 import { LeadTagsEditor } from "@/components/lead-tags";
 import { PhoneActions } from "@/components/phone-actions";
 import { useTranslations } from "@/components/providers/locale-provider";
@@ -95,6 +97,10 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  function insertCallNoteTemplate(text: string) {
+    setNote((prev) => (prev.trim() ? `${prev}\n${text}` : text));
+  }
 
   const tagsMutation = useMutation({
     mutationFn: (tags: string[]) => updateAdminLeadTags(leadId, tags),
@@ -190,6 +196,8 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
         </div>
       </div>
 
+      <LeadNextActionBanner lead={lead} />
+
       <div className="rounded-lg border p-4">
         <p className="mb-2 text-sm text-muted-foreground">{t.leads.tags}</p>
         <LeadTagsEditor tags={lead.tags ?? []} onChange={(tags) => tagsMutation.mutate(tags)} />
@@ -236,6 +244,7 @@ export function AdminLeadDetailClient({ leadId }: { leadId: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="callNote">{t.leads.logCallNote}</Label>
+            <CallNoteTemplates status={status} onInsert={insertCallNoteTemplate} />
             <Textarea
               id="callNote"
               required

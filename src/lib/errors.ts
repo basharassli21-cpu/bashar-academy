@@ -1,3 +1,5 @@
+import { recordErrorLog } from "@/lib/error-log";
+
 export class AppError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -46,5 +48,6 @@ export function errorResponseBody(error: unknown): { message: string; status: nu
     return { message: error.message, status: error.status };
   }
   console.error(error);
+  recordErrorLog(error);
   return { message: "Something went wrong", status: 500 };
 }

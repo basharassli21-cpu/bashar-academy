@@ -31,6 +31,7 @@ export async function GET(request: Request) {
 
     const where: Prisma.LeadWhereInput = {
       ownerEmployeeId: actor.id,
+      deletedAt: null,
       ...(status ? { status } : {}),
       ...(q
         ? {

@@ -7,12 +7,14 @@ const roleHome: Record<Role, string> = {
   ADMIN: "/admin",
   TEAM_LEADER: "/team-leader",
   SALES_EMPLOYEE: "/sales",
+  STUDENT: "/academy",
 };
 
 const protectedPrefixes: Record<string, Role> = {
   "/admin": "ADMIN",
   "/team-leader": "TEAM_LEADER",
   "/sales": "SALES_EMPLOYEE",
+  "/academy": "STUDENT",
 };
 
 // Optimistic check only (cookie, no DB) — fast redirect for UX. Every

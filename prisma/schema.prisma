@@ -11,6 +11,7 @@ enum Role {
   ADMIN
   TEAM_LEADER
   SALES_EMPLOYEE
+  STUDENT
 }
 
 enum LeadStatus {
@@ -65,17 +66,98 @@ enum AuditAction {
   WEBHOOK_DELETED
   TWO_FACTOR_ENABLED
   TWO_FACTOR_DISABLED
+  SETTINGS_UPDATED
+  LEAD_RESTORED
+  LEAD_PERMANENTLY_DELETED
+  COURSE_CREATED
+  COURSE_UPDATED
+  COURSE_DELETED
+  LESSON_CREATED
+  LESSON_UPDATED
+  LESSON_DELETED
+  ENROLLMENT_CREATED
+  PAYMENT_RECEIVED
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  BLOG_POST_CREATED
+  BLOG_POST_UPDATED
+  BLOG_POST_DELETED
 }
 
 enum NotificationType {
   LEAD_ASSIGNED
   TEAM_ASSIGNMENT
+  ENROLLMENT_CONFIRMED
+  PAYMENT_CONFIRMED
+  BOOKING_CONFIRMED
+  BOOKING_REMINDER
+  COURSE_COMPLETED
+  LESSON_COMMENT
+  TICKET_RESPONSE
 }
 
 enum WebhookEvent {
   LEAD_CREATED
   LEAD_CLOSED_SALE
   LEAD_ASSIGNED
+  PAYMENT_COMPLETED
+  ENROLLMENT_CREATED
+  BOOKING_CREATED
+}
+
+enum LessonType {
+  VIDEO
+  PDF
+  TEXT
+  RESOURCE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  COURSE_PURCHASE
+  CONSULTATION
+  SUBSCRIPTION
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 model Webhook {
@@ -93,31 +175,59 @@ model Webhook {
   @@map("webhooks")
 }
 
+model AppSettings {
+  id                 String   @id @default("singleton")
+  defaultCountryCode String   @map("default_country_code")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
 model User {
-  id              String   @id @default(cuid())
-  username        String   @unique
-  passwordHash    String   @map("password_hash")
-  fullName        String   @map("full_name")
-  role            Role
-  teamLeaderId    String?  @map("team_leader_id")
-  teamLeader      User?    @relation("LeaderToEmployees", fields: [teamLeaderId], references: [id], onDelete: SetNull)
-  employees       User[]   @relation("LeaderToEmployees")
-  monthlyTarget   Int?     @map("monthly_target")
-  isActive        Boolean  @default(true) @map("is_active")
-  totpSecret      String?  @map("totp_secret")
-  totpEnabled     Boolean  @default(false) @map("totp_enabled")
-  totpBackupCodes String[] @default([]) @map("totp_backup_codes")
-  sessionVersion  Int      @default(0) @map("session_version")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                     String   @id @default(cuid())
+  username               String   @unique
+  passwordHash           String   @map("password_hash")
+  fullName               String   @map("full_name")
+  role                   Role
+  teamLeaderId           String?  @map("team_leader_id")
+  teamLeader             User?    @relation("LeaderToEmployees", fields: [teamLeaderId], references: [id], onDelete: SetNull)
+  employees              User[]   @relation("LeaderToEmployees")
+  monthlyTarget          Int?     @map("monthly_target")
+  isActive               Boolean  @default(true) @map("is_active")
+  totpSecret             String?  @map("totp_secret")
+  totpEnabled            Boolean  @default(false) @map("totp_enabled")
+  totpBackupCodes        String[] @default([]) @map("totp_backup_codes")
+  sessionVersion         Int      @default(0) @map("session_version")
+  notificationsMuted     Boolean  @default(false) @map("notifications_muted")
+  notificationDigestMode Boolean  @default(false) @map("notification_digest_mode")
+  email                  String?  @map("email")
+  phone                  String?  @map("phone")
+  image                  String?
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   ownedLeads       Lead[]         @relation("LeadOwner")
   createdLeads     Lead[]         @relation("LeadCreator")
+  deletedLeads     Lead[]         @relation("LeadDeleter")
   leadNotes        LeadNote[]
   auditLogs        AuditLog[]     @relation("AuditActor")
   leadImports      LeadImport[]   @relation("ImportUploader")
   importedAsTarget LeadImport[]   @relation("ImportSingleTarget")
   notifications    Notification[]
+
+  enrollments         Enrollment[]
+  lessonProgress      LessonProgress[]
+  notes               Note[]
+  comments            Comment[]
+  certificates        Certificate[]
+  quizAttempts        QuizAttempt[]
+  bookings            Booking[]
+  payments            Payment[]
+  subscriptions       Subscription[]
+  supportTickets      SupportTicket[]
+  ticketMessages      TicketMessage[]
+  blogPosts           BlogPost[]
+  leadActivities      LeadActivity[]
 
   @@index([role, isActive])
   @@index([teamLeaderId])
@@ -158,10 +268,14 @@ model Lead {
   importId         String?     @map("import_id")
   import           LeadImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
   tags             String[]    @default([]) @map("tags")
+  deletedAt        DateTime?   @map("deleted_at")
+  deletedById      String?     @map("deleted_by")
+  deletedBy        User?       @relation("LeadDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  notes LeadNote[]
+  notes    LeadNote[]
+  activities LeadActivity[]
 
   @@index([ownerEmployeeId, status])
   @@index([status])
@@ -169,6 +283,7 @@ model Lead {
   @@index([closedAt])
   @@index([ownerEmployeeId, closedAt])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("leads")
 }
 
@@ -185,6 +300,22 @@ model LeadNote {
   @@index([employeeId, createdAt])
   @@index([leadId, createdAt])
   @@map("lead_notes")
+}
+
+model LeadActivity {
+  id          String   @id @default(cuid())
+  leadId      String   @map("lead_id")
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type        String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([leadId, createdAt])
+  @@index([userId])
+  @@map("lead_activities")
 }
 
 model AuditLog {
@@ -204,6 +335,16 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  message   String
+  stack     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("error_logs")
 }
 
 model LeadImport {
@@ -226,4 +367,429 @@ model LeadImport {
 
   @@index([uploadedById, createdAt])
   @@map("lead_imports")
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  description String?
+  image     String?
+  parentId  String?    @map("parent_id")
+  parent    Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryParent")
+  sortOrder Int        @default(0) @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  courses    Course[]
+  blogPosts  BlogPost[]
+
+  @@index([parentId])
+  @@index([slug])
+  @@map("categories")
+}
+
+model Course {
+  id            String    @id @default(cuid())
+  title         String
+  slug          String    @unique
+  description   String
+  shortDescription String? @map("short_description")
+  price         Decimal   @default(0)
+  salePrice     Decimal?  @map("sale_price")
+  currency      String    @default("USD")
+  imageUrl      String?   @map("image_url")
+  previewVideoUrl String? @map("preview_video_url")
+  categoryId    String?   @map("category_id")
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  level         String?   @default("beginner")
+  duration      String?
+  published     Boolean   @default(false)
+  featured      Boolean   @default(false)
+  tags          String[]  @default([])
+  requirements  String[]
+  whatYouLearn  String[]  @map("what_you_learn")
+  seoTitle      String?   @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  sortOrder     Int       @default(0) @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  modules       Module[]
+  enrollments   Enrollment[]
+  certificates  Certificate[]
+  payments      Payment[]
+
+  @@index([slug])
+  @@index([published, featured])
+  @@index([categoryId])
+  @@map("courses")
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  courseId   String   @map("course_id")
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  description String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lessons Lesson[]
+
+  @@index([courseId, sortOrder])
+  @@map("modules")
+}
+
+model Lesson {
+  id          String     @id @default(cuid())
+  moduleId    String     @map("module_id")
+  module      Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  type        LessonType @default(VIDEO)
+  content     String?
+  videoUrl    String?    @map("video_url")
+  videoDuration Int?     @map("video_duration")
+  pdfUrl      String?    @map("pdf_url")
+  resourceUrl String?    @map("resource_url")
+  resourceName String?   @map("resource_name")
+  isFree      Boolean    @default(false) @map("is_free")
+  sortOrder   Int        @default(0) @map("sort_order")
+  published   Boolean    @default(false)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  quizzes       Quiz[]
+  progress      LessonProgress[]
+  notes         Note[]
+  comments      Comment[]
+
+  @@index([moduleId, sortOrder])
+  @@map("lessons")
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String   @map("course_id")
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress   Int      @default(0)
+  completed  Boolean  @default(false)
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId   String   @map("lesson_id")
+  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed  Boolean  @default(false)
+  watchTime  Int      @default(0) @map("watch_time")
+  completedAt DateTime? @map("completed_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+model Quiz {
+  id        String   @id @default(cuid())
+  lessonId   String   @map("lesson_id")
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  description String?
+  passingScore Int    @default(70) @map("passing_score")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  questions  QuizQuestion[]
+  attempts   QuizAttempt[]
+
+  @@index([lessonId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id           String  @id @default(cuid())
+  quizId       String  @map("quiz_id")
+  quiz         Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question     String
+  options      String[]
+  correctIndex Int     @map("correct_index")
+  explanation  String?
+  sortOrder    Int     @default(0) @map("sort_order")
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId     String   @map("quiz_id")
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  score      Int
+  passed     Boolean
+  answers    Json?
+  attemptedAt DateTime @default(now()) @map("attempted_at")
+
+  @@index([userId, quizId])
+  @@map("quiz_attempts")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId   String   @map("lesson_id")
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, lessonId])
+  @@map("notes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId   String   @map("lesson_id")
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  content   String
+  parentId  String?  @map("parent_id")
+  parent    Comment? @relation("CommentReply", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   Comment[] @relation("CommentReply")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([lessonId, createdAt])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Certificate {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String   @map("course_id")
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  certificateUrl String?  @map("certificate_url")
+  issuedAt       DateTime @default(now()) @map("issued_at")
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@map("certificates")
+}
+
+model ConsultationSlot {
+  id        String   @id @default(cuid())
+  date      DateTime @map("date")
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  available Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings Booking[]
+
+  @@index([date, available])
+  @@map("consultation_slots")
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slotId     String        @map("slot_id")
+  slot       ConsultationSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  status     BookingStatus @default(PENDING)
+  notes      String?
+  googleEventId String?    @map("google_event_id")
+  meetLink   String?       @map("meet_link")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  payment Payment?
+
+  @@index([userId])
+  @@index([slotId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Coupon {
+  id         String       @id @default(cuid())
+  code       String       @unique
+  discount   Decimal
+  discountType DiscountType @map("discount_type")
+  maxUses    Int?         @map("max_uses")
+  usedCount  Int          @default(0) @map("used_count")
+  minAmount  Decimal?     @map("min_amount")
+  active     Boolean      @default(true)
+  expiresAt  DateTime?    @map("expires_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  payments Payment[]
+
+  @@index([code])
+  @@map("coupons")
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  userId              String        @map("user_id")
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount              Decimal
+  currency            String        @default("USD")
+  status              PaymentStatus @default(PENDING)
+  type                PaymentType
+  courseId             String?       @map("course_id")
+  course              Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  bookingId           String?       @unique @map("booking_id")
+  booking             Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  subscriptionId      String?       @map("subscription_id")
+  subscription        Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  couponId            String?       @map("coupon_id")
+  coupon              Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  stripePaymentIntentId String?     @map("stripe_payment_intent_id")
+  stripeSessionId     String?       @map("stripe_session_id")
+  receiptUrl          String?       @map("receipt_url")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripePaymentIntentId])
+  @@map("payments")
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal
+  currency    String   @default("USD")
+  interval    String   @default("month")
+  features    String[]
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  stripePriceId String? @map("stripe_price_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @map("user_id")
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId               String             @map("plan_id")
+  plan                 SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  startDate            DateTime           @default(now()) @map("start_date")
+  endDate              DateTime?          @map("end_date")
+  cancelledAt          DateTime?          @map("cancelled_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model BlogPost {
+  id            String    @id @default(cuid())
+  title         String
+  slug          String    @unique
+  content       String
+  excerpt       String?
+  imageUrl      String?   @map("image_url")
+  authorId      String    @map("author_id")
+  author        User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  categoryId    String?   @map("category_id")
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags          String[]  @default([])
+  published     Boolean   @default(false)
+  featured      Boolean   @default(false)
+  scheduledAt   DateTime? @map("scheduled_at")
+  seoTitle      String?   @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  seoCanonical  String?   @map("seo_canonical")
+  viewCount     Int       @default(0) @map("view_count")
+  readTime      Int?      @map("read_time")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([published, createdAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@map("blog_posts")
+}
+
+model SupportTicket {
+  id         String       @id @default(cuid())
+  userId     String       @map("user_id")
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject    String
+  status     TicketStatus @default(OPEN)
+  priority   TicketPriority @default(MEDIUM)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String   @map("ticket_id")
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message    String
+  attachments Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+model AcademyAnalytics {
+  id          String   @id @default(cuid())
+  date        DateTime @map("date")
+  metric      String
+  value       Decimal
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([date, metric])
+  @@index([date])
+  @@map("academy_analytics")
 }

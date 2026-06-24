@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const where: Prisma.LeadWhereInput = {
       ownerEmployeeId: null,
       notes: { some: {} },
+      deletedAt: null,
       ...(q ? { customerName: { contains: q, mode: "insensitive" } } : {}),
     };
 
