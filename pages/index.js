@@ -8,6 +8,23 @@ import Image from 'next/image'
 // مثال: إذا الرابط https://youtube.com/watch?v=abc123  →  YT_ID = 'abc123'
 const YT_ID = '' // أضف الـ ID هنا
 
+function Counter({ to, prefix = '', suffix = '', duration = 1400 }) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setVal(to); return }
+    let raf, start
+    const step = t => {
+      if (!start) start = t
+      const p = Math.min((t - start) / duration, 1)
+      setVal(Math.round((1 - Math.pow(1 - p, 3)) * to))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [to, duration])
+  return <>{prefix}{val}{suffix}</>
+}
+
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [lang,     setLang]     = useState('ar')
@@ -133,7 +150,7 @@ export default function LandingPage() {
         .hero{position:relative;padding:170px 0 90px;overflow:hidden}
         .hero-glow{position:absolute;top:-10%;left:-10%;width:55%;height:120%;
           background:radial-gradient(circle,rgba(74,222,128,.12),transparent 62%);filter:blur(20px);pointer-events:none}
-        .hero-grid{display:grid;grid-template-columns:1fr;gap:0;align-items:center;position:relative;max-width:800px}
+        .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center;position:relative}
         .eyebrow{display:inline-flex;align-items:center;gap:11px;font-size:13px;letter-spacing:.26em;color:var(--gold);
           text-transform:uppercase;font-weight:600;margin-bottom:26px}
         .eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
@@ -303,6 +320,13 @@ export default function LandingPage() {
         .rcard .shot{aspect-ratio:4/3;overflow:hidden;border-bottom:1px solid var(--line-soft);position:relative}
         .rcard .shot img{width:100%;height:100%;object-fit:cover;transition:transform .4s}
         .rcard:hover .shot img{transform:scale(1.04)}
+        .rcard .shot::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.55));
+          opacity:0;transition:opacity .4s}
+        .rcard:hover .shot::after{opacity:1}
+        .rcard .shot .zoom{position:absolute;bottom:14px;left:14px;width:34px;height:34px;border-radius:50%;
+          background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);backdrop-filter:blur(6px);
+          display:flex;align-items:center;justify-content:center;color:#fff;opacity:0;transform:translateY(8px);transition:.35s}
+        .rcard:hover .shot .zoom{opacity:1;transform:translateY(0)}
         .rcard .rb{padding:22px 24px}
         .rcard .chip{display:inline-flex;align-items:center;gap:8px;font-family:'El Messiri';font-size:24px;
           color:var(--gold);font-weight:700;margin-bottom:6px}
@@ -509,9 +533,19 @@ export default function LandingPage() {
                 <div className="tb"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 12l5 5L21 4"/></svg><span>{tx('دعم مستمر', 'Ongoing support')}</span></div>
               </div>
               <div className="hero-stats">
-                <div className="stat"><div className="n">+<span className="gold">200</span></div><div className="l">{tx('طالب تم تدريبهم', 'Students trained')}</div></div>
-                <div className="stat"><div className="n"><span className="gold">39</span></div><div className="l">{tx('طلباً في يوم واحد', 'Orders in one day')}</div></div>
-                <div className="stat"><div className="n"><span className="gold">18</span></div><div className="l">{tx('عمر انطلاق الرحلة', 'Age the journey began')}</div></div>
+                <div className="stat"><div className="n"><span className="gold"><Counter to={200} prefix="+" /></span></div><div className="l">{tx('طالب تم تدريبهم', 'Students trained')}</div></div>
+                <div className="stat"><div className="n"><span className="gold"><Counter to={39} /></span></div><div className="l">{tx('طلباً في يوم واحد', 'Orders in one day')}</div></div>
+                <div className="stat"><div className="n"><span className="gold"><Counter to={18} /></span></div><div className="l">{tx('عمر انطلاق الرحلة', 'Age the journey began')}</div></div>
+              </div>
+            </div>
+            <div className="hero-portrait reveal">
+              <div className="img-wrap">
+                <img src="/bashar-portrait.jpg" alt={tx('الكوتش بشار العسلي', 'Coach Bashar Al-Asali')} />
+              </div>
+              <div className="frame" />
+              <div className="tag">
+                <div className="tn">+200</div>
+                <div className="tl">{tx('طالب تم تدريبهم', 'Students trained')}</div>
               </div>
             </div>
           </div>
@@ -813,21 +847,21 @@ export default function LandingPage() {
             </div>
             <div className="results-grid">
               <div className="rcard reveal">
-                <div className="shot"><img src="/result-ebay-1.jpg" alt="eBay seller dashboard result" /></div>
+                <div className="shot"><img src="/result-ebay-1.jpg" alt="eBay seller dashboard result" /><span className="zoom"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span></div>
                 <div className="rb">
                   <div className="chip">4,475 <span className="up">👁</span></div>
                   <p>{tx('مشاهدة للعروض — 27 طلب — $1,245 مبيعات في 90 يوم', '27 orders — $1,245 sales in 90 days')}</p>
                 </div>
               </div>
               <div className="rcard reveal">
-                <div className="shot"><img src="/result-ebay-2.jpg" alt="eBay seller dashboard result 2" /></div>
+                <div className="shot"><img src="/result-ebay-2.jpg" alt="eBay seller dashboard result 2" /><span className="zoom"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span></div>
                 <div className="rb">
                   <div className="chip">7,036 <span className="up">👁</span></div>
                   <p>{tx('مشاهدة — 39 طلب — $2,039 مبيعات في 90 يوم', '39 orders — $2,039 sales in 90 days')}</p>
                 </div>
               </div>
               <div className="rcard reveal">
-                <div className="shot"><img src="/result-whatsapp.jpg" alt="Student result $1,694" /></div>
+                <div className="shot"><img src="/result-whatsapp.jpg" alt="Student result $1,694" /><span className="zoom"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span></div>
                 <div className="rb">
                   <div className="chip">$1,694 <span className="up">▲</span></div>
                   <p>{tx('إجمالي مبيعات 90 يوم — 27 طلباً مباعاً — رسالة طالب حقيقي', '90-day total — 27 sold — real student message')}</p>
