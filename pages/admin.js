@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import dynamic from 'next/dynamic'
@@ -7,15 +7,6 @@ import { t } from '../lib/i18n'
 import { playSendSound } from '../lib/sound'
 import OpenCPool from '../components/OpenCPool'
 import ImportLeadsPanel from '../components/ImportLeadsPanel'
-
-// ─── Recharts (client-only) ────────────────────────────────────────────────
-const {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  PieChart, Pie, Cell, BarChart, Bar, Legend,
-} = (() => {
-  if (typeof window === 'undefined') return {}
-  try { return require('recharts') } catch { return {} }
-})()
 
 // ─── Brand Color Palettes — Forest Green ──────────────────────────────────
 const C_DARK = {
@@ -36,7 +27,10 @@ const C_LIGHT = {
   w40: 'rgba(20,32,22,0.25)',  w50: 'rgba(20,32,22,0.35)',
   lk20: 'rgba(190,200,188,0.35)', lk30: 'rgba(190,200,188,0.5)',
 }
-let C = C_DARK
+
+// Palette context — avoids module-level mutable C and React concurrent-mode contamination
+const PaletteCtx = createContext(C_DARK)
+const usePalette = () => useContext(PaletteCtx)
 
 const COURSE_OPTIONS = [
   { value: 'elite',        labelAr: 'الباقة الكاملة (Elite)',   labelEn: 'Elite',        icon: '👑', color: '#4ADE80' },
@@ -50,7 +44,7 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr)) / 86_400_000)
 }
 
-function buildNotifications(students) {
+function buildNotifications(students, C) {
   const notes = []
   students.forEach(s => {
     const days = daysSince(s.joinedAt)
@@ -133,6 +127,10 @@ function exportStudentsCSV(students, lessons, lang) {
   URL.revokeObjectURL(url)
 }
 
+function escapeHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
 // ─── Export: PDF Report (via window.print) ─────────────────────────────────
 function exportStudentsPDF(students, lessons, lang) {
   const totalLessons = lessons.length
@@ -161,12 +159,12 @@ function exportStudentsPDF(students, lessons, lang) {
     const courseLabel = cm ? (lang === 'ar' ? cm.labelAr : cm.labelEn) : '-'
     const color = pct >= 70 ? '#2ECC71' : pct >= 40 ? '#C9A84C' : '#FC8181'
     return `<tr>
-      <td>${s.name}</td>
-      <td>@${s.username}</td>
-      <td>${courseLabel}</td>
+      <td>${escapeHtml(s.name)}</td>
+      <td>@${escapeHtml(s.username)}</td>
+      <td>${escapeHtml(courseLabel)}</td>
       <td>${done}/${totalLessons}</td>
       <td><span style="color:${color};font-weight:800">${pct}%</span></td>
-      <td>${s.joinedAt || '-'}</td>
+      <td>${escapeHtml(s.joinedAt || '-')}</td>
     </tr>`
   }).join('')
 
@@ -275,6 +273,7 @@ function openCertificate(student, lessons, lang) {
 
 // ─── Custom Tooltip ────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label }) {
+  const C = usePalette()
   if (!active || !payload?.length) return null
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: C.white }}>
@@ -286,10 +285,11 @@ function ChartTooltip({ active, payload, label }) {
 
 // ─── Notification Bell ─────────────────────────────────────────────────────
 function NotificationBell({ students, lang }) {
+  const C = usePalette()
   const [open,    setOpen]    = useState(false)
   const [readIds, setReadIds] = useState(new Set())
   const ref = useRef(null)
-  const notifications = buildNotifications(students)
+  const notifications = buildNotifications(students, C)
   const unread = notifications.filter(n => !readIds.has(n.id)).length
 
   useEffect(() => {
@@ -359,6 +359,12 @@ function NotificationBell({ students, lang }) {
 
 // ─── Analytics Tab ─────────────────────────────────────────────────────────
 function AnalyticsTab({ students, lessons, lang, mounted }) {
+  const C = usePalette()
+  const [RC, setRC] = useState(null)
+  useEffect(() => { import('recharts').then(setRC) }, [])
+  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+          PieChart, Pie, Cell, BarChart, Bar } = RC || {}
+
   const totalLessons  = lessons.length
   const withProgress  = students.filter(s => Object.values(s.progress || {}).some(Boolean))
   const completed     = students.filter(s => totalLessons > 0 && Object.values(s.progress || {}).filter(Boolean).length === totalLessons)
@@ -491,6 +497,7 @@ function AnalyticsTab({ students, lessons, lang, mounted }) {
 
 // ─── Enhanced Lessons Tab ──────────────────────────────────────────────────
 function LessonsTab({ lessons, students, lang }) {
+  const C = usePalette()
   const [search,  setSearch]  = useState('')
   const [filter,  setFilter]  = useState('all')   // all | hot | cold | mid
   const totalStudents = students.length
@@ -608,6 +615,7 @@ function LessonsTab({ lessons, students, lang }) {
 
 // ─── Student Notes Modal ───────────────────────────────────────────────────
 function NotesModal({ student, lessons, lang, onClose }) {
+  const C = usePalette()
   const noteEntries = Object.entries(student.notes || {})
     .filter(([, v]) => v?.trim())
     .map(([lid, text]) => ({ lessonId: lid, lessonTitle: (lessons.find(l => String(l.id) === String(lid))?.title || `درس ${lid}`), text }))
@@ -644,6 +652,7 @@ function NotesModal({ student, lessons, lang, onClose }) {
 
 // ─── Student Detail Modal ───────────────────────────────────────────────────
 function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, onDelete }) {
+  const C = usePalette()
   const totalLessons = lessons.length
   const done = Object.values(student.progress || {}).filter(Boolean).length
   const pct  = totalLessons ? Math.round((done / totalLessons) * 100) : 0
@@ -764,6 +773,7 @@ function StudentDetailModal({ student, lessons, lang, onClose, onChangeCourse, o
 
 // ─── Edit Student Modal ────────────────────────────────────────────────────
 function EditStudentModal({ student, lang, onClose, onSave }) {
+  const C = usePalette()
   const [name,     setName]     = useState(student.name)
   const [password, setPassword] = useState('')
   const [saving,   setSaving]   = useState(false)
@@ -824,6 +834,7 @@ function adminCommunityTimeAgo(iso, lang) {
 }
 
 function AdminReactionPicker({ onPick }) {
+  const C = usePalette()
   return (
     <div onClick={e => e.stopPropagation()} style={{
       display: 'flex', gap: '2px', background: C.surface, border: `1px solid ${C.g20}`,
@@ -840,6 +851,7 @@ function AdminReactionPicker({ onPick }) {
 }
 
 function AdminReactionChips({ reactions, username, onToggle }) {
+  const C = usePalette()
   const entries = Object.entries(reactions || {}).filter(([, users]) => users?.length > 0)
   if (!entries.length) return null
   return (
@@ -862,6 +874,7 @@ function AdminReactionChips({ reactions, username, onToggle }) {
 }
 
 function AdminMessageBubble({ children }) {
+  const C = usePalette()
   return (
     <div style={{ background: C.navy, borderRadius: '10px', padding: '8px 13px', fontSize: '13.5px', lineHeight: '1.6', color: C.white, maxWidth: '380px', display: 'inline-block', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
       {children}
@@ -887,6 +900,7 @@ function salesStatusColor(s) {
 }
 
 function SalesTeamTab({ lang }) {
+  const C = usePalette()
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -1070,6 +1084,7 @@ function SalesTeamTab({ lang }) {
 }
 
 function OpenCTab({ lang }) {
+  const C = usePalette()
   const [employees, setEmployees] = useState([])
 
   useEffect(() => {
@@ -1080,6 +1095,7 @@ function OpenCTab({ lang }) {
 }
 
 function ImportLeadsTab({ lang }) {
+  const C = usePalette()
   const [employees, setEmployees] = useState([])
 
   useEffect(() => {
@@ -1090,6 +1106,7 @@ function ImportLeadsTab({ lang }) {
 }
 
 function CommunityTab({ adminUser, lang }) {
+  const C = usePalette()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
@@ -1401,6 +1418,7 @@ function CommunityTab({ adminUser, lang }) {
 
 // ─── Subscriptions Tab ────────────────────────────────────────────────────
 function SubscriptionsTab({ students, lang, onRefresh, onRenew }) {
+  const C = usePalette()
   const [addOpen,  setAddOpen]  = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [deleting, setDeleting] = useState(null)
@@ -1588,7 +1606,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const router = useRouter()
   const { lang, setLang } = useLang()
   const { theme, toggleTheme } = useTheme()
-  C = theme === 'light' ? C_LIGHT : C_DARK
+  const C = theme === 'light' ? C_LIGHT : C_DARK
 
   const [students,      setStudents]      = useState(initialStudents)
   const [tab,           setTab]           = useState('students')
@@ -1716,6 +1734,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
   const inputStyle = { width: '100%', background: C.navy, border: `1px solid ${C.lk30}`, borderRadius: '12px', padding: '12px 16px', color: C.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box' }
 
   return (
+    <PaletteCtx.Provider value={C}>
     <>
       <Head>
         <title>{lang === 'ar' ? 'لوحة الإدارة — بشار العسلي' : 'Admin Panel — Bashar Al-Asali'}</title>
@@ -2082,6 +2101,7 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
         </div>
       </div>
     </>
+    </PaletteCtx.Provider>
   )
 }
 
