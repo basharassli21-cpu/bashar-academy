@@ -74,6 +74,7 @@ export default function LandingPage() {
         <title>{tx('بشار العسلي · أكاديمية تجارة eBay', 'Bashar Al-Asali · eBay Academy')}</title>
         <meta name="description" content={tx('تعلّم التجارة الإلكترونية على eBay مع الكوتش بشار العسلي — منهج عملي ومتابعة حقيقية', 'Learn eBay trading with Coach Bashar Al-Asali — practical method and real mentorship')} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="facebook-domain-verification" content="cushn5kr0e78oofroqdropu3p7km4v" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet" />
@@ -1039,14 +1040,15 @@ function BookingForm({ lang, tx, selectedPlan }) {
 export async function getServerSideProps({ req }) {
   const { parse }       = await import('cookie')
   const { verifyToken } = await import('../lib/auth')
-  const { getUser }     = await import('../lib/users-store')
   const cookies = parse(req.headers.cookie || '')
   const token   = cookies['ba_session']
   if (token) {
     const session = verifyToken(token)
-    if (session) {
-      const user = await getUser(session.username)
-      if (user) return { redirect: { destination: user.role === 'admin' ? '/admin' : '/dashboard', permanent: false } }
+    if (session?.username) {
+      const dest = session.role === 'admin' ? '/admin'
+        : session.role === 'employee' ? '/sales'
+        : '/dashboard'
+      return { redirect: { destination: dest, permanent: false } }
     }
   }
   return { props: {} }
