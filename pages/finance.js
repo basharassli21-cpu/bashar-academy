@@ -40,6 +40,31 @@ const PRODUCT_TYPES = ['course','consultation','coaching','bundle','other']
 const PAYMENT_METHODS = ['stripe','paypal','cash','bank','crypto','manual','transfer']
 const PAYMENT_STATUSES = ['pending','paid','partial','failed','refunded','cancelled']
 const EXPENSE_CATS = ['Marketing','Ads','Hosting','Software','Employees','Freelancers','Office','Taxes','Utilities','Travel','Education','Equipment','Other']
+const COURSE_OPTIONS = [
+  { value:'elite',        labelAr:'الباقة الكاملة (Elite)',       labelEn:'Elite Package',        icon:'👑' },
+  { value:'professional', labelAr:'الباقة المتوسطة (Professional)', labelEn:'Professional Package', icon:'⚡' },
+  { value:'starter',      labelAr:'باقة التنفيذ (Starter)',        labelEn:'Starter Package',      icon:'🚀' },
+]
+const T = {
+  ar: {
+    dashboard:'لوحة التحكم', sales:'المبيعات', expenses:'المصاريف',
+    withdrawals:'السحوبات', commissions:'العمولات', reports:'التقارير',
+    ledger:'دفتر الحسابات', finance:'نظام المالية', back:'→ الإدارة',
+    newSale:'+ بيع جديد', newExpense:'+ مصروف جديد', newRequest:'+ طلب سحب',
+    adjustment:'+ تسوية', addRule:'+ قاعدة', generate:'📊 إنشاء التقرير',
+    generating:'جاري الإنشاء…', loading:'جاري التحميل…', noData:'لا توجد بيانات',
+    course:'الكورس',
+  },
+  en: {
+    dashboard:'Dashboard', sales:'Sales', expenses:'Expenses',
+    withdrawals:'Withdrawals', commissions:'Commissions', reports:'Reports',
+    ledger:'Ledger', finance:'FINANCE SYSTEM', back:'← Admin',
+    newSale:'+ New Sale', newExpense:'+ Add Expense', newRequest:'+ New Request',
+    adjustment:'+ Adjustment', addRule:'+ Rule', generate:'📊 Generate Report',
+    generating:'Generating…', loading:'Loading…', noData:'No data found',
+    course:'Course',
+  },
+}
 const STATUS_COLORS = {
   paid:'#4ADE80', pending:'#FACC15', partial:'#60A5FA',
   failed:'#F0807A', refunded:'#A78BFA', cancelled:'#8AAB8A',
@@ -204,34 +229,36 @@ function Btn({ children, onClick, variant = 'primary', C, disabled, style: s }) 
 
 // ─── Finance Nav ──────────────────────────────────────────────────────────
 const TABS = [
-  { id:'dashboard',   icon:'📊', label:'Dashboard' },
-  { id:'sales',       icon:'💰', label:'Sales' },
-  { id:'expenses',    icon:'📋', label:'Expenses' },
-  { id:'withdrawals', icon:'🏦', label:'Withdrawals' },
-  { id:'commissions', icon:'⚡', label:'Commissions' },
-  { id:'reports',     icon:'📈', label:'Reports' },
-  { id:'ledger',      icon:'📒', label:'Ledger' },
+  { id:'dashboard',   icon:'📊', ar:'لوحة التحكم',   en:'Dashboard'   },
+  { id:'sales',       icon:'💰', ar:'المبيعات',       en:'Sales'       },
+  { id:'expenses',    icon:'📋', ar:'المصاريف',       en:'Expenses'    },
+  { id:'withdrawals', icon:'🏦', ar:'السحوبات',       en:'Withdrawals' },
+  { id:'commissions', icon:'⚡', ar:'العمولات',       en:'Commissions' },
+  { id:'reports',     icon:'📈', ar:'التقارير',       en:'Reports'     },
+  { id:'ledger',      icon:'📒', ar:'دفتر الحسابات', en:'Ledger'      },
 ]
 
-function FinanceNav({ tab, setTab, C }) {
+function FinanceNav({ tab, setTab, C, lang }) {
+  const t = T[lang] || T.en
   return (
     <nav style={{
       background:C.bg2, borderRight:`1px solid ${C.border}`,
       width:200, minHeight:'100vh', padding:'20px 12px',
       display:'flex', flexDirection:'column', gap:4, flexShrink:0,
     }}>
-      <div style={{ fontSize:12, color:C.muted, fontWeight:700, letterSpacing:'0.08em', padding:'4px 12px 12px' }}>
-        FINANCE SYSTEM
+      <div style={{ fontSize:11, color:C.muted, fontWeight:700, letterSpacing:'0.08em', padding:'4px 12px 12px' }}>
+        {t.finance}
       </div>
-      {TABS.map(t => (
-        <button key={t.id} onClick={() => setTab(t.id)} style={{
+      {TABS.map(tb => (
+        <button key={tb.id} onClick={() => setTab(tb.id)} style={{
           display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10,
-          background: tab === t.id ? C.gold : 'transparent',
-          color: tab === t.id ? C.goldText : C.muted,
-          border:'none', cursor:'pointer', fontSize:13, fontWeight:600, textAlign:'left',
+          background: tab === tb.id ? C.gold : 'transparent',
+          color: tab === tb.id ? C.goldText : C.muted,
+          border:'none', cursor:'pointer', fontSize:13, fontWeight:600,
+          textAlign: lang === 'ar' ? 'right' : 'left',
           transition:'all 0.15s',
         }}>
-          <span>{t.icon}</span>{t.label}
+          <span>{tb.icon}</span>{lang === 'ar' ? tb.ar : tb.en}
         </button>
       ))}
     </nav>
@@ -571,9 +598,31 @@ function SalesTab({ C }) {
           <Input label="Country" value={form.customerCountry} onChange={setF('customerCountry')} C={C} />
           <Input label="Employee" value={form.employeeId} onChange={setF('employeeId')} C={C}
             options={[{value:'',label:'— None —'},...employees.map(e => ({ value:e.id, label:e.name }))]} />
-          <Input label="Product Type" value={form.productType} onChange={setF('productType')} C={C}
+          <Input label="Product Type" value={form.productType} onChange={v => { setF('productType')(v); setF('productName')('') }} C={C}
             options={PRODUCT_TYPES} />
-          <Input label="Product Name" value={form.productName} onChange={setF('productName')} C={C} style={{ gridColumn:'1/-1' }} />
+          {form.productType === 'course' ? (
+            <div style={{ marginBottom:14, gridColumn:'1/-1' }}>
+              <div style={{ fontSize:12, color:C.muted, fontWeight:600, marginBottom:8, letterSpacing:'0.04em' }}>الكورس / Course <span style={{ color:C.red }}>*</span></div>
+              <div style={{ display:'flex', gap:10 }}>
+                {COURSE_OPTIONS.map(co => (
+                  <button type="button" key={co.value} onClick={() => setF('productName')(co.value)} style={{
+                    flex:1, padding:'12px 10px', borderRadius:12, cursor:'pointer',
+                    border:`2px solid ${form.productName === co.value ? C.gold : C.border}`,
+                    background: form.productName === co.value ? C.g20 : C.bg3,
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:6, transition:'all 0.15s',
+                  }}>
+                    <span style={{ fontSize:22 }}>{co.icon}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color: form.productName === co.value ? C.gold : C.muted, textAlign:'center', lineHeight:1.3 }}>
+                      {co.labelAr}
+                    </span>
+                    <span style={{ fontSize:10, color:C.muted2 }}>{co.labelEn}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <Input label="Product Name" value={form.productName} onChange={setF('productName')} C={C} style={{ gridColumn:'1/-1' }} />
+          )}
           <Input label="Subtotal (USD)" value={form.subtotal} onChange={v => { setF('subtotal')(v); setF('total')(calcTotal(v, form.discountAmount, form.taxAmount)) }} type="number" required C={C} />
           <Input label="Discount" value={form.discountAmount} onChange={v => { setF('discountAmount')(v); setF('total')(calcTotal(form.subtotal, v, form.taxAmount)) }} type="number" C={C} />
           <Input label="Tax" value={form.taxAmount} onChange={v => { setF('taxAmount')(v); setF('total')(calcTotal(form.subtotal, form.discountAmount, v)) }} type="number" C={C} />
@@ -1394,8 +1443,8 @@ function LedgerTab({ C }) {
 // ─── Main Page ────────────────────────────────────────────────────────────
 export default function FinancePage() {
   const router = useRouter()
-  const { theme }  = useTheme()
-  const { lang }   = useLang()
+  const { theme, toggleTheme } = useTheme()
+  const { lang, setLang }      = useLang()
   const C = theme === 'light' ? C_LIGHT : C_DARK
   const [tab, setTab] = useState('dashboard')
   const [authed, setAuthed] = useState(false)
@@ -1428,7 +1477,7 @@ export default function FinancePage() {
 
       <div style={{ minHeight:'100vh', background:C.bg, display:'flex', fontFamily:"'Tajawal',system-ui,sans-serif" }}>
         {/* Sidebar */}
-        <FinanceNav tab={tab} setTab={setTab} C={C} />
+        <FinanceNav tab={tab} setTab={setTab} C={C} lang={lang} />
 
         {/* Main content */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
@@ -1441,14 +1490,24 @@ export default function FinancePage() {
               <button onClick={() => router.push('/admin')} style={{
                 background:'none', border:`1px solid ${C.border}`, borderRadius:8,
                 padding:'5px 12px', color:C.muted, fontSize:12, cursor:'pointer',
-              }}>← Admin</button>
+              }}>{lang === 'ar' ? '→ الإدارة' : '← Admin'}</button>
               <span style={{ color:C.border }}>|</span>
               <span style={{ fontSize:13, color:C.ink, fontWeight:700 }}>
-                {TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}
+                {TABS.find(t => t.id === tab)?.icon} {lang === 'ar' ? TABS.find(t => t.id === tab)?.ar : TABS.find(t => t.id === tab)?.en}
               </span>
             </div>
-            <div style={{ fontSize:12, color:C.muted2 }}>
-              {new Date().toLocaleDateString('en-GB', { weekday:'short', year:'numeric', month:'short', day:'numeric' })}
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <button onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} style={{
+                padding:'5px 10px', borderRadius:8, border:`1px solid ${C.border}`,
+                background:'transparent', fontSize:16, cursor:'pointer', lineHeight:1,
+              }}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+              <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} style={{
+                padding:'5px 12px', borderRadius:8, border:`1px solid ${C.border}`,
+                background:'transparent', color:C.gold, fontSize:12, fontWeight:700, cursor:'pointer',
+              }}>{lang === 'ar' ? 'EN' : 'AR'}</button>
+              <span style={{ fontSize:12, color:C.muted2 }}>
+                {new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', { weekday:'short', year:'numeric', month:'short', day:'numeric' })}
+              </span>
             </div>
           </div>
 
