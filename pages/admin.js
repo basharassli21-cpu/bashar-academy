@@ -1850,6 +1850,14 @@ export default function AdminPage({ initialStudents, initialLessons, adminUser }
             }}>
               <span style={{ fontSize: '16px' }}>{refreshing ? '⏳' : '🔄'}</span>{!desktopCollapsed && <span>{lang === 'ar' ? 'تحديث' : 'Refresh'}</span>}
             </button>
+            <button onClick={() => router.push('/finance')} title={desktopCollapsed ? (lang === 'ar' ? 'المالية' : 'Finance') : undefined} style={{
+              display: 'flex', alignItems: 'center', justifyContent: desktopCollapsed ? 'center' : 'flex-start', gap: '10px', padding: desktopCollapsed ? '11px' : '11px 14px', marginTop: '4px',
+              border: `1px solid #4ADE8044`, cursor: 'pointer', fontSize: '12px', fontWeight: '700',
+              borderRadius: '10px', textAlign: lang === 'ar' ? 'right' : 'left', width: '100%',
+              color: '#4ADE80', background: 'rgba(74,222,128,0.06)',
+            }}>
+              <span style={{ fontSize: '16px' }}>💹</span>{!desktopCollapsed && <span>{lang === 'ar' ? 'المالية والمحاسبة' : 'Finance'}</span>}
+            </button>
           </div>
 
           {/* Admin card + logout */}
