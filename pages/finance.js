@@ -1404,7 +1404,7 @@ export default function FinancePage() {
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { router.replace('/login'); return }
       r.json().then(d => {
-        if (d.user?.role !== 'admin') { router.replace('/login'); return }
+        if (d.role !== 'admin') { router.replace('/login'); return }
         setAuthed(true)
       })
     })
