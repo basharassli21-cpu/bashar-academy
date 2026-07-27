@@ -478,6 +478,287 @@ function DashboardTab({ C }) {
   )
 }
 
+// ─── Invoice Print Modal ──────────────────────────────────────────────────
+const STATUS_AR = {
+  paid:'مدفوعة', pending:'معلقة', partial:'مدفوعة جزئياً',
+  failed:'فشل الدفع', refunded:'مستردة', cancelled:'ملغاة',
+}
+const METHOD_AR = {
+  stripe:'بطاقة ائتمان', paypal:'PayPal', cash:'نقداً',
+  bank:'تحويل بنكي', transfer:'تحويل', manual:'يدوي', crypto:'كريبتو',
+}
+const PRODUCT_AR = {
+  course:'كورس تدريبي', consultation:'استشارة', coaching:'كوتشينج',
+  bundle:'باقة', other:'أخرى',
+}
+const INVOICE_CURRENCIES = [
+  { value:'JOD', label:'JOD — دينار أردني' },
+  { value:'USD', label:'USD — دولار أمريكي' },
+  { value:'AED', label:'AED — درهم إماراتي' },
+  { value:'SAR', label:'SAR — ريال سعودي' },
+  { value:'EUR', label:'EUR — يورو' },
+]
+
+function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
+  useEffect(() => {
+    const s = document.createElement('style')
+    s.id = 'inv-print-css'
+    s.textContent = `
+      @media print {
+        body > * { display: none !important; }
+        #inv-root  { display: block !important; position: static !important; background: #fff !important; }
+        .inv-controls { display: none !important; }
+        .inv-paper { box-shadow: none !important; margin: 0 !important; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: A4 portrait; margin: 12mm 15mm; }
+      }
+    `
+    document.head.appendChild(s)
+    return () => { const el = document.getElementById('inv-print-css'); el && el.remove() }
+  }, [])
+
+  const fmtInv = n => new Intl.NumberFormat('en-US', {
+    style:'currency', currency, minimumFractionDigits:2, maximumFractionDigits:2,
+  }).format(parseFloat(n) || 0)
+
+  const subtotal  = parseFloat(sale.subtotal  || sale.total) || 0
+  const discount  = parseFloat(sale.discount_amount) || 0
+  const tax       = parseFloat(sale.tax_amount)      || 0
+  const total     = parseFloat(sale.total)           || 0
+  const amtPaid   = parseFloat(sale.amount_paid)     || 0
+  const remaining = Math.max(0, total - amtPaid)
+
+  const saleDate  = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('ar-JO', { year:'numeric', month:'long', day:'numeric' }) : '—'
+  const printDate = new Date().toLocaleDateString('ar-JO', { year:'numeric', month:'long', day:'numeric' })
+
+  const statusColor = { paid:'#16a34a', pending:'#d97706', partial:'#2563eb', refunded:'#7c3aed', failed:'#dc2626', cancelled:'#6b7280' }
+
+  return (
+    <div id="inv-root" style={{
+      position:'fixed', inset:0, zIndex:10000,
+      background:'rgba(0,0,0,0.75)', overflowY:'auto',
+      display:'flex', flexDirection:'column', alignItems:'center',
+      padding:'30px 16px 60px',
+    }}>
+      {/* Controls bar */}
+      <div className="inv-controls" style={{
+        display:'flex', gap:10, marginBottom:20, alignItems:'center',
+        background:'#1a2a1a', border:'1px solid rgba(74,222,128,0.2)',
+        borderRadius:14, padding:'12px 20px', flexWrap:'wrap',
+      }}>
+        <span style={{ color:'#8AAB8A', fontSize:12, fontWeight:600 }}>العملة / Currency:</span>
+        <select value={currency} onChange={e => onCurrencyChange(e.target.value)}
+          style={{ padding:'7px 12px', borderRadius:8, background:'#0d1a0d', border:'1px solid rgba(74,222,128,0.25)', color:'#E8F0E8', fontSize:13, cursor:'pointer' }}>
+          {INVOICE_CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <button onClick={() => window.print()} style={{
+          padding:'8px 22px', borderRadius:9, background:'#4ADE80', color:'#0A150D',
+          border:'none', fontWeight:800, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:7,
+        }}>🖨️ طباعة الفاتورة</button>
+        <button onClick={onClose} style={{
+          padding:'8px 18px', borderRadius:9, background:'rgba(240,128,122,0.12)',
+          color:'#F0807A', border:'1px solid rgba(240,128,122,0.25)',
+          fontWeight:700, fontSize:13, cursor:'pointer',
+        }}>✕ إغلاق</button>
+      </div>
+
+      {/* A4 Invoice Paper */}
+      <div className="inv-paper" style={{
+        width:'210mm', minHeight:'297mm', background:'#fff', color:'#111',
+        borderRadius:4, boxShadow:'0 8px 40px rgba(0,0,0,0.5)',
+        fontFamily:"'Tajawal', 'Arial', sans-serif", direction:'rtl',
+        padding:'14mm 15mm',
+      }}>
+
+        {/* ── Header ── */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10, paddingBottom:10, borderBottom:'3px solid #16a34a' }}>
+          {/* Academy brand */}
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+              <div style={{ width:44, height:44, borderRadius:'50%', background:'#16a34a', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <span style={{ color:'#fff', fontWeight:900, fontSize:20 }}>ب</span>
+              </div>
+              <div>
+                <div style={{ fontSize:18, fontWeight:900, color:'#111', lineHeight:1.2 }}>أكاديمية بشار العسلي</div>
+                <div style={{ fontSize:11, color:'#555', letterSpacing:'0.04em' }}>Bashar Al-Asali Academy</div>
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:'#555', marginTop:6, lineHeight:1.7 }}>
+              <div>coachbasharalasali.com</div>
+              <div>basharalasali17@gmail.com</div>
+            </div>
+          </div>
+          {/* Invoice meta */}
+          <div style={{ textAlign:'left', direction:'ltr' }}>
+            <div style={{ fontSize:28, fontWeight:900, color:'#16a34a', letterSpacing:'-0.03em' }}>INVOICE</div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#333', marginTop:2 }}>فاتورة مبيعات</div>
+            <table style={{ marginTop:10, borderCollapse:'collapse', fontSize:12 }}>
+              <tbody>
+                {[
+                  ['رقم الفاتورة', sale.invoice_number],
+                  ['تاريخ البيع',  saleDate],
+                  ['تاريخ الطباعة', printDate],
+                  ['العملة', currency],
+                ].map(([k,v]) => (
+                  <tr key={k}>
+                    <td style={{ color:'#888', padding:'2px 10px 2px 0', direction:'rtl', textAlign:'right', fontFamily:"'Tajawal',sans-serif" }}>{k}</td>
+                    <td style={{ color:'#111', fontWeight:700, fontFamily:'monospace', textAlign:'left' }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Customer + Payment info ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:18 }}>
+          {/* Customer */}
+          <div style={{ background:'#f8faf8', borderRadius:8, padding:'12px 14px', border:'1px solid #e0e8e0' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'#16a34a', marginBottom:8, letterSpacing:'0.06em', textTransform:'uppercase' }}>معلومات العميل / Client</div>
+            {[
+              ['الاسم', sale.customer_name || '—'],
+              ['البريد', sale.customer_email || '—'],
+              ['الهاتف', sale.customer_phone || '—'],
+              ['الدولة', sale.customer_country || '—'],
+            ].map(([k,v]) => (
+              <div key={k} style={{ display:'flex', gap:6, marginBottom:4, fontSize:12 }}>
+                <span style={{ color:'#888', minWidth:44 }}>{k}:</span>
+                <span style={{ color:'#111', fontWeight:600 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {/* Payment */}
+          <div style={{ background:'#f8faf8', borderRadius:8, padding:'12px 14px', border:'1px solid #e0e8e0' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'#16a34a', marginBottom:8, letterSpacing:'0.06em', textTransform:'uppercase' }}>معلومات الدفع / Payment</div>
+            {[
+              ['طريقة الدفع', METHOD_AR[sale.payment_method] || sale.payment_method || '—'],
+              ['المندوب',     sale.employee_name || '—'],
+              ['المصدر',      sale.source || '—'],
+            ].map(([k,v]) => (
+              <div key={k} style={{ display:'flex', gap:6, marginBottom:4, fontSize:12 }}>
+                <span style={{ color:'#888', minWidth:60 }}>{k}:</span>
+                <span style={{ color:'#111', fontWeight:600 }}>{v}</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:6, marginTop:8, alignItems:'center' }}>
+              <span style={{ color:'#888', fontSize:12, minWidth:60 }}>الحالة:</span>
+              <span style={{
+                padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:800,
+                background: (statusColor[sale.payment_status] || '#6b7280') + '18',
+                color: statusColor[sale.payment_status] || '#6b7280',
+                border: `1px solid ${statusColor[sale.payment_status] || '#6b7280'}44`,
+              }}>{STATUS_AR[sale.payment_status] || sale.payment_status}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Items Table ── */}
+        <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:16, fontSize:13 }}>
+          <thead>
+            <tr style={{ background:'#16a34a' }}>
+              {['#','الخدمة / المنتج','نوع المنتج','المبلغ'].map((h,i) => (
+                <th key={h} style={{
+                  padding:'10px 14px', color:'#fff', fontWeight:800, fontSize:12,
+                  textAlign: i === 3 ? 'left' : 'right', direction: i===3?'ltr':'rtl',
+                  letterSpacing:'0.04em',
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom:'1px solid #e0e8e0' }}>
+              <td style={{ padding:'12px 14px', textAlign:'right', color:'#555', fontWeight:700 }}>1</td>
+              <td style={{ padding:'12px 14px', textAlign:'right', color:'#111', fontWeight:700, fontSize:14 }}>
+                {sale.product_name || PRODUCT_AR[sale.product_type] || sale.product_type || '—'}
+              </td>
+              <td style={{ padding:'12px 14px', textAlign:'right', color:'#555', fontSize:12 }}>
+                {PRODUCT_AR[sale.product_type] || sale.product_type || '—'}
+              </td>
+              <td style={{ padding:'12px 14px', textAlign:'left', direction:'ltr', color:'#16a34a', fontWeight:800, fontFamily:'monospace', fontSize:15 }}>
+                {fmtInv(subtotal)}
+              </td>
+            </tr>
+            {/* Empty row hint */}
+            <tr style={{ borderBottom:'1px dashed #e8eee8', height:32 }}>
+              <td colSpan={4} style={{ padding:'6px 14px', color:'#ccc', fontSize:11, textAlign:'right' }}>—</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* ── Totals ── */}
+        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
+          <table style={{ minWidth:280, fontSize:13 }}>
+            <tbody>
+              {[
+                ['المجموع الفرعي', fmtInv(subtotal), false],
+                discount > 0 && ['الخصم', '− ' + fmtInv(discount), false],
+                tax > 0 && ['الضريبة / VAT', '+ ' + fmtInv(tax), false],
+              ].filter(Boolean).map(([label, val, bold]) => (
+                <tr key={label}>
+                  <td style={{ padding:'5px 14px', textAlign:'right', color:'#555' }}>{label}</td>
+                  <td style={{ padding:'5px 0', textAlign:'left', direction:'ltr', color:'#111', fontFamily:'monospace', fontWeight: bold?900:500 }}>{val}</td>
+                </tr>
+              ))}
+              <tr>
+                <td colSpan={2} style={{ borderTop:'2px solid #16a34a', paddingTop:2 }} />
+              </tr>
+              <tr>
+                <td style={{ padding:'8px 14px', textAlign:'right', color:'#111', fontWeight:900, fontSize:15 }}>الإجمالي</td>
+                <td style={{ padding:'8px 0', textAlign:'left', direction:'ltr', color:'#16a34a', fontWeight:900, fontSize:17, fontFamily:'monospace' }}>{fmtInv(total)}</td>
+              </tr>
+              {sale.payment_status === 'partial' && (
+                <>
+                  <tr>
+                    <td style={{ padding:'5px 14px', textAlign:'right', color:'#2563eb', fontSize:12 }}>المدفوع</td>
+                    <td style={{ padding:'5px 0', textAlign:'left', direction:'ltr', color:'#2563eb', fontFamily:'monospace', fontWeight:700 }}>{fmtInv(amtPaid)}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding:'5px 14px', textAlign:'right', color:'#d97706', fontSize:12 }}>المتبقي</td>
+                    <td style={{ padding:'5px 0', textAlign:'left', direction:'ltr', color:'#d97706', fontFamily:'monospace', fontWeight:700 }}>{fmtInv(remaining)}</td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Notes ── */}
+        {sale.notes && (
+          <div style={{ background:'#f8faf8', border:'1px solid #e0e8e0', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12 }}>
+            <div style={{ fontWeight:800, color:'#555', marginBottom:4 }}>ملاحظات / Notes</div>
+            <div style={{ color:'#333', lineHeight:1.7 }}>{sale.notes}</div>
+          </div>
+        )}
+
+        {/* ── Footer ── */}
+        <div style={{ borderTop:'2px solid #e0e8e0', paddingTop:14, marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+          <div style={{ fontSize:11, color:'#888', lineHeight:1.8 }}>
+            <div style={{ fontWeight:700, color:'#555', marginBottom:4 }}>شكراً لثقتكم بأكاديمية بشار العسلي</div>
+            <div>Thank you for choosing Bashar Al-Asali Academy</div>
+            <div style={{ marginTop:4, color:'#aaa' }}>هذه الفاتورة صادرة إلكترونياً وصالحة بدون توقيع</div>
+          </div>
+          {/* Signature area */}
+          <div style={{ textAlign:'center', minWidth:140 }}>
+            <div style={{ borderBottom:'1px solid #888', marginBottom:6, width:130 }} />
+            <div style={{ fontSize:11, color:'#888' }}>التوقيع والختم</div>
+          </div>
+        </div>
+
+        {/* Watermark for paid */}
+        {sale.payment_status === 'paid' && (
+          <div style={{
+            position:'absolute', top:'50%', left:'50%',
+            transform:'translate(-50%,-50%) rotate(-30deg)',
+            fontSize:80, fontWeight:900, color:'rgba(22,163,74,0.06)',
+            pointerEvents:'none', userSelect:'none', whiteSpace:'nowrap',
+            zIndex:0,
+          }}>مدفوعة • PAID</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Sales Tab ────────────────────────────────────────────────────────────
 function SalesTab({ C }) {
   const [sales, setSales] = useState([])
@@ -493,6 +774,8 @@ function SalesTab({ C }) {
   const [dateTo, setDateTo] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editModal, setEditModal] = useState(null)
+  const [printSale, setPrintSale] = useState(null)
+  const [printCurrency, setPrintCurrency] = useState('JOD')
   const [msg, setMsg] = useState('')
   const [form, setForm] = useState({
     customerName:'', customerEmail:'', customerPhone:'', customerCountry:'',
@@ -540,8 +823,13 @@ function SalesTab({ C }) {
     const payload = { ...form, total, subtotal: form.subtotal || total }
     const r = await fetch('/api/finance/sales', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     const d = await r.json()
-    if (r.ok) { setModalOpen(false); setMsg('Sale created'); loadSales() }
-    else setMsg(d.error || 'Error')
+    if (r.ok) {
+      setModalOpen(false)
+      setMsg('تم إنشاء البيع — يمكنك طباعة الفاتورة الآن')
+      loadSales()
+      // Auto-open invoice for the newly created sale
+      if (d.sale) { setPrintSale(d.sale); setPrintCurrency(d.sale.currency || 'JOD') }
+    } else setMsg(d.error || 'Error')
   }
 
   async function updateSale() {
@@ -565,10 +853,15 @@ function SalesTab({ C }) {
     { key:'payment_status', label:'Status',   render: r => <Badge status={r.payment_status} C={C} /> },
     { key:'payment_method', label:'Method',   render: r => r.payment_method },
     { key:'sale_date',      label:'Date',     render: r => fmtDate(r.sale_date) },
-    { key:'actions',        label:'',         render: r => (
-      <div style={{ display:'flex', gap:6 }}>
-        <button onClick={e => { e.stopPropagation(); setEditModal(r) }} style={{ background:C.g10, border:'none', borderRadius:6, padding:'4px 10px', color:C.muted, fontSize:12, cursor:'pointer' }}>Edit</button>
-        <button onClick={e => { e.stopPropagation(); deleteSale(r.id) }} style={{ background:C.redBg, border:'none', borderRadius:6, padding:'4px 10px', color:C.red, fontSize:12, cursor:'pointer' }}>Del</button>
+    { key:'actions', label:'', render: r => (
+      <div style={{ display:'flex', gap:5 }}>
+        <button onClick={e => { e.stopPropagation(); setPrintSale(r); setPrintCurrency(r.currency || 'JOD') }}
+          style={{ background:'rgba(74,222,128,0.08)', border:`1px solid rgba(74,222,128,0.25)`, borderRadius:6, padding:'4px 10px', color:C.gold, fontSize:12, cursor:'pointer' }}
+          title="طباعة الفاتورة">🖨️</button>
+        <button onClick={e => { e.stopPropagation(); setEditModal(r) }}
+          style={{ background:C.g10, border:'none', borderRadius:6, padding:'4px 10px', color:C.muted, fontSize:12, cursor:'pointer' }}>Edit</button>
+        <button onClick={e => { e.stopPropagation(); deleteSale(r.id) }}
+          style={{ background:C.redBg, border:'none', borderRadius:6, padding:'4px 10px', color:C.red, fontSize:12, cursor:'pointer' }}>Del</button>
       </div>
     )},
   ]
@@ -671,6 +964,16 @@ function SalesTab({ C }) {
           <Btn onClick={updateSale} C={C}>Save Changes</Btn>
         </>}
       </Modal>
+
+      {/* Print Invoice Modal */}
+      {printSale && (
+        <PrintInvoiceModal
+          sale={printSale}
+          currency={printCurrency}
+          onCurrencyChange={setPrintCurrency}
+          onClose={() => setPrintSale(null)}
+        />
+      )}
     </div>
   )
 }
