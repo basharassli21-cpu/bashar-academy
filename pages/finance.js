@@ -39,7 +39,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const PRODUCT_TYPES = ['course','consultation','coaching','bundle','other']
 const PAYMENT_METHODS = ['stripe','paypal','cash','bank','crypto','manual','transfer']
 const PAYMENT_STATUSES = ['pending','paid','partial','failed','refunded','cancelled']
-const EXPENSE_CATS = ['Marketing','Ads','Hosting','Software','Employees','Freelancers','Office','Taxes','Utilities','Travel','Education','Equipment','Other']
+const EXPENSE_CATS = ['Marketing','Ads','Meta Ads','Hosting','Software','Monthly Subscription','Employees','Freelancers','Office','Taxes','Utilities','Travel','Education','Equipment','Phone','Other']
 const COURSE_OPTIONS = [
   { value:'elite',        labelAr:'الباقة الكاملة (Elite)',       labelEn:'Elite Package',        icon:'👑' },
   { value:'professional', labelAr:'الباقة المتوسطة (Professional)', labelEn:'Professional Package', icon:'⚡' },
