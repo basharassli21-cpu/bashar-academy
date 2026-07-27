@@ -1038,6 +1038,13 @@ function ExpensesTab({ C }) {
     setMsg('Rejected'); load()
   }
 
+  async function deleteExpense(id, ref) {
+    if (!confirm(`حذف المصروف ${ref}؟\nDelete expense ${ref}?`)) return
+    const r = await fetch('/api/finance/expenses', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) })
+    if (r.ok) { setMsg('تم حذف المصروف'); load() }
+    else setMsg('خطأ في الحذف')
+  }
+
   const cols = [
     { key:'expense_number', label:'Ref', render: r => <span style={{ fontFamily:'monospace', color:C.gold, fontSize:12 }}>{r.expense_number}</span> },
     { key:'category',       label:'Category', render: r => (
@@ -1054,6 +1061,10 @@ function ExpensesTab({ C }) {
           <button onClick={e => { e.stopPropagation(); approve(r.id) }} style={{ background:C.g20, border:'none', borderRadius:6, padding:'4px 9px', color:C.gold, fontSize:11, cursor:'pointer', fontWeight:700 }}>✓ Approve</button>
           <button onClick={e => { e.stopPropagation(); reject(r.id) }} style={{ background:C.redBg, border:'none', borderRadius:6, padding:'4px 9px', color:C.red, fontSize:11, cursor:'pointer' }}>✕ Reject</button>
         </>}
+        <button onClick={e => { e.stopPropagation(); deleteExpense(r.id, r.expense_number) }}
+          style={{ background:C.redBg, border:`1px solid ${C.red}44`, borderRadius:6, padding:'4px 9px', color:C.red, fontSize:11, cursor:'pointer', fontWeight:700 }}>
+          🗑 حذف
+        </button>
       </div>
     )},
   ]
