@@ -30,8 +30,18 @@ const C_LIGHT = {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-const fmt = (n, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n || 0)
+const CURRENCY = 'JOD'
+
+// Fiscal year: first year 2026 = Aug 1 → Dec 31; all subsequent = Jan 1 → Dec 31
+function getFiscalYear(year) {
+  const y = parseInt(year) || new Date().getFullYear()
+  if (y === 2026) return { year: 2026, start: '2026-08-01', end: '2026-12-31', labelAr: 'السنة المالية 2026 (أغسطس–ديسمبر)', labelEn: 'FY 2026 (Aug–Dec)' }
+  return { year: y, start: `${y}-01-01`, end: `${y}-12-31`, labelAr: `السنة المالية ${y}`, labelEn: `FY ${y}` }
+}
+function currentFiscalYear() { return getFiscalYear(new Date().getFullYear()) }
+
+const fmt = (n, currency = CURRENCY) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0)
 const fmtN = n => new Intl.NumberFormat('en-US').format(n || 0)
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB') : '—'
 const fmtPct = n => (parseFloat(n) || 0).toFixed(1) + '%'
@@ -388,8 +398,20 @@ function DashboardTab({ C }) {
 
   return (
     <div style={{ padding:28 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
-        <div style={{ fontSize:22, fontWeight:800, color:C.ink }}>Finance Dashboard</div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:22, fontWeight:800, color:C.ink }}>Finance Dashboard</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
+            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(74,222,128,0.10)', border:'1px solid rgba(74,222,128,0.25)', color:C.gold, fontWeight:700 }}>
+              📅 {currentFiscalYear().labelEn}
+            </span>
+            <span style={{ fontSize:11, color:C.muted }}>•</span>
+            <span style={{ fontSize:11, color:C.muted }}>{currentFiscalYear().start} → {currentFiscalYear().end}</span>
+            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(96,165,250,0.10)', border:'1px solid rgba(96,165,250,0.25)', color:'#60A5FA', fontWeight:700 }}>
+              🇯🇴 JOD — دينار أردني
+            </span>
+          </div>
+        </div>
         <div style={{ display:'flex', gap:6 }}>
           {['day','week','month','year'].map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{
@@ -476,7 +498,7 @@ function SalesTab({ C }) {
     customerName:'', customerEmail:'', customerPhone:'', customerCountry:'',
     employeeId:'', productType:'course', productName:'',
     subtotal:'', discountAmount:'0', taxAmount:'0', total:'',
-    currency:'USD', paymentMethod:'stripe', paymentStatus:'paid',
+    currency:'JOD', paymentMethod:'stripe', paymentStatus:'paid',
     source:'', notes:'', saleDate: new Date().toISOString().split('T')[0],
   })
 
@@ -623,7 +645,7 @@ function SalesTab({ C }) {
           ) : (
             <Input label="Product Name" value={form.productName} onChange={setF('productName')} C={C} style={{ gridColumn:'1/-1' }} />
           )}
-          <Input label="Subtotal (USD)" value={form.subtotal} onChange={v => { setF('subtotal')(v); setF('total')(calcTotal(v, form.discountAmount, form.taxAmount)) }} type="number" required C={C} />
+          <Input label="Subtotal (JOD)" value={form.subtotal} onChange={v => { setF('subtotal')(v); setF('total')(calcTotal(v, form.discountAmount, form.taxAmount)) }} type="number" required C={C} />
           <Input label="Discount" value={form.discountAmount} onChange={v => { setF('discountAmount')(v); setF('total')(calcTotal(form.subtotal, v, form.taxAmount)) }} type="number" C={C} />
           <Input label="Tax" value={form.taxAmount} onChange={v => { setF('taxAmount')(v); setF('total')(calcTotal(form.subtotal, form.discountAmount, v)) }} type="number" C={C} />
           <Input label="Total" value={form.total} onChange={setF('total')} type="number" required C={C} />
@@ -668,7 +690,7 @@ function ExpensesTab({ C }) {
   const [msg, setMsg] = useState('')
   const [form, setForm] = useState({
     category:'Marketing', subCategory:'', vendor:'', description:'',
-    amount:'', taxAmount:'0', currency:'USD', paymentMethod:'bank',
+    amount:'', taxAmount:'0', currency:'JOD', paymentMethod:'bank',
     paymentStatus:'paid', approvalStatus:'approved',
     isRecurring:false, recurrencePattern:'', recurrenceEndDate:'',
     expenseDate: new Date().toISOString().split('T')[0], notes:'',
@@ -775,7 +797,7 @@ function ExpensesTab({ C }) {
           <Input label="Amount" value={form.amount} onChange={setF('amount')} type="number" required C={C} />
           <Input label="Tax Amount" value={form.taxAmount} onChange={setF('taxAmount')} type="number" C={C} />
           <Input label="Currency" value={form.currency} onChange={setF('currency')} C={C}
-            options={[{value:'USD',label:'USD'},{value:'AED',label:'AED'},{value:'SAR',label:'SAR'},{value:'EUR',label:'EUR'}]} />
+            options={[{value:'JOD',label:'JOD — دينار أردني'},{value:'USD',label:'USD'},{value:'AED',label:'AED'},{value:'SAR',label:'SAR'},{value:'EUR',label:'EUR'}]} />
           <Input label="Payment Method" value={form.paymentMethod} onChange={setF('paymentMethod')} C={C}
             options={PAYMENT_METHODS} />
           <Input label="Expense Date" value={form.expenseDate} onChange={setF('expenseDate')} type="date" required C={C} />
@@ -814,7 +836,7 @@ function WithdrawalsTab({ C }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [employees, setEmployees] = useState([])
   const [msg, setMsg] = useState('')
-  const [form, setForm] = useState({ employeeId:'', amount:'', currency:'USD', reason:'' })
+  const [form, setForm] = useState({ employeeId:'', amount:'', currency:'JOD', reason:'' })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -927,7 +949,7 @@ function WithdrawalsTab({ C }) {
           options={employees.map(e => ({ value:e.id, label:e.name }))} />
         <Input label="Amount" value={form.amount} onChange={setF('amount')} type="number" required C={C} />
         <Input label="Currency" value={form.currency} onChange={setF('currency')} C={C}
-          options={[{value:'USD',label:'USD'},{value:'AED',label:'AED'},{value:'SAR',label:'SAR'}]} />
+          options={[{value:'JOD',label:'JOD — دينار أردني'},{value:'USD',label:'USD'},{value:'AED',label:'AED'},{value:'SAR',label:'SAR'}]} />
         <Input label="Reason" value={form.reason} onChange={setF('reason')} C={C} />
         <Btn onClick={submitWithdrawal} C={C}>Submit Request</Btn>
       </Modal>
@@ -1114,9 +1136,10 @@ function ReportsTab({ C }) {
   const [reportType, setReportType] = useState('pl')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0])
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
-  const [year, setYear] = useState(new Date().getFullYear())
+  const fy = currentFiscalYear()
+  const [dateFrom, setDateFrom] = useState(fy.start)
+  const [dateTo, setDateTo] = useState(fy.end)
+  const [year, setYear] = useState(fy.year)
   const [month, setMonth] = useState(new Date().getMonth() + 1)
 
   async function generate() {
@@ -1216,7 +1239,15 @@ function ReportsTab({ C }) {
 
   return (
     <div style={{ padding:28 }}>
-      <div style={{ fontSize:20, fontWeight:800, color:C.ink, marginBottom:20 }}>Reports</div>
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+        <div style={{ fontSize:20, fontWeight:800, color:C.ink }}>Reports</div>
+        <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(74,222,128,0.10)', border:'1px solid rgba(74,222,128,0.25)', color:C.gold, fontWeight:700 }}>
+          📅 {fy.labelEn}
+        </span>
+        <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(96,165,250,0.10)', border:'1px solid rgba(96,165,250,0.25)', color:'#60A5FA', fontWeight:700 }}>
+          🇯🇴 JOD
+        </span>
+      </div>
 
       {/* Report selector */}
       <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:24 }}>
@@ -1236,12 +1267,17 @@ function ReportsTab({ C }) {
 
         {reportType === 'pl' && (
           <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:C.muted }}>📅 {fy.labelEn}:</span>
             <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>From:</label>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }} />
             <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>To:</label>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }} />
+            <button onClick={() => { setDateFrom(fy.start); setDateTo(fy.end) }}
+              style={{ padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', background:'rgba(74,222,128,0.08)', color:C.gold, border:`1px solid rgba(74,222,128,0.25)` }}>
+              Reset to FY
+            </button>
           </div>
         )}
 
@@ -1249,7 +1285,7 @@ function ReportsTab({ C }) {
           <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
             <select value={year} onChange={e => setYear(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }}>
-              {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+              {[2026,2027,2028].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <select value={month} onChange={e => setMonth(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }}>
