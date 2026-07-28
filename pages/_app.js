@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { Cairo } from 'next/font/google'
 import '../styles/globals.css'
+import ErrorBoundary from '../components/ErrorBoundary'
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -97,7 +98,9 @@ export default function App({ Component, pageProps }) {
       <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
         <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cairo.className} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'Cairo, Tajawal, sans-serif' }}>
           <MouseGlow />
-          <Component {...pageProps} />
+          <ErrorBoundary>
+            <Component {...pageProps} />
+          </ErrorBoundary>
         </div>
       </LangContext.Provider>
     </ThemeContext.Provider>

@@ -9,8 +9,17 @@ async function handler(req, res) {
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' })
   if (req.user.role !== 'employee') return res.status(403).json({ error: 'غير مسموح' })
 
-  const { id } = req.query
-  const leadId = Number(id)
+  const leadId = parseInt(req.query.id, 10)
+  if (!leadId || leadId <= 0) return res.status(400).json({ error: 'معرّف غير صحيح' })
+
+  const { status, note, lastContactDate, nextFollowupDate } = req.body || {}
+  const VALID_STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'closed_sale', 'cancelled', 'unreachable']
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'حالة غير صحيحة' })
+  }
+  if (note && (typeof note !== 'string' || note.length > 2000)) {
+    return res.status(400).json({ error: 'الملاحظة يجب أن تكون نصاً لا يتجاوز 2000 حرف' })
+  }
 
   const employee = await getEmployeeByUsername(req.user.username)
   if (!employee) return res.status(404).json({ error: 'الموظف غير موجود' })
@@ -20,7 +29,6 @@ async function handler(req, res) {
   if (!target) return res.status(404).json({ error: 'العميل المحتمل غير موجود' })
   if (target.locked) return res.status(403).json({ error: 'يجب التعامل مع العملاء السابقين أولاً' })
 
-  const { status, note, lastContactDate, nextFollowupDate } = req.body || {}
   if (!status && !note && !lastContactDate && !nextFollowupDate) {
     return res.status(400).json({ error: 'لا يوجد تغييرات لحفظها' })
   }

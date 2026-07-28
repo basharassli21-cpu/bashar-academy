@@ -14,8 +14,9 @@ async function handler(req, res) {
     if (!trimmed && !image) return res.status(400).json({ error: 'يرجى كتابة نص أو إضافة صورة' })
     if (trimmed.length > 1000) return res.status(400).json({ error: 'النص طويل جداً' })
     if (image) {
-      if (typeof image !== 'string' || !image.startsWith('data:image/')) {
-        return res.status(400).json({ error: 'صيغة الصورة غير صحيحة' })
+      const ALLOWED_IMG = ['data:image/jpeg', 'data:image/png', 'data:image/webp', 'data:image/gif']
+      if (typeof image !== 'string' || !ALLOWED_IMG.some(t => image.startsWith(t))) {
+        return res.status(400).json({ error: 'صيغة الصورة غير مسموح بها (JPEG, PNG, WebP فقط)' })
       }
       if (image.length > 400_000) return res.status(400).json({ error: 'الصورة كبيرة جداً، يرجى اختيار صورة أصغر' })
     }

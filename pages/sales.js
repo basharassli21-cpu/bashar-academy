@@ -43,19 +43,18 @@ const C_LIGHT = {
   w40: 'rgba(20,32,22,0.25)',  w50: 'rgba(20,32,22,0.35)',
   lk30: 'rgba(190,200,188,0.5)',
 }
-let C = C_DARK
-
-const STATUS_ORDER = ['new', 'contacted', 'interested', 'not_interested', 'closed_sale', 'cancelled']
+const STATUS_ORDER = ['new', 'contacted', 'interested', 'unreachable', 'not_interested', 'closed_sale', 'cancelled']
 const STATUS_META = {
-  new:            { ar: 'جديد',          en: 'New',            key: 'silver'  },
-  contacted:      { ar: 'تم التواصل',     en: 'Contacted',      key: 'gold'    },
-  interested:     { ar: 'مهتم',           en: 'Interested',     key: 'emerald' },
-  not_interested: { ar: 'غير مهتم',       en: 'Not Interested', key: 'red'     },
-  closed_sale:    { ar: 'تم البيع',       en: 'Closed Sale',    key: 'emerald' },
-  cancelled:      { ar: 'ألغى الفكرة',    en: 'Cancelled',      key: 'red'     },
+  new:            { ar: 'جديد',            en: 'New',            key: 'silver'  },
+  contacted:      { ar: 'تم التواصل',       en: 'Contacted',      key: 'gold'    },
+  interested:     { ar: 'مهتم',             en: 'Interested',     key: 'emerald' },
+  unreachable:    { ar: 'لا يرد / لا يمكن التواصل', en: 'Unreachable', key: 'purple' },
+  not_interested: { ar: 'غير مهتم',         en: 'Not Interested', key: 'red'     },
+  closed_sale:    { ar: 'تم البيع',         en: 'Closed Sale',    key: 'emerald' },
+  cancelled:      { ar: 'ألغى الفكرة',      en: 'Cancelled',      key: 'red'     },
 }
-function statusColor(statusKey) {
-  return { silver: C.silver, gold: C.gold, emerald: C.emerald, red: C.red }[STATUS_META[statusKey]?.key] || C.silver
+function statusColor(statusKey, C) {
+  return { silver: C.silver, gold: C.gold, emerald: C.emerald, red: C.red, purple: C.purple }[STATUS_META[statusKey]?.key] || C.silver
 }
 function statusLabel(statusKey, lang) {
   const m = STATUS_META[statusKey]
@@ -72,7 +71,7 @@ function todayISO() {
 }
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
-function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleCollapse }) {
+function Sidebar({ C, user, view, setView, onLogout, lang, collapsed, onToggleCollapse }) {
   const navItems = [
     { icon: '📊', label: lang === 'ar' ? 'لوحة التحكم'          : 'Dashboard', id: 'dashboard' },
     { icon: '🎯', label: lang === 'ar' ? 'العملاء المحتملون'    : 'Leads',     id: 'leads'     },
@@ -163,7 +162,7 @@ function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleColla
 }
 
 // ─── Dashboard View ──────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color }) {
+function StatCard({ C, icon, label, value, color }) {
   return (
     <div style={{ background: C.surface, borderRadius: '16px', padding: '18px', border: `1px solid ${C.g20}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -175,7 +174,7 @@ function StatCard({ icon, label, value, color }) {
   )
 }
 
-function DashboardView({ user, lang, stats, opencStats, loading }) {
+function DashboardView({ C, user, lang, stats, opencStats, loading }) {
   const dateStr = new Date().toLocaleDateString(lang === 'ar' ? 'ar-JO' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   return (
     <div>
@@ -195,16 +194,16 @@ function DashboardView({ user, lang, stats, opencStats, loading }) {
       ) : (
         <>
           <div className="sales-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' }}>
-            <StatCard icon="💰" color={C.emerald} label={lang === 'ar' ? 'المبيعات المغلقة (هذا الشهر)' : 'Closed Sales (this month)'} value={stats.closedSales} />
-            <StatCard icon="📞" color={C.gold}    label={lang === 'ar' ? 'عدد المكالمات (هذا الشهر)' : 'Calls Made (this month)'} value={stats.totalCalls} />
-            <StatCard icon="🎯" color={C.purple}  label={lang === 'ar' ? 'التارجت الشهري' : 'Monthly Target'} value={stats.monthlyTarget} />
-            <StatCard icon="📈" color={stats.targetProgress >= 100 ? C.emerald : C.gold} label={lang === 'ar' ? 'نسبة تحقيق التارجت' : 'Target Progress'} value={`${stats.targetProgress}%`} />
+            <StatCard C={C} icon="💰" color={C.emerald} label={lang === 'ar' ? 'المبيعات المغلقة (هذا الشهر)' : 'Closed Sales (this month)'} value={stats.closedSales} />
+            <StatCard C={C} icon="📞" color={C.gold}    label={lang === 'ar' ? 'عدد المكالمات (هذا الشهر)' : 'Calls Made (this month)'} value={stats.totalCalls} />
+            <StatCard C={C} icon="🎯" color={C.purple}  label={lang === 'ar' ? 'التارجت الشهري' : 'Monthly Target'} value={stats.monthlyTarget} />
+            <StatCard C={C} icon="📈" color={stats.targetProgress >= 100 ? C.emerald : C.gold} label={lang === 'ar' ? 'نسبة تحقيق التارجت' : 'Target Progress'} value={`${stats.targetProgress}%`} />
           </div>
 
           <div className="sales-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginTop: '16px' }}>
-            <StatCard icon="♻️" color={C.gold}    label={lang === 'ar' ? 'متاح في OpenC' : 'Available in OpenC'} value={opencStats.openCount} />
-            <StatCard icon="📥" color={C.purple}  label={lang === 'ar' ? 'سحبتها من OpenC' : 'Claimed from OpenC'} value={opencStats.claimedByMeCount} />
-            <StatCard icon="✅" color={C.emerald} label={lang === 'ar' ? 'تحولت لمبيعات' : 'Converted to sales'} value={opencStats.convertedByMeCount} />
+            <StatCard C={C} icon="♻️" color={C.gold}    label={lang === 'ar' ? 'متاح في OpenC' : 'Available in OpenC'} value={opencStats.openCount} />
+            <StatCard C={C} icon="📥" color={C.purple}  label={lang === 'ar' ? 'سحبتها من OpenC' : 'Claimed from OpenC'} value={opencStats.claimedByMeCount} />
+            <StatCard C={C} icon="✅" color={C.emerald} label={lang === 'ar' ? 'تحولت لمبيعات' : 'Converted to sales'} value={opencStats.convertedByMeCount} />
           </div>
         </>
       )}
@@ -213,7 +212,7 @@ function DashboardView({ user, lang, stats, opencStats, loading }) {
 }
 
 // ─── Leads View ──────────────────────────────────────────────────────────
-function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy, onReturnToOpenC, returning }) {
+function LeadCard({ C, lead, position, lang, expanded, onExpand, onSave, onQuickAction, busy, onReturnToOpenC, returning }) {
   const [status, setStatus] = useState(lead.status)
   const [note, setNote] = useState('')
   const [lastContact, setLastContact] = useState(lead.last_contact_date || todayISO())
@@ -269,10 +268,22 @@ function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy, onRe
         </div>
         <span style={{
           fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: '7px', flexShrink: 0,
-          color: statusColor(lead.status), background: C.g10, border: `1px solid ${C.g20}`, whiteSpace: 'nowrap',
+          color: statusColor(lead.status, C), background: C.g10, border: `1px solid ${C.g20}`, whiteSpace: 'nowrap',
         }}>
           {statusLabel(lead.status, lang)}
         </span>
+        {!lead.locked && !expanded && isCurrent && (
+          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => onQuickAction(lead.id, 'contacted')} disabled={busy} title={lang === 'ar' ? 'تم التواصل' : 'Contacted'} style={{
+              padding: '4px 8px', borderRadius: '6px', border: `1px solid ${C.gold}`,
+              background: 'transparent', color: C.gold, fontSize: '11px', fontWeight: '700', cursor: busy ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+            }}>{lang === 'ar' ? '✓ تواصل' : '✓ Contacted'}</button>
+            <button onClick={() => onQuickAction(lead.id, 'unreachable')} disabled={busy} title={lang === 'ar' ? 'لا يرد' : 'No answer'} style={{
+              padding: '4px 8px', borderRadius: '6px', border: `1px solid ${C.purple}`,
+              background: 'transparent', color: C.purple, fontSize: '11px', fontWeight: '700', cursor: busy ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+            }}>{lang === 'ar' ? '📵 لا يرد' : '📵 No answer'}</button>
+          </div>
+        )}
         {!lead.locked && (
           <span style={{ color: C.silver, fontSize: '12px', transform: expanded ? 'rotate(180deg)' : 'none', display: 'inline-block', flexShrink: 0 }}>▾</span>
         )}
@@ -370,12 +381,13 @@ function LeadCard({ lead, position, lang, expanded, onExpand, onSave, busy, onRe
   )
 }
 
-function LeadsView({ lang }) {
+function LeadsView({ C, lang }) {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [returningId, setReturningId] = useState(null)
+  const [search, setSearch] = useState('')
 
   async function fetchLeads(autoExpand) {
     const res = await fetch('/api/sales/leads')
@@ -400,6 +412,16 @@ function LeadsView({ lang }) {
     setBusyId(null)
   }
 
+  async function handleQuickAction(id, status) {
+    setBusyId(id)
+    await fetch(`/api/sales/leads/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, lastContactDate: new Date().toISOString().split('T')[0] }),
+    })
+    await fetchLeads(true)
+    setBusyId(null)
+  }
+
   async function handleReturnToOpenC(id, reason) {
     setReturningId(id)
     await fetch(`/api/sales/leads/${id}/return-to-openc`, {
@@ -409,23 +431,44 @@ function LeadsView({ lang }) {
     setReturningId(null)
   }
 
+  const q = search.trim().toLowerCase()
+  const filteredLeads = q
+    ? leads.filter(l => l.customer_name?.toLowerCase().includes(q) || l.phone?.includes(q))
+    : leads
+
   return (
     <div>
-      <h2 style={{ color: C.white, fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>
-        {lang === 'ar' ? 'العملاء المحتملون' : 'Leads'}
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+        <h2 style={{ color: C.white, fontSize: '18px', fontWeight: '800' }}>
+          {lang === 'ar' ? 'العملاء المحتملون' : 'Leads'}
+          {!loading && <span style={{ color: C.silver, fontSize: '13px', fontWeight: '600', marginRight: '8px', marginLeft: '8px' }}>({leads.length})</span>}
+        </h2>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={lang === 'ar' ? '🔍 ابحث بالاسم أو الهاتف...' : '🔍 Search by name or phone...'}
+          style={{
+            background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '10px',
+            padding: '8px 14px', color: C.white, fontSize: '13px', outline: 'none',
+            width: '220px',
+          }}
+        />
+      </div>
       {loading ? (
         <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
-      ) : leads.length === 0 ? (
-        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'لا يوجد عملاء محتملون مخصصون لك بعد' : 'No leads assigned to you yet'}</p>
+      ) : filteredLeads.length === 0 ? (
+        <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>
+          {q ? (lang === 'ar' ? 'لا توجد نتائج للبحث' : 'No results found') : (lang === 'ar' ? 'لا يوجد عملاء محتملون مخصصون لك بعد' : 'No leads assigned to you yet')}
+        </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {leads.map((lead, i) => (
+          {filteredLeads.map((lead, i) => (
             <LeadCard
-              key={lead.id} lead={lead} position={i + 1} lang={lang}
+              key={lead.id} C={C} lead={lead} position={i + 1} lang={lang}
               expanded={expandedId === lead.id}
               onExpand={setExpandedId}
               onSave={handleSave}
+              onQuickAction={handleQuickAction}
               busy={busyId === lead.id}
               onReturnToOpenC={handleReturnToOpenC}
               returning={returningId === lead.id}
@@ -442,7 +485,7 @@ export default function SalesPage({ initialUser }) {
   const router = useRouter()
   const { lang, setLang } = useLang()
   const { theme, toggleTheme } = useTheme()
-  C = theme === 'light' ? C_LIGHT : C_DARK
+  const C = theme === 'light' ? C_LIGHT : C_DARK
 
   const [user] = useState(initialUser)
   const [view, setView] = useState('dashboard')
@@ -498,7 +541,7 @@ export default function SalesPage({ initialUser }) {
 
         <div className={`sales-sidebar${sidebarOpen ? ' open' : ''}`} style={{ position: 'fixed', right: 0, top: 0, height: '100%', zIndex: 40 }}>
           <Sidebar
-            user={user} view={view}
+            C={C} user={user} view={view}
             setView={(v) => { setView(v); setSidebarOpen(false); setDesktopCollapsed(true) }}
             onLogout={logout} lang={lang}
             collapsed={desktopCollapsed} onToggleCollapse={() => setDesktopCollapsed(c => !c)}
@@ -531,9 +574,9 @@ export default function SalesPage({ initialUser }) {
 
           <div className="sales-content-pad" style={{ padding: '28px 32px', flex: 1 }}>
             {view === 'dashboard'
-              ? <DashboardView user={user} lang={lang} stats={stats} opencStats={opencStats} loading={statsLoading} />
+              ? <DashboardView C={C} user={user} lang={lang} stats={stats} opencStats={opencStats} loading={statsLoading} />
               : view === 'leads'
-              ? <LeadsView lang={lang} />
+              ? <LeadsView C={C} lang={lang} />
               : <OpenCPool C={C} lang={lang} role="employee" currentEmployee={user} />}
           </div>
         </div>

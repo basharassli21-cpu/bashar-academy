@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { useLang, useTheme } from './_app'
@@ -44,10 +44,12 @@ const C_LIGHT = {
   w40: 'rgba(20,32,22,0.25)',  w50: 'rgba(20,32,22,0.35)',
   lk30: 'rgba(190,200,188,0.5)',
 }
-let C = C_DARK
+const PaletteCtx = createContext(C_DARK)
+const usePalette = () => useContext(PaletteCtx)
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
 function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleCollapse }) {
+  const C = usePalette()
   const isCoursesView = ['courses','lessons','lesson','quiz','quizResult'].includes(view)
   const navItems = [
     { icon: '🏠', label: lang === 'ar' ? 'لوحة التحكم'    : 'Dashboard',  id: 'courses'  },
@@ -157,6 +159,7 @@ function Sidebar({ user, view, setView, onLogout, lang, collapsed, onToggleColla
 
 // ─── Welcome Banner ────────────────────────────────────────────────────────
 function WelcomeBanner({ user, lang, lastLesson, onContinue }) {
+  const C = usePalette()
   const hour = new Date().getHours()
   const greeting = lang === 'ar'
     ? (hour < 12 ? 'صباح الخير' : hour < 17 ? 'مساء الخير' : 'مساء النور')
@@ -199,13 +202,15 @@ function WelcomeBanner({ user, lang, lastLesson, onContinue }) {
 
 // ─── Learner Stats ─────────────────────────────────────────────────────────
 function LearnerStats({ user, lang, COURSES_DATA }) {
+  const C = usePalette()
   const courseIds = COURSES_DATA?.[user.allowedCourse]?.lessons || []
   const completed  = courseIds.filter(id => user.progress[id]).length
   const total      = courseIds.length
   const pct        = total ? Math.round((completed / total) * 100) : 0
   const certs      = total > 0 && courseIds.every(id => user.progress[id]) ? 1 : 0
+  const today = new Date().toISOString().split('T')[0]
   const streakDays = user.lastActiveAt
-    ? (new Date().toISOString().split('T')[0] === user.lastActiveAt ? 1 : Math.max(0, Math.ceil((new Date(user.lastActiveAt) - new Date(user.joinedAt || user.lastActiveAt)) / 86400000)))
+    ? (today === user.lastActiveAt ? completed || 1 : 0)
     : 0
   const stats = [
     { icon: '📊', label: lang==='ar'?'الإنجاز الكلي':'Overall Progress',   value: `${pct}%`,         sub: lang==='ar'?'من الدورة':'of course',            color: C.gold,    bg: C.g10,                     border: C.g20 },
@@ -229,6 +234,7 @@ function LearnerStats({ user, lang, COURSES_DATA }) {
 
 // ─── Progress Milestones ───────────────────────────────────────────────────
 function ProgressMilestones({ progress, lang }) {
+  const C = usePalette()
   const milestones = [
     { percent: 10,  icon: '🌱', label: lang==='ar'?'بداية الرحلة':'Start'    },
     { percent: 25,  icon: '⚡', label: lang==='ar'?'مبتدئ نشط':'Beginner'    },
@@ -269,6 +275,7 @@ function ProgressMilestones({ progress, lang }) {
 
 // ─── Lesson Notes ─────────────────────────────────────────────────────────
 function LessonNotes({ lessonId, lang }) {
+  const C = usePalette()
   const [note,    setNote]    = useState('')
   const [saved,   setSaved]   = useState('')   // '' | 'saving' | 'ok' | 'error'
   const [loading, setLoading] = useState(true)
@@ -401,6 +408,7 @@ function communityTimeAgo(iso, lang) {
 }
 
 function ReactionPicker({ onPick }) {
+  const C = usePalette()
   return (
     <div onClick={e => e.stopPropagation()} style={{
       display: 'flex', gap: '2px', background: C.surface, border: `1px solid ${C.g20}`,
@@ -417,6 +425,7 @@ function ReactionPicker({ onPick }) {
 }
 
 function ReactionChips({ reactions, username, onToggle }) {
+  const C = usePalette()
   const entries = Object.entries(reactions || {}).filter(([, users]) => users?.length > 0)
   if (!entries.length) return null
   return (
@@ -439,6 +448,7 @@ function ReactionChips({ reactions, username, onToggle }) {
 }
 
 function MessageBubble({ children }) {
+  const C = usePalette()
   return (
     <div style={{ background: C.navy, borderRadius: '10px', padding: '8px 13px', fontSize: '13.5px', lineHeight: '1.6', color: C.white, maxWidth: '380px', display: 'inline-block', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
       {children}
@@ -447,6 +457,7 @@ function MessageBubble({ children }) {
 }
 
 function CommunityView({ user, lang }) {
+  const C = usePalette()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
@@ -529,11 +540,14 @@ function CommunityView({ user, lang }) {
 
   async function handleDelete(postId) {
     if (!confirm(lang === 'ar' ? 'حذف هذا المنشور؟' : 'Delete this post?')) return
+    const prev = posts
     setPosts(p => p.filter(x => x.id !== postId))
-    await fetch(`/api/community/posts?id=${postId}`, { method: 'DELETE' })
+    const res = await fetch(`/api/community/posts?id=${postId}`, { method: 'DELETE' })
+    if (!res.ok) setPosts(prev)
   }
 
   async function handleReact(postId, emoji) {
+    const prev = posts
     setPosts(p => p.map(x => {
       if (x.id !== postId) return x
       const reactions = { ...(x.reactions || {}) }
@@ -544,7 +558,8 @@ function CommunityView({ user, lang }) {
       return { ...x, reactions }
     }))
     setPickerFor(null)
-    await fetch(`/api/community/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji }) })
+    const res = await fetch(`/api/community/${postId}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji }) })
+    if (!res.ok) setPosts(prev)
   }
 
   async function handleReactComment(postId, commentId, emoji) {
@@ -589,8 +604,10 @@ function CommunityView({ user, lang }) {
   }
 
   async function deleteComment(postId, commentId) {
+    const prev = posts
     setPosts(p => p.map(x => x.id === postId ? { ...x, comments: (x.comments || []).filter(c => c.id !== commentId) } : x))
-    await fetch(`/api/community/${postId}/comments?commentId=${commentId}`, { method: 'DELETE' })
+    const res = await fetch(`/api/community/${postId}/comments?commentId=${commentId}`, { method: 'DELETE' })
+    if (!res.ok) setPosts(prev)
   }
 
   return (
@@ -763,6 +780,7 @@ function CommunityView({ user, lang }) {
 
 // ─── Profile View ──────────────────────────────────────────────────────────
 function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
+  const C = usePalette()
   const [photo,   setPhoto]   = useState(user.photo   || '')
   const [name,    setName]    = useState(user.name    || '')
   const [phone,   setPhone]   = useState(user.phone   || '')
@@ -900,7 +918,7 @@ function ProfileView({ user, lang, COURSES_DATA, onUserUpdate }) {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '32px' }}>
           {[
             [String(completed), lang === 'ar' ? 'دروس مكتملة' : 'Lessons'],
-            [user.lastActiveAt ? `🔥 ${Math.max(1, Math.ceil((new Date() - new Date(user.lastActiveAt)) / 86400000) <= 1 ? Object.values(user.progress||{}).filter(Boolean).length : 1)}` : '—', lang === 'ar' ? 'يوم نشاط' : 'Streak'],
+            [user.lastActiveAt && new Date().toISOString().split('T')[0] === user.lastActiveAt ? `🔥 ${Object.values(user.progress||{}).filter(Boolean).length || 1}` : '—', lang === 'ar' ? 'يوم نشاط' : 'Streak'],
             ['1',               lang === 'ar' ? 'دورة نشطة'    : 'Course'],
           ].map(([val, lbl], i) => (
             <div key={i} style={{ textAlign: 'center' }}>
@@ -1076,6 +1094,8 @@ function Confetti({ intensity = 80 }) {
 }
 
 function LessonCelebration({ lang, isLast, onNext, onBack }) {
+  const C = usePalette()
+  const OVL = buildOVL(C)
   return (
     <>
       <Confetti intensity={60} />
@@ -1095,6 +1115,8 @@ function LessonCelebration({ lang, isLast, onNext, onBack }) {
 }
 
 function CourseCompletion({ lang, user, courseData, onViewCert, onBack }) {
+  const C = usePalette()
+  const OVL = buildOVL(C)
   return (
     <>
       <Confetti intensity={120} />
@@ -1113,6 +1135,8 @@ function CourseCompletion({ lang, user, courseData, onViewCert, onBack }) {
 }
 
 function Certificate({ lang, user, courseData, onClose }) {
+  const C = usePalette()
+  const CERT = buildCERT(C)
   const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-JO' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const courseName = lang === 'ar' ? courseData.nameAr : courseData.nameEn
   return (
@@ -1165,7 +1189,9 @@ export default function Dashboard({ initialUser }) {
   const router = useRouter()
   const { lang, setLang } = useLang()
   const { theme, toggleTheme } = useTheme()
-  C = theme === 'light' ? C_LIGHT : C_DARK
+  const C = theme === 'light' ? C_LIGHT : C_DARK
+  const BTN = buildBTN(C)
+  const VID = buildVID(C)
   const [user, setUser]           = useState(initialUser)
   const [lessons, setLessons]     = useState([])
   const [view, setView]           = useState('courses')
@@ -1173,6 +1199,7 @@ export default function Dashboard({ initialUser }) {
   const [activeLesson, setActiveLesson]     = useState(null)
   const [videoUrl, setVideoUrl]             = useState(null)
   const [videoLoading, setVideoLoading]     = useState(false)
+  const [videoError, setVideoError]         = useState(null)
   const [videoSpeed, setVideoSpeed]         = useState(1)
   const videoRef = useRef(null)
   const [quiz, setQuiz]                     = useState(null)
@@ -1249,13 +1276,21 @@ export default function Dashboard({ initialUser }) {
     }
     setActiveLesson(lesson)
     setVideoUrl(null)
+    setVideoError(null)
     setVideoLoading(true)
     setView('lesson')
     try {
       const res = await fetch(`/api/lessons/${lesson.id}/video`)
       const data = await res.json()
-      if (res.ok) setVideoUrl(data.videoUrl)
-    } catch {}
+      if (res.ok) {
+        setVideoUrl(data.videoUrl)
+      } else {
+        if (res.status === 401) { router.push('/login'); return }
+        setVideoError(data.error || 'تعذّر تحميل الفيديو')
+      }
+    } catch {
+      setVideoError('خطأ في الشبكة — تحقق من اتصالك بالإنترنت')
+    }
     setVideoLoading(false)
   }
 
@@ -1315,6 +1350,7 @@ export default function Dashboard({ initialUser }) {
     : (lang === 'ar' ? 'لوحة التحكم' : 'Dashboard')
 
   return (
+    <PaletteCtx.Provider value={C}>
     <>
       <Head>
         <title>{lang === 'ar' ? 'لوحة الطالب — بشار العسلي' : 'Student Dashboard — Bashar Al-Asali'}</title>
@@ -1692,6 +1728,15 @@ export default function Dashboard({ initialUser }) {
                       <div style={VID.spinner} />{t(lang, 'loadingVideo')}
                     </div>
                   )}
+                  {videoError && !videoLoading && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#F0807A', fontSize: '14px', gap: '12px', padding: '24px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '36px' }}>⚠️</span>
+                      <span style={{ fontWeight: '700' }}>{videoError}</span>
+                      <button onClick={() => openLesson(activeLesson)} style={{ marginTop: '8px', padding: '8px 20px', borderRadius: '8px', border: '1px solid #F0807A', background: 'transparent', color: '#F0807A', cursor: 'pointer', fontSize: '13px' }}>
+                        {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                      </button>
+                    </div>
+                  )}
                   {videoUrl && (
                     <>
                       {/* ── Video player ── */}
@@ -1699,11 +1744,13 @@ export default function Dashboard({ initialUser }) {
                         ref={videoRef}
                         src={videoUrl}
                         controls
+                        preload="metadata"
                         controlsList="nodownload noremoteplayback"
                         disablePictureInPicture
                         disableRemotePlayback
                         onContextMenu={e => e.preventDefault()}
                         onKeyDown={e => { if((e.ctrlKey||e.metaKey) && ['s','S','u','U'].includes(e.key)) e.preventDefault() }}
+                        onError={() => setVideoError('تعذّر تشغيل الفيديو — حاول مرة أخرى')}
                         style={{ width: '100%', height: '100%', display: 'block' }}
                       />
 
@@ -1870,6 +1917,7 @@ export default function Dashboard({ initialUser }) {
         </div>
       </div>
     </>
+    </PaletteCtx.Provider>
   )
 }
 
@@ -1905,8 +1953,8 @@ export async function getServerSideProps({ req }) {
   }
 }
 
-// ─── Style Constants ───────────────────────────────────────────────────────
-const BTN = {
+// ─── Style Builder Functions ───────────────────────────────────────────────
+const buildBTN = C => ({
   back: {
     display: 'inline-flex', alignItems: 'center',
     background: 'none', border: `1px solid ${C.g20}`,
@@ -1925,9 +1973,9 @@ const BTN = {
     background: C.g10, border: `1px solid ${C.g20}`,
     borderRadius: '14px', color: C.gold, fontSize: '14px', fontWeight: '700',
   }
-}
+})
 
-const VID = {
+const buildVID = C => ({
   spinner: {
     width: '20px', height: '20px', borderRadius: '50%',
     border: `2px solid ${C.g20}`, borderTopColor: C.gold,
@@ -1938,9 +1986,9 @@ const VID = {
     fontSize: '11px', color: 'rgba(255,255,255,0.15)',
     pointerEvents: 'none', userSelect: 'none', zIndex: 2, fontFamily: 'monospace',
   }
-}
+})
 
-const OVL = {
+const buildOVL = C => ({
   overlay: {
     position: 'fixed', inset: 0, zIndex: 9999,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1966,9 +2014,9 @@ const OVL = {
     background: 'transparent', border: `1px solid ${C.g20}`,
     borderRadius: '12px', color: C.w50, fontSize: '14px', fontWeight: '600', cursor: 'pointer',
   }
-}
+})
 
-const CERT = {
+const buildCERT = C => ({
   overlay: { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' },
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(10,15,10,0.95)', backdropFilter: 'blur(8px)', zIndex: -1 },
   wrapper: { display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', width: '100%', maxWidth: '600px' },
@@ -1997,4 +2045,4 @@ const CERT = {
   actions: { display: 'flex', gap: '12px', width: '100%' },
   printBtn: { flex: 1, padding: '12px', background: `linear-gradient(135deg,${C.gold},${C.goldD})`, border: 'none', borderRadius: '12px', color: C.navy, fontSize: '14px', fontWeight: '900', cursor: 'pointer' },
   closeBtn: { flex: 1, padding: '12px', background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '12px', color: C.w50, fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-}
+})

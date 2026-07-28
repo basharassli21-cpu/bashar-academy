@@ -11,8 +11,11 @@ async function handler(req, res) {
   const lessons = LESSONS.map(l => ({
     id: l.id,
     title: l.title,
+    titleEn: l.titleEn,
     duration: l.duration,
+    durationEn: l.durationEn,
     desc: l.desc,
+    descEn: l.descEn,
     free: l.free,
     thumbnail: l.thumbnail
     // videoUrl مش مرسلة هنا - تُطلب بشكل منفصل عند الدخول على الدرس

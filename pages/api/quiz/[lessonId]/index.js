@@ -1,6 +1,7 @@
 // pages/api/quiz/[lessonId]/index.js
 import { requireAuth } from '../../../../lib/auth'
-import { QUIZZES, USERS } from '../../../../lib/db'
+import { QUIZZES } from '../../../../lib/db'
+import { getUser } from '../../../../lib/users-store'
 
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -19,7 +20,7 @@ async function handler(req, res) {
     }))
   }
 
-  const user = USERS[req.user.username]
+  const user = await getUser(req.user.username)
   const prevScore = user?.quizScores?.[lessonId]
 
   return res.status(200).json({ quiz: safeQuiz, prevScore })

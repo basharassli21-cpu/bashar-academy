@@ -33,8 +33,6 @@ const G_LIGHT = {
   muted:   '#5B6B5B',
   muted2:  '#7A8A7A',
 }
-let G = G_DARK
-
 function buildStyles(G) {
   return {
     page: {
@@ -118,7 +116,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { lang, setLang } = useLang()
   const { theme, toggleTheme } = useTheme()
-  G = theme === 'light' ? G_LIGHT : G_DARK
+  const G = theme === 'light' ? G_LIGHT : G_DARK
   const S = buildStyles(G)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
