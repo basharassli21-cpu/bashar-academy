@@ -657,30 +657,6 @@ export default function LandingPage() {
             </div>
             <div className="courses-grid">
 
-              {/* ── Starter ── */}
-              <div className="course-card reveal">
-                <span className="course-badge">🚀 {tx('باقة التنفيذ', 'Starter Program')}</span>
-                <div className="course-tier">{tx('Starter Program', 'Starter Program')}</div>
-                <h3>{tx('باقة التنفيذ', 'Starter Package')}</h3>
-                <p className="sub">{tx('البرنامج المناسب للمبتدئين الذين يريدون دخول عالم التجارة الإلكترونية على eBay والبدء بالطريقة الصحيحة.', 'Perfect for beginners who want to enter the eBay e-commerce world and start the right way.')}</p>
-                <div className="course-price">
-                  <span className="amt">40</span>
-                  <span className="cur">{tx('دينار', 'JD')}</span>
-                  <span className="alt">/ 60$</span>
-                </div>
-                <ul className="course-list">
-                  {[
-                    tx('فتح الحسابات بالطريقة الصحيحة','Opening accounts the right way'),
-                    tx('تعلم البحث عن المنتجات الرابحة','Finding winning products'),
-                    tx('الوصول إلى الموردين المناسبين','Accessing the right suppliers'),
-                    tx('تعلم تنزيل المنتجات باحترافية','Listing products professionally'),
-                    tx('شرح آلية الشحن وإدارة الطلبات','Shipping & order management'),
-                    tx('حل المشاكل والعقبات الشائعة','Solving common obstacles'),
-                  ].map((item,i)=><li key={i}>{item}</li>)}
-                </ul>
-                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(0)}>{tx('سجّل الآن', 'Enroll now')}</a>
-              </div>
-
               {/* ── Professional ── */}
               <div className="course-card reveal">
                 <span className="course-badge">⚡ {tx('الباقة المتوسطة', 'Professional Program')}</span>
@@ -693,15 +669,17 @@ export default function LandingPage() {
                   <span className="alt">/ 110$</span>
                 </div>
                 <ul className="course-list">
-                  <li style={{color:'var(--gold)',fontWeight:600}}>{tx('كل ما في باقة Starter، بالإضافة إلى:', 'Everything in Starter, plus:')}</li>
                   {[
+                    tx('فتح الحسابات بالطريقة الصحيحة','Opening accounts the right way'),
+                    tx('تعلم البحث عن المنتجات الرابحة','Finding winning products'),
+                    tx('الوصول إلى الموردين المناسبين','Accessing the right suppliers'),
+                    tx('تعلم تنزيل المنتجات باحترافية','Listing products professionally'),
+                    tx('شرح آلية الشحن وإدارة الطلبات','Shipping & order management'),
                     tx('متابعة خاصة يومية على الواتساب','Daily private follow-up on WhatsApp'),
                     tx('إجابات مباشرة على الأسئلة والاستفسارات','Direct answers to all your questions'),
-                    tx('المساعدة أثناء التطبيق العملي','Help during real-world application'),
-                    tx('توجيه مستمر لتجنب الأخطاء المكلفة','Guidance to avoid costly mistakes'),
                   ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(1)}>{tx('سجّل الآن', 'Enroll now')}</a>
+                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(0)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
               {/* ── Elite ── */}
@@ -726,7 +704,33 @@ export default function LandingPage() {
                     tx('الوصول إلى المنهج الكامل من الصفر حتى الاحتراف','Full curriculum from zero to mastery'),
                   ].map((item,i)=><li key={i}>{item}</li>)}
                 </ul>
-                <a className="btn btn-gold" href="#booking" onClick={() => setSelectedPlan(2)}>{tx('سجّل الآن', 'Enroll now')}</a>
+                <a className="btn btn-gold" href="#booking" onClick={() => setSelectedPlan(1)}>{tx('سجّل الآن', 'Enroll now')}</a>
+              </div>
+
+              {/* ── باقة النخبة (Elite+) ── */}
+              <div className="course-card reveal">
+                <span className="course-ribbon">🌟 {tx('حصري', 'Exclusive')}</span>
+                <span className="course-badge">💎 {tx('باقة النخبة', 'Elite+ Program')}</span>
+                <div className="course-tier">{tx('Elite+ Program', 'Elite+ Program')}</div>
+                <h3>{tx('باقة النخبة', 'Elite+ Package')}</h3>
+                <p className="sub">{tx('البرنامج الأقوى على الإطلاق — لمن يريد نتائج استثنائية بمتابعة شخصية مباشرة مع الكوتش.', 'The most exclusive program — for those seeking exceptional results with direct personal coaching.')}</p>
+                <div className="course-price">
+                  <span className="amt">150</span>
+                  <span className="cur">{tx('دينار', 'JD')}</span>
+                  <span className="alt">/ 220$</span>
+                </div>
+                <ul className="course-list">
+                  <li style={{color:'var(--gold)',fontWeight:600}}>{tx('كل ما في الباقة الكاملة، بالإضافة إلى:', 'Everything in Elite, plus:')}</li>
+                  {[
+                    tx('استراتيجيات الذكاء الاصطناعي (AI) للتطوير والتوسع','AI strategies for development and scaling'),
+                    tx('بناء البراند والهوية التجارية','Brand building and business identity'),
+                    tx('أساليب متقدمة للنمو وزيادة المبيعات','Advanced growth and sales techniques'),
+                    tx('متابعة خاصة يومية على الواتساب','Daily private WhatsApp follow-up'),
+                    tx('الوصول إلى المنهج الكامل من الصفر حتى الاحتراف','Full curriculum from scratch to mastery'),
+                    tx('٣ لقاءات شخصية مع الكوتش عبر Zoom خلال الشهر الأول','3 private Zoom sessions with the coach in the first month'),
+                  ].map((item,i)=><li key={i}>{item}</li>)}
+                </ul>
+                <a className="btn btn-ghost" href="#booking" onClick={() => setSelectedPlan(2)}>{tx('سجّل الآن', 'Enroll now')}</a>
               </div>
 
             </div>
@@ -995,7 +999,7 @@ function BookingForm({ lang, tx, selectedPlan }) {
 
   function submit(e) {
     e.preventDefault()
-    const plans = [tx('باقة التنفيذ — Starter','Starter Package'), tx('الباقة المتوسطة — Professional','Professional Package'), tx('الباقة الكاملة — Elite','Elite Package'), tx('لست متأكداً — انصحني','Not sure yet — advise me')]
+    const plans = [tx('الباقة المتوسطة — Professional','Professional Package'), tx('الباقة الكاملة — Elite','Elite Package'), tx('باقة النخبة — Elite+','Elite+ Package'), tx('لست متأكداً — انصحني','Not sure yet — advise me')]
     const msg = ar
       ? `مرحباً كوتش بشار، أنا ${name}. مهتم بـ: ${plans[plan]}. رقم واتسابي: ${phone}.${note ? ` ملاحظة: ${note}` : ''}`
       : `Hello Coach Bashar, I'm ${name}. Interested in: ${plans[plan]}. My WhatsApp: ${phone}.${note ? ` Note: ${note}` : ''}`
@@ -1017,9 +1021,9 @@ function BookingForm({ lang, tx, selectedPlan }) {
       <div className="field">
         <label>{tx('الباقة التي تهمّك', 'Which plan interests you?')}</label>
         <select value={plan} onChange={e=>setPlan(e.target.value)}>
-          <option value="0">{tx('باقة التنفيذ — Starter (40 د / 60$)','Starter Package (40 JD / $60)')}</option>
-          <option value="1">{tx('الباقة المتوسطة — Professional (75 د / 110$)','Professional Package (75 JD / $110)')}</option>
-          <option value="2">{tx('الباقة الكاملة — Elite (100 د / 140$)','Elite Package (100 JD / $140)')}</option>
+          <option value="0">{tx('الباقة المتوسطة — Professional (75 د / 110$)','Professional Package (75 JD / $110)')}</option>
+          <option value="1">{tx('الباقة الكاملة — Elite (100 د / 140$)','Elite Package (100 JD / $140)')}</option>
+          <option value="2">{tx('باقة النخبة — Elite+ (150 د / 220$)','Elite+ Package (150 JD / $220)')}</option>
           <option value="3">{tx('لست متأكداً — انصحني','Not sure yet — advise me')}</option>
         </select>
       </div>
