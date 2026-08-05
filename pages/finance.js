@@ -242,6 +242,7 @@ const TABS = [
   { id:'dashboard',   icon:'📊', ar:'لوحة التحكم',   en:'Dashboard'   },
   { id:'sales',       icon:'💰', ar:'المبيعات',       en:'Sales'       },
   { id:'expenses',    icon:'📋', ar:'المصاريف',       en:'Expenses'    },
+  { id:'deposits',    icon:'💵', ar:'الإيداعات',      en:'Deposits'    },
   { id:'withdrawals', icon:'🏦', ar:'السحوبات',       en:'Withdrawals' },
   { id:'commissions', icon:'⚡', ar:'العمولات',       en:'Commissions' },
   { id:'reports',     icon:'📈', ar:'التقارير',       en:'Reports'     },
@@ -1162,6 +1163,151 @@ function ExpensesTab({ C }) {
   )
 }
 
+// ─── Deposits Tab ─────────────────────────────────────────────────────────
+function DepositsTab({ C }) {
+  const [deposits, setDeposits]   = useState([])
+  const [total, setTotal]         = useState(0)
+  const [pages, setPages]         = useState(1)
+  const [page, setPage]           = useState(1)
+  const [loading, setLoading]     = useState(true)
+  const [accounts, setAccounts]   = useState([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [msg, setMsg]             = useState('')
+  const [form, setForm] = useState({
+    depositDate: new Date().toISOString().split('T')[0],
+    amount: '',
+    ownerName: '',
+    paymentMethod: 'bank',
+    description: '',
+    debitAccount: '',
+    creditAccount: '',
+  })
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [r, ra] = await Promise.all([
+      fetch(`/api/finance/deposits?page=${page}&limit=20`),
+      fetch('/api/finance/reports?type=accounts'),
+    ])
+    const [d, da] = await Promise.all([r.json(), ra.json()])
+    setDeposits(d.deposits || [])
+    setTotal(d.total || 0)
+    setPages(d.pages || 1)
+    setAccounts((da.accounts || []).filter(a => !a.is_deleted))
+    setLoading(false)
+  }, [page])
+
+  useEffect(() => { load() }, [load])
+
+  const setF = k => v => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    if (!form.amount || !form.ownerName || !form.debitAccount || !form.creditAccount) {
+      setMsg('❌ يرجى ملء جميع الحقول المطلوبة (المبلغ، اسم المالك، حساب المدين، حساب الدائن)')
+      return
+    }
+    setSaving(true); setMsg('')
+    const r = await fetch('/api/finance/deposits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    const d = await r.json()
+    if (r.ok) {
+      setMsg(`✅ تم تسجيل الإيداع: ${d.depositNumber}`)
+      setModalOpen(false)
+      setForm({ depositDate: new Date().toISOString().split('T')[0], amount: '', ownerName: '', paymentMethod: 'bank', description: '', debitAccount: '', creditAccount: '' })
+      load()
+    } else {
+      setMsg(`❌ خطأ: ${d.error}`)
+    }
+    setSaving(false)
+  }
+
+  const debitName  = accounts.find(a => a.code === form.debitAccount)?.name  || ''
+  const creditName = accounts.find(a => a.code === form.creditAccount)?.name || ''
+
+  const cols = [
+    { key:'deposit_number', label:'رقم الإيداع', render: r => <span style={{ fontFamily:'monospace', color:C.gold, fontSize:12, fontWeight:700 }}>{r.deposit_number}</span> },
+    { key:'deposit_date',   label:'التاريخ',     render: r => fmtDate(r.deposit_date) },
+    { key:'owner_name',     label:'اسم المالك',  render: r => <span style={{ fontWeight:700, color:C.ink }}>{r.owner_name}</span> },
+    { key:'amount',         label:'المبلغ (JOD)', render: r => <span style={{ fontFamily:'monospace', fontWeight:700, color:C.gold }}>{fmt(r.amount)}</span> },
+    { key:'payment_method', label:'طريقة',       render: r => <Badge status={r.payment_method} C={C} /> },
+    { key:'debit_account',  label:'مدين',        render: r => <span style={{ fontFamily:'monospace', color:C.blue, fontSize:11 }}>{r.debit_account}</span> },
+    { key:'credit_account', label:'دائن',        render: r => <span style={{ fontFamily:'monospace', color:C.red, fontSize:11 }}>{r.credit_account}</span> },
+    { key:'entry_number',   label:'رقم القيد',   render: r => <span style={{ fontFamily:'monospace', fontSize:11, color:C.muted }}>{r.entry_number || '—'}</span> },
+  ]
+
+  return (
+    <div style={{ padding:28 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:800, color:C.ink }}>الإيداعات / Owner Deposits</div>
+          <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>{fmtN(total)} إيداع — تغذية رأس المال من الملاك</div>
+        </div>
+        <Btn onClick={() => { setMsg(''); setModalOpen(true) }} C={C}>💵 إيداع جديد</Btn>
+      </div>
+
+      {msg && (
+        <div style={{ padding:'10px 16px', background: msg.startsWith('✅') ? C.g10 : C.redBg, borderRadius:10, color: msg.startsWith('✅') ? C.gold : C.red, fontSize:13, marginBottom:16 }}>
+          {msg}
+        </div>
+      )}
+
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, overflow:'hidden' }}>
+        {loading ? <Spinner C={C} /> : <Table cols={cols} rows={deposits} C={C} />}
+        <Pagination page={page} pages={pages} onChange={setPage} C={C} />
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="💵 إيداع جديد / New Owner Deposit" C={C} width={620}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <Input label="تاريخ الإيداع / Date" value={form.depositDate} onChange={setF('depositDate')} type="date" required C={C} />
+          <Input label="المبلغ / Amount (JOD)" value={form.amount} onChange={setF('amount')} type="number" placeholder="0.000" required C={C} />
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <Input label="اسم المالك / Owner Name" value={form.ownerName} onChange={setF('ownerName')} placeholder="بشار العسلي" required C={C} />
+          <Input label="طريقة الإيداع / Method" value={form.paymentMethod} onChange={setF('paymentMethod')} required C={C}
+            options={[
+              { value:'bank',     label:'تحويل بنكي / Bank Transfer' },
+              { value:'cash',     label:'نقداً / Cash' },
+              { value:'transfer', label:'حوالة / Wire Transfer' },
+            ]} />
+        </div>
+
+        {/* Journal Lines Box */}
+        <div style={{ background:C.bg3, border:`1px solid ${C.border}`, borderRadius:12, padding:'14px 16px', marginBottom:14 }}>
+          <div style={{ fontSize:12, color:C.muted, fontWeight:700, marginBottom:10, letterSpacing:'0.04em' }}>
+            ⚖️ أطراف القيد المحاسبي — يُدخَل يدوياً / Journal Entry Lines
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <Input label="مدين / Debit Account ←" value={form.debitAccount} onChange={setF('debitAccount')} required C={C}
+              options={accounts.map(a => ({ value: a.code, label: `${a.code} — ${a.name}` }))} />
+            <Input label="دائن / Credit Account →" value={form.creditAccount} onChange={setF('creditAccount')} required C={C}
+              options={accounts.map(a => ({ value: a.code, label: `${a.code} — ${a.name}` }))} />
+          </div>
+          {form.debitAccount && form.creditAccount && form.amount && (
+            <div style={{ padding:'8px 12px', background:C.surface, borderRadius:8, fontSize:12, color:C.muted, border:`1px solid ${C.border}` }}>
+              <span style={{ color:C.blue, fontWeight:700 }}>مدين: {debitName}</span>
+              {' '}←→{' '}
+              <span style={{ color:C.red, fontWeight:700 }}>دائن: {creditName}</span>
+              {' '}بمبلغ{' '}
+              <span style={{ fontFamily:'monospace', fontWeight:800, color:C.gold }}>{fmt(parseFloat(form.amount) || 0)}</span>
+            </div>
+          )}
+        </div>
+
+        <Input label="البيان / Description (اختياري)" value={form.description} onChange={setF('description')} placeholder="تغذية رأس مال للعمليات التشغيلية…" C={C} />
+
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
+          <Btn onClick={() => setModalOpen(false)} C={C} variant="outline">إلغاء</Btn>
+          <Btn onClick={submit} C={C} disabled={saving}>{saving ? 'جاري الحفظ…' : '💵 تسجيل الإيداع'}</Btn>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 // ─── Withdrawals Tab ──────────────────────────────────────────────────────
 function WithdrawalsTab({ C }) {
   const [withdrawals, setWithdrawals] = useState([])
@@ -1959,76 +2105,104 @@ function LedgerTab({ C }) {
 
       {!loading && view === 'journal' && (
         <div>
-          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
-            <span style={{ fontSize:13, color:C.muted }}>{fmtN(jTotal)} entries</span>
-            <button onClick={() => {
-              const rows = journal.map(e => {
-                const lines = Array.isArray(e.lines) ? e.lines.map(l =>
-                  `<tr><td style="padding:3px 10px;color:#888">${l.code} — ${l.name}</td><td style="padding:3px 10px;text-align:right;color:#2563eb;font-family:monospace">${l.debit>0?fmt(l.debit):''}</td><td style="padding:3px 10px;text-align:right;color:#dc2626;font-family:monospace">${l.credit>0?fmt(l.credit):''}</td></tr>`).join('') : ''
-                return `<div style="border:1px solid #e0e8e0;border-radius:8px;padding:12px 16px;margin-bottom:12px;page-break-inside:avoid">
-                  <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
-                    <span style="font-family:monospace;color:#16a34a;font-weight:700;font-size:12px">${e.entry_number}</span>
-                    <span style="color:#888;font-size:12px">${new Date(e.entry_date).toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})}</span>
-                    <span style="color:#666;font-size:11px;text-transform:capitalize;background:#f0f7f0;padding:2px 8px;border-radius:10px">${e.source_type||'manual'}</span>
-                    <span style="color:#aaa;font-size:11px;margin-left:auto">${e.created_by||''}</span>
-                  </div>
-                  ${e.description?`<div style="font-size:13px;margin-bottom:6px;color:#111">${e.description}</div>`:''}
-                  <table style="width:100%;border-collapse:collapse;font-size:12px">
-                    <thead><tr><th style="text-align:left;padding:3px 10px;color:#888;font-size:10px">الحساب / Account</th><th style="text-align:right;padding:3px 10px;color:#2563eb;font-size:10px">مدين / Debit</th><th style="text-align:right;padding:3px 10px;color:#dc2626;font-size:10px">دائن / Credit</th></tr></thead>
-                    <tbody>${lines}</tbody>
-                  </table>
-                </div>`
-              }).join('')
-              const w = window.open('','_blank','width=900,height=700')
-              w.document.write(`<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8"><title>Journal</title>
-              <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:18mm}
-              .header{display:flex;justify-content:space-between;border-bottom:3px solid #16a34a;padding-bottom:12px;margin-bottom:20px}
-              .brand{font-size:16px;font-weight:900;color:#16a34a}.brand-sub{font-size:11px;color:#888}h1{font-size:20px}
-              .badge{display:inline-block;padding:3px 10px;border-radius:20px;background:#16a34a22;color:#16a34a;font-weight:700;font-size:11px}
-              @media print{body{padding:10mm}@page{size:A4;margin:10mm}}</style>
-              </head><body>
-              <div class="header"><div><div class="brand">أكاديمية بشار العسلي</div><div class="brand-sub">Bashar Al-Asali Academy</div></div>
-              <div style="text-align:right"><h1>دفتر اليومية<br/>Journal Entries</h1><div class="badge">صفحة / Page ${jPage} من / of ${jPages}</div></div></div>
-              ${rows}
-              <p style="color:#aaa;font-size:10px;text-align:center;margin-top:20px">Printed ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} — Bashar Al-Asali Academy</p>
-              <script>window.onload=()=>{window.print()}<\/script></body></html>`)
-              w.document.close()
-            }} style={{ padding:'6px 14px', borderRadius:8, background:'rgba(74,222,128,0.1)', color:C.gold, border:`1px solid rgba(74,222,128,0.3)`, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              🖨️ طباعة القيود الظاهرة
-            </button>
-          </div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:12 }}>{fmtN(jTotal)} entries</div>
           <div style={{ display:'grid', gap:10 }}>
-            {journal.map(e => (
-              <div key={e.id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:'14px 18px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:8 }}>
-                  <span style={{ fontFamily:'monospace', color:C.gold, fontSize:12, fontWeight:700 }}>{e.entry_number}</span>
-                  <span style={{ fontSize:12, color:C.muted }}>{fmtDate(e.entry_date)}</span>
-                  <Badge status={e.source_type || 'manual'} C={C} />
-                  <span style={{ fontSize:12, color:C.muted2, marginLeft:'auto' }}>{e.created_by}</span>
+            {journal.map(e => {
+              const printEntry = () => {
+                const linesHtml = Array.isArray(e.lines) ? e.lines.map(l =>
+                  `<tr><td style="padding:7px 12px;color:#444">${l.code} — ${l.name}</td>
+                   <td style="padding:7px 12px;text-align:right;color:#2563eb;font-family:monospace;font-weight:700">${l.debit>0?fmt(l.debit):''}</td>
+                   <td style="padding:7px 12px;text-align:right;color:#dc2626;font-family:monospace;font-weight:700">${l.credit>0?fmt(l.credit):''}</td></tr>`
+                ).join('') : ''
+                const totalDR = (e.lines||[]).reduce((s,l)=>s+(parseFloat(l.debit)||0),0)
+                const totalCR = (e.lines||[]).reduce((s,l)=>s+(parseFloat(l.credit)||0),0)
+                const w = window.open('','_blank','width=860,height=620')
+                w.document.write(`<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8"><title>Journal Entry ${e.entry_number}</title>
+                <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:16mm 18mm}
+                .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #16a34a;padding-bottom:12px;margin-bottom:18px}
+                .brand{font-size:15px;font-weight:900;color:#16a34a}.brand-sub{font-size:11px;color:#888}
+                h1{font-size:18px;margin-bottom:4px}.badge{display:inline-block;padding:3px 10px;border-radius:20px;background:#16a34a22;color:#16a34a;font-weight:700;font-size:11px}
+                table{width:100%;border-collapse:collapse;margin-top:12px}
+                th{background:#16a34a;color:#fff;padding:9px 12px;text-align:left;font-size:11px}
+                th:last-child,th:nth-child(2){text-align:right}
+                td{padding:8px 12px;border-bottom:1px solid #e0e8e0}
+                .total-row td{font-weight:900;border-top:2px solid #333;background:#f8faf8}
+                .meta{display:flex;gap:24px;margin-bottom:14px;flex-wrap:wrap}
+                .meta-item{font-size:12px;color:#888}.meta-item strong{color:#111;display:block;font-size:14px}
+                .desc{font-size:13px;color:#333;padding:10px 14px;background:#f8faf8;border-radius:6px;margin-bottom:14px;border-left:3px solid #16a34a}
+                @media print{body{padding:8mm}@page{size:A4;margin:8mm}}</style>
+                </head><body>
+                <div class="header">
+                  <div><div class="brand">أكاديمية بشار العسلي</div><div class="brand-sub">Bashar Al-Asali Academy</div></div>
+                  <div style="text-align:right">
+                    <h1>قيد يومية / Journal Entry</h1>
+                    <div class="badge">${e.entry_number}</div>
+                  </div>
                 </div>
-                {e.description && <div style={{ fontSize:13, color:C.ink, marginBottom:8 }}>{e.description}</div>}
-                {Array.isArray(e.lines) && e.lines.length > 0 && (
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, marginTop:4 }}>
-                    <thead>
-                      <tr>
-                        {['Account','Debit','Credit'].map(h => (
-                          <th key={h} style={{ padding:'4px 10px', textAlign:'left', color:C.muted2, fontSize:10, fontWeight:700, textTransform:'uppercase' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {e.lines.map((l, i) => (
-                        <tr key={i}>
-                          <td style={{ padding:'4px 10px', color:C.muted }}>{l.code} — {l.name}</td>
-                          <td style={{ padding:'4px 10px', color:C.blue, fontFamily:'monospace' }}>{l.debit > 0 ? fmt(l.debit) : ''}</td>
-                          <td style={{ padding:'4px 10px', color:C.red, fontFamily:'monospace' }}>{l.credit > 0 ? fmt(l.credit) : ''}</td>
+                <div class="meta">
+                  <div class="meta-item"><strong>${e.entry_number}</strong>رقم القيد / Entry #</div>
+                  <div class="meta-item"><strong>${new Date(e.entry_date).toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})}</strong>تاريخ القيد / Date</div>
+                  <div class="meta-item"><strong>${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})}</strong>تاريخ الطباعة / Printed</div>
+                  <div class="meta-item"><strong style="text-transform:capitalize">${e.source_type||'manual'}</strong>المصدر / Source</div>
+                  ${e.created_by?`<div class="meta-item"><strong>${e.created_by}</strong>أنشأ بواسطة / By</div>`:''}
+                </div>
+                ${e.description?`<div class="desc">${e.description}</div>`:''}
+                <table>
+                  <thead><tr>
+                    <th>الحساب / Account</th>
+                    <th style="text-align:right">مدين / Debit (JOD)</th>
+                    <th style="text-align:right">دائن / Credit (JOD)</th>
+                  </tr></thead>
+                  <tbody>
+                    ${linesHtml}
+                    <tr class="total-row">
+                      <td>الإجمالي / Total</td>
+                      <td style="text-align:right;color:#2563eb">${fmt(totalDR)}</td>
+                      <td style="text-align:right;color:#dc2626">${fmt(totalCR)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p style="color:#aaa;font-size:10px;text-align:center;margin-top:28px">طُبع بتاريخ ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} — أكاديمية بشار العسلي / Bashar Al-Asali Academy</p>
+                <script>window.onload=()=>{window.print()}<\/script></body></html>`)
+                w.document.close()
+              }
+              return (
+                <div key={e.id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:'14px 18px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:8 }}>
+                    <span style={{ fontFamily:'monospace', color:C.gold, fontSize:12, fontWeight:700 }}>{e.entry_number}</span>
+                    <span style={{ fontSize:12, color:C.muted }}>{fmtDate(e.entry_date)}</span>
+                    <Badge status={e.source_type || 'manual'} C={C} />
+                    <span style={{ fontSize:12, color:C.muted2 }}>{e.created_by}</span>
+                    <button onClick={printEntry} style={{
+                      marginLeft:'auto', padding:'4px 12px', borderRadius:7,
+                      background:'rgba(74,222,128,0.08)', color:C.gold,
+                      border:`1px solid rgba(74,222,128,0.25)`, fontSize:11, fontWeight:700, cursor:'pointer',
+                    }}>🖨️ طباعة</button>
+                  </div>
+                  {e.description && <div style={{ fontSize:13, color:C.ink, marginBottom:8 }}>{e.description}</div>}
+                  {Array.isArray(e.lines) && e.lines.length > 0 && (
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, marginTop:4 }}>
+                      <thead>
+                        <tr>
+                          {['Account','Debit مدين','Credit دائن'].map(h => (
+                            <th key={h} style={{ padding:'4px 10px', textAlign: h.includes('Debit')||h.includes('Credit') ? 'right' : 'left', color:C.muted2, fontSize:10, fontWeight:700, textTransform:'uppercase' }}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            ))}
+                      </thead>
+                      <tbody>
+                        {e.lines.map((l, i) => (
+                          <tr key={i}>
+                            <td style={{ padding:'4px 10px', color:C.muted }}>{l.code} — {l.name}</td>
+                            <td style={{ padding:'4px 10px', color:C.blue, fontFamily:'monospace', textAlign:'right' }}>{l.debit > 0 ? fmt(l.debit) : ''}</td>
+                            <td style={{ padding:'4px 10px', color:C.red,  fontFamily:'monospace', textAlign:'right' }}>{l.credit > 0 ? fmt(l.credit) : ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )
+            })}
             {!journal.length && <EmptyState msg="No journal entries yet" C={C} />}
           </div>
           <Pagination page={jPage} pages={jPages} onChange={setJPage} C={C} />
@@ -2144,6 +2318,7 @@ export default function FinancePage() {
             {tab === 'dashboard'   && <DashboardTab   C={C} />}
             {tab === 'sales'       && <SalesTab        C={C} />}
             {tab === 'expenses'    && <ExpensesTab     C={C} />}
+            {tab === 'deposits'    && <DepositsTab     C={C} />}
             {tab === 'withdrawals' && <WithdrawalsTab  C={C} />}
             {tab === 'commissions' && <CommissionsTab  C={C} />}
             {tab === 'reports'     && <ReportsTab      C={C} />}
