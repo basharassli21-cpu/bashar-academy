@@ -279,13 +279,19 @@ function FinanceNav({ tab, setTab, C, lang }) {
 function DashboardTab({ C }) {
   const [data, setData] = useState(null)
   const [period, setPeriod] = useState('month')
+  const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0,7) + '-01')
+  const [customTo,   setCustomTo]   = useState(() => new Date().toISOString().split('T')[0])
   const [RC, setRC] = useState(null)
 
   useEffect(() => { import('recharts').then(setRC) }, [])
-  useEffect(() => {
-    fetch(`/api/finance/dashboard?period=${period}`)
-      .then(r => r.json()).then(setData)
-  }, [period])
+
+  const loadData = useCallback(() => {
+    const p = new URLSearchParams({ period })
+    if (period === 'custom') { p.set('dateFrom', customFrom); p.set('dateTo', customTo) }
+    fetch(`/api/finance/dashboard?${p}`).then(r => r.json()).then(setData)
+  }, [period, customFrom, customTo])
+
+  useEffect(() => { loadData() }, [loadData])
 
   if (!data) return <Spinner C={C} />
 
@@ -412,15 +418,28 @@ function DashboardTab({ C }) {
             </span>
           </div>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
-          {['day','week','month','year'].map(p => (
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+          {['day','week','month','year','custom'].map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{
               padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
               background: period === p ? C.gold : C.g10,
               color: period === p ? C.goldText : C.muted,
               border: `1px solid ${period === p ? C.gold : C.border}`,
-            }}>{p.charAt(0).toUpperCase() + p.slice(1)}</button>
+            }}>{p === 'custom' ? '📅 مخصص' : p.charAt(0).toUpperCase() + p.slice(1)}</button>
           ))}
+          {period === 'custom' && (
+            <>
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                style={{ padding:'5px 10px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:12 }} />
+              <span style={{ color:C.muted, fontSize:12 }}>→</span>
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                style={{ padding:'5px 10px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:12 }} />
+              <button onClick={loadData} style={{
+                padding:'5px 14px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
+                background:C.gold, color:C.goldText, border:'none',
+              }}>تحديث</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -491,12 +510,15 @@ const PRODUCT_AR = {
   course:'كورس تدريبي', consultation:'استشارة', coaching:'كوتشينج',
   bundle:'باقة', other:'أخرى',
 }
+// Exchange rates FROM JOD (base currency)
+const EXCHANGE_RATES = { JOD:1, USD:0.70, SAR:5.28, AED:5.18, EUR:1.22, BHD:0.53 }
 const INVOICE_CURRENCIES = [
-  { value:'JOD', label:'JOD — دينار أردني' },
+  { value:'JOD', label:'JOD — دينار أردني'  },
   { value:'USD', label:'USD — دولار أمريكي' },
   { value:'AED', label:'AED — درهم إماراتي' },
-  { value:'SAR', label:'SAR — ريال سعودي' },
-  { value:'EUR', label:'EUR — يورو' },
+  { value:'SAR', label:'SAR — ريال سعودي'   },
+  { value:'EUR', label:'EUR — يورو'          },
+  { value:'BHD', label:'BHD — دينار بحريني' },
 ]
 
 function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
@@ -517,9 +539,10 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
     return () => { const el = document.getElementById('inv-print-css'); el && el.remove() }
   }, [])
 
+  const rate   = EXCHANGE_RATES[currency] || 1
   const fmtInv = n => new Intl.NumberFormat('en-US', {
     style:'currency', currency, minimumFractionDigits:2, maximumFractionDigits:2,
-  }).format(parseFloat(n) || 0)
+  }).format((parseFloat(n) || 0) * rate)
 
   const subtotal  = parseFloat(sale.subtotal  || sale.total) || 0
   const discount  = parseFloat(sale.discount_amount) || 0
@@ -528,8 +551,8 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
   const amtPaid   = parseFloat(sale.amount_paid)     || 0
   const remaining = Math.max(0, total - amtPaid)
 
-  const saleDate  = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('ar-JO', { year:'numeric', month:'long', day:'numeric' }) : '—'
-  const printDate = new Date().toLocaleDateString('ar-JO', { year:'numeric', month:'long', day:'numeric' })
+  const saleDate  = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }) : '—'
+  const printDate = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' })
 
   const statusColor = { paid:'#16a34a', pending:'#d97706', partial:'#2563eb', refunded:'#7c3aed', failed:'#dc2626', cancelled:'#6b7280' }
 
@@ -595,10 +618,10 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
             <table style={{ marginTop:10, borderCollapse:'collapse', fontSize:12 }}>
               <tbody>
                 {[
-                  ['رقم الفاتورة', sale.invoice_number],
-                  ['تاريخ البيع',  saleDate],
-                  ['تاريخ الطباعة', printDate],
-                  ['العملة', currency],
+                  ['رقم الفاتورة / Invoice #', sale.invoice_number],
+                  ['تاريخ البيع / Sale Date',   saleDate],
+                  ['تاريخ الطباعة / Print Date', printDate],
+                  ['العملة / Currency', currency + (currency !== 'JOD' ? ` (1 JOD = ${rate} ${currency})` : '')],
                 ].map(([k,v]) => (
                   <tr key={k}>
                     <td style={{ color:'#888', padding:'2px 10px 2px 0', direction:'rtl', textAlign:'right', fontFamily:"'Tajawal',sans-serif" }}>{k}</td>
@@ -1453,30 +1476,80 @@ function ReportsTab({ C }) {
   const fy = currentFiscalYear()
   const [dateFrom, setDateFrom] = useState(fy.start)
   const [dateTo, setDateTo] = useState(fy.end)
+  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0])
   const [year, setYear] = useState(fy.year)
   const [month, setMonth] = useState(new Date().getMonth() + 1)
 
   async function generate() {
     setLoading(true); setData(null)
     const p = new URLSearchParams({ type: reportType })
-    if (reportType === 'pl') { p.set('dateFrom', dateFrom); p.set('dateTo', dateTo) }
+    if (['pl','trial_balance'].includes(reportType)) { p.set('dateFrom', dateFrom); p.set('dateTo', dateTo) }
     if (reportType === 'cashflow') { p.set('year', year); p.set('month', month) }
+    if (reportType === 'balance_sheet') p.set('asOfDate', asOfDate)
     const r = await fetch('/api/finance/reports?' + p)
     const d = await r.json()
     setData(d); setLoading(false)
   }
 
+  // ── Shared print helper ──
+  function printWindow(htmlBody) {
+    const w = window.open('', '_blank', 'width=900,height=700')
+    w.document.write(`<!DOCTYPE html><html dir="ltr"><head>
+      <meta charset="UTF-8"><title>Report</title>
+      <style>
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:'Arial',sans-serif; font-size:13px; color:#111; padding:20mm 18mm; }
+        h1 { font-size:22px; margin-bottom:4px; } h2 { font-size:14px; color:#555; margin-bottom:16px; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        th { background:#16a34a; color:#fff; padding:9px 12px; text-align:left; font-size:12px; }
+        td { padding:8px 12px; border-bottom:1px solid #e0e8e0; font-size:12px; }
+        .total-row td { font-weight:900; border-top:2px solid #333; font-size:13px; background:#f8faf8; }
+        .green { color:#16a34a; } .red { color:#dc2626; }
+        .section-head { background:#f0f7f0; font-weight:700; color:#16a34a; font-size:13px; padding:10px 12px; }
+        .kpi { display:inline-block; border:1px solid #e0e8e0; border-radius:8px; padding:12px 20px; margin:0 8px 12px 0; }
+        .kpi-val { font-size:20px; font-weight:900; color:#16a34a; } .kpi-label { font-size:11px; color:#888; }
+        @media print { body { padding:10mm 12mm; } @page { size:A4; margin:10mm; } }
+        .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #16a34a; padding-bottom:12px; margin-bottom:20px; }
+        .brand { font-size:16px; font-weight:900; color:#16a34a; } .brand-sub { font-size:11px; color:#888; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:20px; background:#16a34a22; color:#16a34a; font-weight:700; font-size:11px; margin-bottom:4px; }
+        .balanced { color:#16a34a; font-weight:700; } .unbalanced { color:#dc2626; font-weight:700; }
+      </style>
+    </head><body>${htmlBody}<br/><p style="color:#aaa;font-size:10px;text-align:center;margin-top:30px;">Printed ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} — Bashar Al-Asali Academy</p><script>window.onload=()=>{window.print();}<\/script></body></html>`)
+    w.document.close()
+  }
+
+  // ── P&L ──
   const renderPL = () => {
     if (!data) return null
     return (
       <div>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+          <button onClick={() => {
+            const rows = r => r.map(x => `<tr><td>${x.label||''}</td><td style="color:#888">${x.cnt} sales</td><td style="text-align:right;font-weight:700">${fmt(x.total)}</td></tr>`).join('')
+            printWindow(`
+              <div class="header"><div><div class="brand">Bashar Al-Asali Academy</div><div class="brand-sub">أكاديمية بشار العسلي</div></div>
+              <div style="text-align:right"><h1>قائمة الدخل<br/>Income Statement</h1><div class="badge">${data.period?.from} → ${data.period?.to}</div></div></div>
+              <div style="margin-bottom:18px">
+                <span class="kpi"><div class="kpi-val">${fmt(data.totalRevenue)}</div><div class="kpi-label">إجمالي الإيرادات / Total Revenue</div></span>
+                <span class="kpi"><div class="kpi-val" style="color:#dc2626">${fmt(data.totalExpenses)}</div><div class="kpi-label">إجمالي المصاريف / Total Expenses</div></span>
+                <span class="kpi"><div class="kpi-val" style="color:${data.grossProfit>=0?'#16a34a':'#dc2626'}">${fmt(data.grossProfit)}</div><div class="kpi-label">صافي الربح / Net Profit (${data.grossMargin}%)</div></span>
+              </div>
+              <table><thead><tr><th>مصدر الإيراد / Revenue Source</th><th>عدد المبيعات / Sales</th><th style="text-align:right">المبلغ / Amount</th></tr></thead>
+              <tbody>${rows(data.revenue)}<tr class="total-row"><td>إجمالي الإيرادات / Total Revenue</td><td></td><td style="text-align:right;color:#16a34a">${fmt(data.totalRevenue)}</td></tr></tbody></table>
+              <table><thead><tr><th>فئة المصروف / Expense Category</th><th>عدد / Count</th><th style="text-align:right">المبلغ / Amount</th></tr></thead>
+              <tbody>${data.expenses.map(x=>`<tr><td>${x.label}</td><td style="color:#888">${x.cnt}</td><td style="text-align:right;color:#dc2626;font-weight:700">${fmt(x.total)}</td></tr>`).join('')}
+              <tr class="total-row"><td>إجمالي المصاريف / Total Expenses</td><td></td><td style="text-align:right;color:#dc2626">${fmt(data.totalExpenses)}</td></tr>
+              <tr class="total-row"><td colspan="2">صافي الربح / Net Profit</td><td style="text-align:right;color:${data.grossProfit>=0?'#16a34a':'#dc2626'};font-size:15px">${fmt(data.grossProfit)}</td></tr></tbody></table>`)
+          }} style={{ padding:'7px 16px', borderRadius:8, background:'rgba(74,222,128,0.1)', color:C.gold, border:`1px solid rgba(74,222,128,0.3)`, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            🖨️ طباعة قائمة الدخل
+          </button>
+        </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
           <KpiCard label="Total Revenue"  value={fmt(data.totalRevenue)}  icon="💰" color={C.gold}  C={C} />
           <KpiCard label="Total Expenses" value={fmt(data.totalExpenses)} icon="📋" color={C.red}   C={C} />
           <KpiCard label="Gross Profit"   value={fmt(data.grossProfit)}   icon="📈" color={data.grossProfit >= 0 ? C.gold : C.red} C={C} />
           <KpiCard label="Gross Margin"   value={data.grossMargin + '%'}  icon="%" color={C.purple} C={C} />
         </div>
-
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
           <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', borderBottom:`1px solid ${C.border}`, fontWeight:700, color:C.gold }}>Revenue Breakdown</div>
@@ -1493,7 +1566,6 @@ function ReportsTab({ C }) {
               </tbody>
             </table>
           </div>
-
           <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', borderBottom:`1px solid ${C.border}`, fontWeight:700, color:C.red }}>Expense Breakdown</div>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
@@ -1514,6 +1586,7 @@ function ReportsTab({ C }) {
     )
   }
 
+  // ── Cash Flow ──
   const renderCashFlow = () => {
     if (!data) return null
     return (
@@ -1551,14 +1624,170 @@ function ReportsTab({ C }) {
     )
   }
 
+  // ── Balance Sheet ──
+  const renderBalanceSheet = () => {
+    if (!data) return null
+    const Section = ({ title, titleAr, items, totalLabel, totalLabelAr, total, color }) => (
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden', marginBottom:16 }}>
+        <div style={{ padding:'13px 18px', borderBottom:`1px solid ${C.border}`, fontWeight:700, color, display:'flex', justifyContent:'space-between' }}>
+          <span>{titleAr} / {title}</span>
+          <span style={{ fontFamily:'monospace' }}>{fmt(total)}</span>
+        </div>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <tbody>
+            {items.map((a, i) => (
+              <tr key={i} style={{ borderBottom:`1px solid ${C.border}` }}>
+                <td style={{ padding:'9px 18px', color:C.muted2, fontFamily:'monospace', fontSize:11 }}>{a.code}</td>
+                <td style={{ padding:'9px 18px', color:C.ink }}>{a.name}</td>
+                <td style={{ padding:'9px 18px', color, fontWeight:700, fontFamily:'monospace', textAlign:'right' }}>{fmt(a.balance)}</td>
+              </tr>
+            ))}
+            {!items.length && <tr><td colSpan={3} style={{ padding:16, textAlign:'center', color:C.muted2 }}>—</td></tr>}
+            <tr style={{ borderTop:`2px solid ${C.border}` }}>
+              <td colSpan={2} style={{ padding:'10px 18px', fontWeight:900, color:C.ink }}>{totalLabelAr} / {totalLabel}</td>
+              <td style={{ padding:'10px 18px', fontWeight:900, color, fontFamily:'monospace', textAlign:'right' }}>{fmt(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )
+    const balanced = Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) < 1
+
+    const printBS = () => {
+      const secRows = (items) => items.map(a => `<tr><td style="color:#888;font-family:monospace;font-size:11px">${a.code}</td><td>${a.name}</td><td style="text-align:right;font-weight:700">${fmt(a.balance)}</td></tr>`).join('')
+      printWindow(`
+        <div class="header">
+          <div><div class="brand">أكاديمية بشار العسلي</div><div class="brand-sub">Bashar Al-Asali Academy</div></div>
+          <div style="text-align:right"><h1>قائمة المركز المالي<br/>Balance Sheet</h1><div class="badge">بتاريخ / As of: ${data.asOfDate}</div></div>
+        </div>
+        <table><thead><tr><th>كود / Code</th><th>الأصل / Asset</th><th style="text-align:right">الرصيد / Balance (JOD)</th></tr></thead>
+        <tbody>${secRows(data.assets)}<tr class="total-row"><td colspan="2">إجمالي الأصول / Total Assets</td><td style="text-align:right;color:#16a34a">${fmt(data.totalAssets)}</td></tr></tbody></table>
+        <table><thead><tr><th>كود / Code</th><th>الالتزام / Liability</th><th style="text-align:right">الرصيد / Balance (JOD)</th></tr></thead>
+        <tbody>${secRows(data.liabilities)}<tr class="total-row"><td colspan="2">إجمالي الالتزامات / Total Liabilities</td><td style="text-align:right;color:#dc2626">${fmt(data.totalLiabilities)}</td></tr></tbody></table>
+        <table><thead><tr><th>كود / Code</th><th>حقوق الملكية / Equity</th><th style="text-align:right">الرصيد / Balance (JOD)</th></tr></thead>
+        <tbody>${secRows(data.equity)}
+        <tr><td></td><td>الأرباح المحتجزة / Retained Earnings</td><td style="text-align:right;font-weight:700;color:#16a34a">${fmt(data.retainedEarnings)}</td></tr>
+        <tr class="total-row"><td colspan="2">إجمالي حقوق الملكية / Total Equity</td><td style="text-align:right;color:#7c3aed">${fmt(data.totalEquity)}</td></tr>
+        <tr class="total-row"><td colspan="2">إجمالي الالتزامات + حقوق الملكية / Total L + E</td><td style="text-align:right">${fmt(data.totalLiabilities + data.totalEquity)}</td></tr></tbody></table>
+        <p class="${balanced ? 'balanced' : 'unbalanced'}">${balanced ? '✅ الميزانية متوازنة / Balance Sheet is Balanced' : '⚠️ غير متوازنة / Not Balanced'}</p>`)
+    }
+
+    return (
+      <div>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+          <span style={{ fontSize:13, color:C.muted }}>بتاريخ / As of: <strong style={{color:C.ink}}>{data.asOfDate}</strong></span>
+          <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background: balanced?'rgba(74,222,128,0.1)':'rgba(240,128,122,0.1)', color: balanced?C.gold:C.red, fontWeight:700, border:`1px solid ${balanced?C.gold:C.red}44` }}>
+            {balanced ? '✅ متوازنة' : '⚠️ غير متوازنة'}
+          </span>
+          <button onClick={printBS} style={{ padding:'7px 16px', borderRadius:8, background:'rgba(74,222,128,0.1)', color:C.gold, border:`1px solid rgba(74,222,128,0.3)`, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            🖨️ طباعة بالعربي والإنجليزي
+          </button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+          <KpiCard label="Total Assets"      value={fmt(data.totalAssets)}      icon="🏦" color={C.gold}   C={C} />
+          <KpiCard label="Total Liabilities" value={fmt(data.totalLiabilities)} icon="📋" color={C.red}    C={C} />
+          <KpiCard label="Total Equity"      value={fmt(data.totalEquity)}      icon="💎" color={C.purple} C={C} sub={`Retained: ${fmt(data.retainedEarnings)}`} />
+        </div>
+        <Section title="Assets" titleAr="الأصول" items={data.assets} totalLabel="Total Assets" totalLabelAr="إجمالي الأصول" total={data.totalAssets} color={C.gold} />
+        <Section title="Liabilities" titleAr="الالتزامات" items={data.liabilities} totalLabel="Total Liabilities" totalLabelAr="إجمالي الالتزامات" total={data.totalLiabilities} color={C.red} />
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden', marginBottom:16 }}>
+          <div style={{ padding:'13px 18px', borderBottom:`1px solid ${C.border}`, fontWeight:700, color:C.purple, display:'flex', justifyContent:'space-between' }}>
+            <span>حقوق الملكية / Equity</span>
+            <span style={{ fontFamily:'monospace' }}>{fmt(data.totalEquity)}</span>
+          </div>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            <tbody>
+              {data.equity.map((a, i) => (
+                <tr key={i} style={{ borderBottom:`1px solid ${C.border}` }}>
+                  <td style={{ padding:'9px 18px', color:C.muted2, fontFamily:'monospace', fontSize:11 }}>{a.code}</td>
+                  <td style={{ padding:'9px 18px', color:C.ink }}>{a.name}</td>
+                  <td style={{ padding:'9px 18px', color:C.purple, fontWeight:700, fontFamily:'monospace', textAlign:'right' }}>{fmt(a.balance)}</td>
+                </tr>
+              ))}
+              <tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                <td style={{ padding:'9px 18px', color:C.muted2, fontFamily:'monospace', fontSize:11 }}>—</td>
+                <td style={{ padding:'9px 18px', color:C.ink }}>الأرباح المحتجزة / Retained Earnings</td>
+                <td style={{ padding:'9px 18px', color:C.gold, fontWeight:700, fontFamily:'monospace', textAlign:'right' }}>{fmt(data.retainedEarnings)}</td>
+              </tr>
+              <tr style={{ borderTop:`2px solid ${C.border}` }}>
+                <td colSpan={2} style={{ padding:'10px 18px', fontWeight:900, color:C.ink }}>إجمالي حقوق الملكية / Total Equity</td>
+                <td style={{ padding:'10px 18px', fontWeight:900, color:C.purple, fontFamily:'monospace', textAlign:'right' }}>{fmt(data.totalEquity)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Trial Balance ──
+  const renderTrialBalance = () => {
+    if (!data) return null
+    const TYPE_COLORS = { asset:C.blue, liability:C.red, equity:C.purple, revenue:C.gold, expense:C.yellow }
+    return (
+      <div>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+          <span style={{ fontSize:13, color:C.muted }}>{data.period?.from} → {data.period?.to}</span>
+          <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background: data.balanced?'rgba(74,222,128,0.1)':'rgba(240,128,122,0.1)', color: data.balanced?C.gold:C.red, fontWeight:700, border:`1px solid ${data.balanced?C.gold:C.red}44` }}>
+            {data.balanced ? '✅ متوازن' : '⚠️ غير متوازن'}
+          </span>
+          <button onClick={() => {
+            const rows = (data.accounts||[]).map(a => `<tr><td style="font-family:monospace;color:${({asset:'#2563eb',liability:'#dc2626',equity:'#7c3aed',revenue:'#16a34a',expense:'#b45309'})[a.type]||'#888'}">${a.code}</td><td>${a.name}</td><td style="color:#888;font-size:11px;text-transform:capitalize">${a.type}</td><td style="text-align:right;color:${a.debit>0?'#2563eb':'#eee'};font-family:monospace">${a.debit>0?fmt(a.debit):''}</td><td style="text-align:right;color:${a.credit>0?'#dc2626':'#eee'};font-family:monospace">${a.credit>0?fmt(a.credit):''}</td></tr>`).join('')
+            printWindow(`
+              <div class="header">
+                <div><div class="brand">أكاديمية بشار العسلي</div><div class="brand-sub">Bashar Al-Asali Academy</div></div>
+                <div style="text-align:right"><h1>ميزان المراجعة<br/>Trial Balance</h1><div class="badge">${data.period?.from} → ${data.period?.to}</div></div>
+              </div>
+              <table><thead><tr><th>كود / Code</th><th>الحساب / Account</th><th>النوع / Type</th><th style="text-align:right">مدين / Debit</th><th style="text-align:right">دائن / Credit</th></tr></thead>
+              <tbody>${rows}
+              <tr class="total-row"><td colspan="3">الإجمالي / Total</td><td style="text-align:right;color:#2563eb">${fmt(data.totalDebit)}</td><td style="text-align:right;color:#dc2626">${fmt(data.totalCredit)}</td></tr>
+              </tbody></table>
+              <p class="${data.balanced?'balanced':'unbalanced'}">${data.balanced?'✅ ميزان المراجعة متوازن / Trial Balance is Balanced':'⚠️ غير متوازن / Not Balanced'}</p>`)
+          }} style={{ padding:'7px 16px', borderRadius:8, background:'rgba(74,222,128,0.1)', color:C.gold, border:`1px solid rgba(74,222,128,0.3)`, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            🖨️ طباعة ميزان المراجعة
+          </button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+          <KpiCard label="Total Debit"  value={fmt(data.totalDebit)}  icon="←" color={C.blue}   C={C} />
+          <KpiCard label="Total Credit" value={fmt(data.totalCredit)} icon="→" color={C.red}    C={C} />
+          <KpiCard label="Difference"   value={fmt(Math.abs(data.totalDebit - data.totalCredit))} icon="Δ" color={data.balanced ? C.gold : C.red} C={C} />
+        </div>
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <thead>
+              <tr>
+                {['Code','Account','Type','Debit مدين','Credit دائن'].map(h => (
+                  <th key={h} style={{ padding:'10px 16px', textAlign: h.includes('Debit')||h.includes('Credit') ? 'right' : 'left', color:C.muted, fontSize:10, fontWeight:700, textTransform:'uppercase', borderBottom:`1px solid ${C.border}`, background:C.bg3 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(data.accounts||[]).map((a, i) => (
+                <tr key={i} style={{ borderBottom:`1px solid ${C.border}` }}>
+                  <td style={{ padding:'9px 16px', fontFamily:'monospace', color:TYPE_COLORS[a.type]||C.muted, fontWeight:700, fontSize:11 }}>{a.code}</td>
+                  <td style={{ padding:'9px 16px', color:C.ink }}>{a.name}</td>
+                  <td style={{ padding:'9px 16px', color:C.muted2, fontSize:11, textTransform:'capitalize' }}>{a.type}</td>
+                  <td style={{ padding:'9px 16px', color:C.blue, fontFamily:'monospace', textAlign:'right', fontWeight: a.debit>0?700:400 }}>{a.debit > 0 ? fmt(a.debit) : ''}</td>
+                  <td style={{ padding:'9px 16px', color:C.red, fontFamily:'monospace', textAlign:'right', fontWeight: a.credit>0?700:400 }}>{a.credit > 0 ? fmt(a.credit) : ''}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop:`2px solid ${C.border}`, background:C.bg3 }}>
+                <td colSpan={3} style={{ padding:'11px 16px', fontWeight:900, color:C.ink }}>الإجمالي / Total</td>
+                <td style={{ padding:'11px 16px', fontWeight:900, color:C.blue, fontFamily:'monospace', textAlign:'right' }}>{fmt(data.totalDebit)}</td>
+                <td style={{ padding:'11px 16px', fontWeight:900, color:C.red,  fontFamily:'monospace', textAlign:'right' }}>{fmt(data.totalCredit)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.ink }}>Reports</div>
+        <div style={{ fontSize:20, fontWeight:800, color:C.ink }}>التقارير / Reports</div>
         <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(74,222,128,0.10)', border:'1px solid rgba(74,222,128,0.25)', color:C.gold, fontWeight:700 }}>
-          📅 {fy.labelEn}
-        </span>
-        <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(96,165,250,0.10)', border:'1px solid rgba(96,165,250,0.25)', color:'#60A5FA', fontWeight:700 }}>
           🇯🇴 JOD
         </span>
       </div>
@@ -1567,11 +1796,13 @@ function ReportsTab({ C }) {
       <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:24 }}>
         <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
           {[
-            { id:'pl',       label:'Profit & Loss' },
-            { id:'cashflow', label:'Cash Flow'      },
+            { id:'pl',            label:'📊 Profit & Loss — قائمة الدخل'      },
+            { id:'cashflow',      label:'💧 Cash Flow — التدفقات النقدية'       },
+            { id:'balance_sheet', label:'🏦 Balance Sheet — المركز المالي'      },
+            { id:'trial_balance', label:'⚖️ Trial Balance — ميزان المراجعة'    },
           ].map(t => (
             <button key={t.id} onClick={() => { setReportType(t.id); setData(null) }} style={{
-              padding:'8px 18px', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer',
+              padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
               background: reportType === t.id ? C.gold : C.g10,
               color: reportType === t.id ? C.goldText : C.muted,
               border: `1px solid ${reportType === t.id ? C.gold : C.border}`,
@@ -1579,19 +1810,27 @@ function ReportsTab({ C }) {
           ))}
         </div>
 
-        {reportType === 'pl' && (
+        {/* Date controls per report type */}
+        {['pl','trial_balance'].includes(reportType) && (
           <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-            <span style={{ fontSize:11, color:C.muted }}>📅 {fy.labelEn}:</span>
-            <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>From:</label>
+            <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>من / From:</label>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }} />
-            <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>To:</label>
+            <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>إلى / To:</label>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
               style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }} />
             <button onClick={() => { setDateFrom(fy.start); setDateTo(fy.end) }}
               style={{ padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', background:'rgba(74,222,128,0.08)', color:C.gold, border:`1px solid rgba(74,222,128,0.25)` }}>
-              Reset to FY
+              السنة المالية
             </button>
+          </div>
+        )}
+
+        {reportType === 'balance_sheet' && (
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            <label style={{ fontSize:12, color:C.muted, fontWeight:600 }}>بتاريخ / As of:</label>
+            <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)}
+              style={{ padding:'8px 12px', background:C.bg3, border:`1px solid ${C.border}`, borderRadius:8, color:C.ink, fontSize:13 }} />
           </div>
         )}
 
@@ -1610,13 +1849,15 @@ function ReportsTab({ C }) {
 
         <div style={{ marginTop:16 }}>
           <Btn onClick={generate} C={C} disabled={loading}>
-            {loading ? 'Generating…' : '📊 Generate Report'}
+            {loading ? 'جاري الإنشاء…' : '📊 إنشاء التقرير'}
           </Btn>
         </div>
       </div>
 
-      {reportType === 'pl'       && renderPL()}
-      {reportType === 'cashflow' && renderCashFlow()}
+      {reportType === 'pl'            && renderPL()}
+      {reportType === 'cashflow'      && renderCashFlow()}
+      {reportType === 'balance_sheet' && renderBalanceSheet()}
+      {reportType === 'trial_balance' && renderTrialBalance()}
     </div>
   )
 }
@@ -1718,7 +1959,44 @@ function LedgerTab({ C }) {
 
       {!loading && view === 'journal' && (
         <div>
-          <div style={{ fontSize:13, color:C.muted, marginBottom:12 }}>{fmtN(jTotal)} entries</div>
+          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
+            <span style={{ fontSize:13, color:C.muted }}>{fmtN(jTotal)} entries</span>
+            <button onClick={() => {
+              const rows = journal.map(e => {
+                const lines = Array.isArray(e.lines) ? e.lines.map(l =>
+                  `<tr><td style="padding:3px 10px;color:#888">${l.code} — ${l.name}</td><td style="padding:3px 10px;text-align:right;color:#2563eb;font-family:monospace">${l.debit>0?fmt(l.debit):''}</td><td style="padding:3px 10px;text-align:right;color:#dc2626;font-family:monospace">${l.credit>0?fmt(l.credit):''}</td></tr>`).join('') : ''
+                return `<div style="border:1px solid #e0e8e0;border-radius:8px;padding:12px 16px;margin-bottom:12px;page-break-inside:avoid">
+                  <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
+                    <span style="font-family:monospace;color:#16a34a;font-weight:700;font-size:12px">${e.entry_number}</span>
+                    <span style="color:#888;font-size:12px">${new Date(e.entry_date).toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})}</span>
+                    <span style="color:#666;font-size:11px;text-transform:capitalize;background:#f0f7f0;padding:2px 8px;border-radius:10px">${e.source_type||'manual'}</span>
+                    <span style="color:#aaa;font-size:11px;margin-left:auto">${e.created_by||''}</span>
+                  </div>
+                  ${e.description?`<div style="font-size:13px;margin-bottom:6px;color:#111">${e.description}</div>`:''}
+                  <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead><tr><th style="text-align:left;padding:3px 10px;color:#888;font-size:10px">الحساب / Account</th><th style="text-align:right;padding:3px 10px;color:#2563eb;font-size:10px">مدين / Debit</th><th style="text-align:right;padding:3px 10px;color:#dc2626;font-size:10px">دائن / Credit</th></tr></thead>
+                    <tbody>${lines}</tbody>
+                  </table>
+                </div>`
+              }).join('')
+              const w = window.open('','_blank','width=900,height=700')
+              w.document.write(`<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8"><title>Journal</title>
+              <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:18mm}
+              .header{display:flex;justify-content:space-between;border-bottom:3px solid #16a34a;padding-bottom:12px;margin-bottom:20px}
+              .brand{font-size:16px;font-weight:900;color:#16a34a}.brand-sub{font-size:11px;color:#888}h1{font-size:20px}
+              .badge{display:inline-block;padding:3px 10px;border-radius:20px;background:#16a34a22;color:#16a34a;font-weight:700;font-size:11px}
+              @media print{body{padding:10mm}@page{size:A4;margin:10mm}}</style>
+              </head><body>
+              <div class="header"><div><div class="brand">أكاديمية بشار العسلي</div><div class="brand-sub">Bashar Al-Asali Academy</div></div>
+              <div style="text-align:right"><h1>دفتر اليومية<br/>Journal Entries</h1><div class="badge">صفحة / Page ${jPage} من / of ${jPages}</div></div></div>
+              ${rows}
+              <p style="color:#aaa;font-size:10px;text-align:center;margin-top:20px">Printed ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} — Bashar Al-Asali Academy</p>
+              <script>window.onload=()=>{window.print()}<\/script></body></html>`)
+              w.document.close()
+            }} style={{ padding:'6px 14px', borderRadius:8, background:'rgba(74,222,128,0.1)', color:C.gold, border:`1px solid rgba(74,222,128,0.3)`, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              🖨️ طباعة القيود الظاهرة
+            </button>
+          </div>
           <div style={{ display:'grid', gap:10 }}>
             {journal.map(e => (
               <div key={e.id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:'14px 18px' }}>

@@ -4,8 +4,8 @@ import { getFinanceDashboard } from '../../../lib/finance-db'
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
   try {
-    const { period, year, month } = req.query
-    const data = await getFinanceDashboard({ period, year, month })
+    const { period, year, month, dateFrom, dateTo } = req.query
+    const data = await getFinanceDashboard({ period, year, month, dateFrom, dateTo })
     return res.status(200).json(data)
   } catch (e) {
     console.error('finance/dashboard error:', e)

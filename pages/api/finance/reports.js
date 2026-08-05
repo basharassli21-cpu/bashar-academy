@@ -1,16 +1,18 @@
 import { requireAuth } from '../../../lib/auth'
-import { getPLReport, getCashFlowReport, getAuditLog, getAccounts, getJournalEntries } from '../../../lib/finance-db'
+import { getPLReport, getCashFlowReport, getAuditLog, getAccounts, getJournalEntries, getBalanceSheet, getTrialBalance } from '../../../lib/finance-db'
 
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
 
-  const { type, dateFrom, dateTo, year, month, page, limit } = req.query
+  const { type, dateFrom, dateTo, year, month, page, limit, asOfDate } = req.query
 
   try {
-    if (type === 'pl')        return res.status(200).json(await getPLReport({ dateFrom, dateTo }))
-    if (type === 'cashflow')  return res.status(200).json(await getCashFlowReport({ year, month }))
-    if (type === 'audit')     return res.status(200).json(await getAuditLog({ page: parseInt(page)||1, limit: parseInt(limit)||50 }))
-    if (type === 'accounts')  return res.status(200).json({ accounts: await getAccounts() })
+    if (type === 'pl')            return res.status(200).json(await getPLReport({ dateFrom, dateTo }))
+    if (type === 'cashflow')      return res.status(200).json(await getCashFlowReport({ year, month }))
+    if (type === 'audit')         return res.status(200).json(await getAuditLog({ page: parseInt(page)||1, limit: parseInt(limit)||50 }))
+    if (type === 'accounts')      return res.status(200).json({ accounts: await getAccounts() })
+    if (type === 'balance_sheet') return res.status(200).json(await getBalanceSheet({ asOfDate }))
+    if (type === 'trial_balance') return res.status(200).json(await getTrialBalance({ dateFrom, dateTo }))
     if (type === 'journal') {
       return res.status(200).json(await getJournalEntries({
         dateFrom, dateTo, sourceType: req.query.sourceType,
