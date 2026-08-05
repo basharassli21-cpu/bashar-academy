@@ -2021,6 +2021,8 @@ function LedgerTab({ C }) {
   const [aPages, setAPages] = useState(1)
   const [aPage, setAPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [syncMsg, setSyncMsg] = useState('')
+  const [syncing, setSyncing] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -2072,6 +2074,48 @@ function LedgerTab({ C }) {
 
       {!loading && view === 'accounts' && (
         <div style={{ display:'grid', gap:16 }}>
+
+          {/* ── Maintenance Panel ── */}
+          <div style={{ background:C.bg3, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px' }}>
+            <div style={{ fontSize:12, color:C.muted, fontWeight:700, letterSpacing:'0.06em', marginBottom:12 }}>
+              🔧 صيانة الأرصدة / Account Balance Maintenance
+            </div>
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+              <button disabled={syncing} onClick={async () => {
+                setSyncing(true); setSyncMsg('')
+                const r = await fetch('/api/finance/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'resync_journals' }) })
+                const d = await r.json()
+                if (r.ok) {
+                  setSyncMsg(`✅ تم: ${d.synced} قيد مزامَن، ${d.accountsUpdated} حساب مُحدَّث${d.errors?.length ? ` — ⚠️ ${d.errors.length} خطأ: ${d.errors[0]}` : ''}`)
+                  load()
+                } else setSyncMsg(`❌ خطأ: ${d.error}`)
+                setSyncing(false)
+              }} style={{ padding:'8px 18px', borderRadius:9, fontWeight:700, fontSize:12, cursor:syncing?'wait':'pointer', background:'rgba(96,165,250,0.12)', color:C.blue, border:`1px solid rgba(96,165,250,0.3)`, opacity:syncing?0.6:1 }}>
+                {syncing ? '⏳ جاري المزامنة…' : '🔄 مزامنة القيود المفقودة'}
+              </button>
+              <button disabled={syncing} onClick={async () => {
+                setSyncing(true); setSyncMsg('')
+                const r = await fetch('/api/finance/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'rebuild_balances' }) })
+                const d = await r.json()
+                if (r.ok) {
+                  setSyncMsg(`✅ تم إعادة حساب أرصدة ${d.accountsUpdated} حساب من سطور القيود`)
+                  load()
+                } else setSyncMsg(`❌ خطأ: ${d.error}`)
+                setSyncing(false)
+              }} style={{ padding:'8px 18px', borderRadius:9, fontWeight:700, fontSize:12, cursor:syncing?'wait':'pointer', background:'rgba(74,222,128,0.08)', color:C.gold, border:`1px solid rgba(74,222,128,0.25)`, opacity:syncing?0.6:1 }}>
+                {syncing ? '⏳…' : '♻️ إعادة حساب الأرصدة'}
+              </button>
+              <span style={{ fontSize:11, color:C.muted2 }}>← شغّل هذا إذا كانت التقارير لا تعكس المبيعات الفعلية</span>
+            </div>
+            {syncMsg && (
+              <div style={{ marginTop:10, padding:'8px 14px', borderRadius:8, fontSize:12, fontWeight:600,
+                background: syncMsg.startsWith('✅') ? 'rgba(74,222,128,0.08)' : 'rgba(240,128,122,0.10)',
+                color: syncMsg.startsWith('✅') ? C.gold : C.red, border:`1px solid ${syncMsg.startsWith('✅')?'rgba(74,222,128,0.2)':'rgba(240,128,122,0.3)'}` }}>
+                {syncMsg}
+              </div>
+            )}
+          </div>
+
           {Object.entries(groupedAccounts).map(([type, accs]) => (
             <div key={type} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>
               <div style={{ padding:'13px 18px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', gap:10 }}>
