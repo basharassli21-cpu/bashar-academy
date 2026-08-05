@@ -1173,6 +1173,7 @@ function DepositsTab({ C }) {
   const [accounts, setAccounts]   = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving]       = useState(false)
+  const [deleting, setDeleting]   = useState(null)
   const [msg, setMsg]             = useState('')
   const [form, setForm] = useState({
     depositDate: new Date().toISOString().split('T')[0],
@@ -1228,6 +1229,16 @@ function DepositsTab({ C }) {
   const debitName  = accounts.find(a => a.code === form.debitAccount)?.name  || ''
   const creditName = accounts.find(a => a.code === form.creditAccount)?.name || ''
 
+  async function deleteDeposit(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا الإيداع؟ سيتم إلغاء القيد المحاسبي تلقائياً.')) return
+    setDeleting(id)
+    const r = await fetch(`/api/finance/deposits?id=${id}`, { method: 'DELETE' })
+    const d = await r.json()
+    if (r.ok) { setMsg('✅ تم حذف الإيداع وإلغاء القيد المحاسبي'); load() }
+    else setMsg(`❌ خطأ: ${d.error}`)
+    setDeleting(null)
+  }
+
   const cols = [
     { key:'deposit_number', label:'رقم الإيداع', render: r => <span style={{ fontFamily:'monospace', color:C.gold, fontSize:12, fontWeight:700 }}>{r.deposit_number}</span> },
     { key:'deposit_date',   label:'التاريخ',     render: r => fmtDate(r.deposit_date) },
@@ -1237,6 +1248,14 @@ function DepositsTab({ C }) {
     { key:'debit_account',  label:'مدين',        render: r => <span style={{ fontFamily:'monospace', color:C.blue, fontSize:11 }}>{r.debit_account}</span> },
     { key:'credit_account', label:'دائن',        render: r => <span style={{ fontFamily:'monospace', color:C.red, fontSize:11 }}>{r.credit_account}</span> },
     { key:'entry_number',   label:'رقم القيد',   render: r => <span style={{ fontFamily:'monospace', fontSize:11, color:C.muted }}>{r.entry_number || '—'}</span> },
+    { key:'actions',        label:'',            render: r => (
+      <button onClick={() => deleteDeposit(r.id)} disabled={deleting === r.id}
+        style={{ padding:'4px 10px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer',
+          background:'rgba(240,128,122,0.10)', color:C.red, border:`1px solid rgba(240,128,122,0.3)`,
+          opacity: deleting === r.id ? 0.5 : 1 }}>
+        {deleting === r.id ? '⏳' : '🗑 حذف'}
+      </button>
+    )},
   ]
 
   return (
@@ -2021,9 +2040,6 @@ function LedgerTab({ C }) {
   const [aPages, setAPages] = useState(1)
   const [aPage, setAPage] = useState(1)
   const [loading, setLoading] = useState(true)
-  const [syncMsg, setSyncMsg] = useState('')
-  const [syncing, setSyncing] = useState(false)
-
   const load = useCallback(async () => {
     setLoading(true)
     if (view === 'accounts') {
@@ -2074,47 +2090,6 @@ function LedgerTab({ C }) {
 
       {!loading && view === 'accounts' && (
         <div style={{ display:'grid', gap:16 }}>
-
-          {/* ── Maintenance Panel ── */}
-          <div style={{ background:C.bg3, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px' }}>
-            <div style={{ fontSize:12, color:C.muted, fontWeight:700, letterSpacing:'0.06em', marginBottom:12 }}>
-              🔧 صيانة الأرصدة / Account Balance Maintenance
-            </div>
-            <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-              <button disabled={syncing} onClick={async () => {
-                setSyncing(true); setSyncMsg('')
-                const r = await fetch('/api/finance/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'resync_journals' }) })
-                const d = await r.json()
-                if (r.ok) {
-                  setSyncMsg(`✅ تم: ${d.synced} قيد مزامَن، ${d.accountsUpdated} حساب مُحدَّث${d.errors?.length ? ` — ⚠️ ${d.errors.length} خطأ: ${d.errors[0]}` : ''}`)
-                  load()
-                } else setSyncMsg(`❌ خطأ: ${d.error}`)
-                setSyncing(false)
-              }} style={{ padding:'8px 18px', borderRadius:9, fontWeight:700, fontSize:12, cursor:syncing?'wait':'pointer', background:'rgba(96,165,250,0.12)', color:C.blue, border:`1px solid rgba(96,165,250,0.3)`, opacity:syncing?0.6:1 }}>
-                {syncing ? '⏳ جاري المزامنة…' : '🔄 مزامنة القيود المفقودة'}
-              </button>
-              <button disabled={syncing} onClick={async () => {
-                setSyncing(true); setSyncMsg('')
-                const r = await fetch('/api/finance/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'rebuild_balances' }) })
-                const d = await r.json()
-                if (r.ok) {
-                  setSyncMsg(`✅ تم إعادة حساب أرصدة ${d.accountsUpdated} حساب من سطور القيود`)
-                  load()
-                } else setSyncMsg(`❌ خطأ: ${d.error}`)
-                setSyncing(false)
-              }} style={{ padding:'8px 18px', borderRadius:9, fontWeight:700, fontSize:12, cursor:syncing?'wait':'pointer', background:'rgba(74,222,128,0.08)', color:C.gold, border:`1px solid rgba(74,222,128,0.25)`, opacity:syncing?0.6:1 }}>
-                {syncing ? '⏳…' : '♻️ إعادة حساب الأرصدة'}
-              </button>
-              <span style={{ fontSize:11, color:C.muted2 }}>← شغّل هذا إذا كانت التقارير لا تعكس المبيعات الفعلية</span>
-            </div>
-            {syncMsg && (
-              <div style={{ marginTop:10, padding:'8px 14px', borderRadius:8, fontSize:12, fontWeight:600,
-                background: syncMsg.startsWith('✅') ? 'rgba(74,222,128,0.08)' : 'rgba(240,128,122,0.10)',
-                color: syncMsg.startsWith('✅') ? C.gold : C.red, border:`1px solid ${syncMsg.startsWith('✅')?'rgba(74,222,128,0.2)':'rgba(240,128,122,0.3)'}` }}>
-                {syncMsg}
-              </div>
-            )}
-          </div>
 
           {Object.entries(groupedAccounts).map(([type, accs]) => (
             <div key={type} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>

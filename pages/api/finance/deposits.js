@@ -1,5 +1,5 @@
 import { requireAuth } from '../../../lib/auth'
-import { getDeposits, createDeposit } from '../../../lib/finance-db'
+import { getDeposits, createDeposit, softDeleteDeposit } from '../../../lib/finance-db'
 
 async function handler(req, res) {
   if (req.method === 'GET') {
@@ -24,6 +24,19 @@ async function handler(req, res) {
       return res.status(200).json(result)
     } catch (e) {
       console.error('deposits POST error:', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.query
+    if (!id) return res.status(400).json({ error: 'Missing id' })
+    try {
+      const actor = req.user?.username || 'admin'
+      await softDeleteDeposit(parseInt(id), actor)
+      return res.status(200).json({ ok: true })
+    } catch (e) {
+      console.error('deposits DELETE error:', e)
       return res.status(500).json({ error: e.message })
     }
   }
