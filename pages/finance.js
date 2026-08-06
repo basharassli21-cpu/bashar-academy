@@ -2028,6 +2028,233 @@ function ReportsTab({ C }) {
 }
 
 // ─── Ledger Tab ───────────────────────────────────────────────────────────
+// ─── General Ledger View ─────────────────────────────────────────────────────
+function GeneralLedgerView({ C }) {
+  const fy = currentFiscalYear()
+  const [accounts, setAccounts]       = useState([])
+  const [selectedCode, setSelectedCode] = useState('')
+  const [dateFrom, setDateFrom]       = useState(fy.start)
+  const [dateTo, setDateTo]           = useState(new Date().toISOString().split('T')[0])
+  const [stmt, setStmt]               = useState(null)
+  const [loading, setLoading]         = useState(false)
+  const [acctLoading, setAcctLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/finance/reports?type=accounts')
+      .then(r => r.json())
+      .then(d => { setAccounts((d.accounts || []).filter(a => !a.is_deleted)); setAcctLoading(false) })
+  }, [])
+
+  async function loadStmt() {
+    if (!selectedCode) return
+    setLoading(true); setStmt(null)
+    const p = new URLSearchParams({ type: 'account_statement', accountCode: selectedCode, dateFrom, dateTo })
+    const r = await fetch('/api/finance/reports?' + p)
+    const d = await r.json()
+    setStmt(r.ok ? d : null); setLoading(false)
+  }
+
+  function printStmt() {
+    if (!stmt) return
+    const { account, dateFrom: from, dateTo: to, openingBalance, rows, closingBalance } = stmt
+    const isDb = ['asset','expense'].includes(account.type)
+    const sign = v => v >= 0 ? fmt(Math.abs(v)) : `(${fmt(Math.abs(v))})`
+    const rowsHtml = rows.map(r => `
+      <tr>
+        <td>${fmtDate(r.entry_date)}</td>
+        <td style="font-family:monospace;color:#555">${r.entry_number || ''}</td>
+        <td>${r.description || ''}</td>
+        <td style="text-align:right;color:#1d4ed8">${r.debit  > 0 ? fmt(r.debit)  : ''}</td>
+        <td style="text-align:right;color:#dc2626">${r.credit > 0 ? fmt(r.credit) : ''}</td>
+        <td style="text-align:right;font-weight:700;color:${r.running_balance >= 0 ? '#16a34a' : '#dc2626'}">${sign(r.running_balance)}</td>
+      </tr>`).join('')
+    const w = window.open('', '_blank', 'width=1000,height=750')
+    w.document.write(`<!DOCTYPE html><html dir="ltr"><head>
+      <meta charset="UTF-8"><title>Account Statement</title>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20mm 18mm}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #16a34a;padding-bottom:12px;margin-bottom:18px}
+        .brand{font-size:16px;font-weight:900;color:#16a34a}.brand-sub{font-size:11px;color:#888}
+        h1{font-size:20px;font-weight:900;margin-bottom:4px}h2{font-size:12px;color:#555;margin-bottom:2px}
+        .acct-box{background:#f0f7f0;border:1px solid #d1fae5;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;gap:32px}
+        .acct-item{font-size:11px;color:#555}.acct-val{font-size:13px;font-weight:800;color:#111}
+        table{width:100%;border-collapse:collapse;font-size:11.5px}
+        th{background:#16a34a;color:#fff;padding:8px 10px;text-align:left}
+        td{padding:6px 10px;border-bottom:1px solid #e5e7eb}
+        .ob-row td,.cb-row td{background:#f8faf8;font-weight:700;font-style:italic}
+        .ob-row td{color:#6b7280}.cb-row td{color:#16a34a;border-top:2px solid #333}
+        @media print{body{padding:10mm 12mm}@page{size:A4;margin:10mm}}
+        .footer{color:#aaa;font-size:10px;text-align:center;margin-top:28px}
+      </style>
+    </head><body>
+    <div class="header">
+      <div><div class="brand">Bashar Al-Asali Academy</div><div class="brand-sub">أكاديمية بشار العسلي</div></div>
+      <div style="text-align:right"><h1>كشف حساب — Account Statement</h1><h2>${from} → ${to}</h2></div>
+    </div>
+    <div class="acct-box">
+      <div class="acct-item">كود الحساب / Code<br/><span class="acct-val" style="font-family:monospace">${account.code}</span></div>
+      <div class="acct-item">اسم الحساب / Account<br/><span class="acct-val">${account.name}</span></div>
+      <div class="acct-item">النوع / Type<br/><span class="acct-val">${account.type}</span></div>
+      <div class="acct-item">رصيد الافتتاح / Opening<br/><span class="acct-val" style="color:#1d4ed8">${sign(openingBalance)}</span></div>
+      <div class="acct-item">رصيد الإقفال / Closing<br/><span class="acct-val" style="color:#16a34a">${sign(closingBalance)}</span></div>
+    </div>
+    <table>
+      <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th style="text-align:right">مدين / Dr</th><th style="text-align:right">دائن / Cr</th><th style="text-align:right">الرصيد</th></tr></thead>
+      <tbody>
+        <tr class="ob-row"><td colspan="3">← رصيد افتتاحي / Opening Balance</td><td></td><td></td><td style="text-align:right">${sign(openingBalance)}</td></tr>
+        ${rowsHtml}
+        <tr class="cb-row"><td colspan="3"><strong>رصيد إقفال / Closing Balance</strong></td><td></td><td></td><td style="text-align:right"><strong>${sign(closingBalance)}</strong></td></tr>
+      </tbody>
+    </table>
+    <p class="footer">Printed ${new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'})} — Bashar Al-Asali Academy</p>
+    <script>window.onload=()=>{window.print();}<\/script></body></html>`)
+    w.document.close()
+  }
+
+  const TYPE_LABELS = { asset:'أصول', liability:'خصوم', equity:'حقوق ملكية', revenue:'إيرادات', expense:'مصاريف' }
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'260px 1fr', gap:20, minHeight:500 }}>
+      {/* ── Account List ── */}
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden', alignSelf:'start' }}>
+        <div style={{ padding:'12px 16px', borderBottom:`1px solid ${C.border}`, fontWeight:800, fontSize:13, color:C.ink }}>
+          📂 شجرة الحسابات
+        </div>
+        {acctLoading ? <Spinner C={C} /> : (
+          <div style={{ maxHeight:600, overflowY:'auto' }}>
+            {['asset','liability','equity','revenue','expense'].map(type => {
+              const group = accounts.filter(a => a.type === type)
+              if (!group.length) return null
+              return (
+                <div key={type}>
+                  <div style={{ padding:'8px 14px', fontSize:10, fontWeight:800, letterSpacing:'0.08em', color:C.muted, textTransform:'uppercase', background:C.bg3, borderBottom:`1px solid ${C.border}` }}>
+                    {TYPE_LABELS[type] || type}
+                  </div>
+                  {group.map(a => (
+                    <button key={a.code} onClick={() => setSelectedCode(a.code)} style={{
+                      display:'block', width:'100%', textAlign:'left', padding:'9px 14px',
+                      background: selectedCode === a.code ? 'rgba(250,204,21,0.13)' : 'transparent',
+                      borderBottom:`1px solid ${C.border}`, border:'none',
+                      borderLeft: selectedCode === a.code ? `3px solid ${C.gold}` : '3px solid transparent',
+                      cursor:'pointer', fontSize:12,
+                    }}>
+                      <span style={{ fontFamily:'monospace', fontSize:11, color:C.muted, marginRight:6 }}>{a.code}</span>
+                      <span style={{ color: selectedCode === a.code ? C.ink : C.muted2, fontWeight: selectedCode === a.code ? 700 : 400 }}>{a.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Statement Panel ── */}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        {/* Controls */}
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px', display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div>
+            <div style={{ fontSize:11, color:C.muted, fontWeight:700, marginBottom:4 }}>من / From</div>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              style={{ padding:'7px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.bg3, color:C.ink, fontSize:13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:C.muted, fontWeight:700, marginBottom:4 }}>إلى / To</div>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              style={{ padding:'7px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.bg3, color:C.ink, fontSize:13 }} />
+          </div>
+          <button onClick={() => { setDateFrom(fy.start); setDateTo(fy.end) }}
+            style={{ padding:'7px 14px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', background:C.g10, color:C.gold, border:`1px solid ${C.border}` }}>
+            السنة المالية
+          </button>
+          <Btn onClick={loadStmt} C={C} disabled={!selectedCode || loading}>
+            {loading ? '⏳ جاري التحميل…' : '📊 عرض الكشف'}
+          </Btn>
+          {stmt && (
+            <Btn onClick={printStmt} C={C} variant="outline">🖨 طباعة</Btn>
+          )}
+        </div>
+
+        {/* Statement */}
+        {!selectedCode && (
+          <div style={{ background:C.surface, border:`1px dashed ${C.border}`, borderRadius:14, padding:40, textAlign:'center', color:C.muted, fontSize:13 }}>
+            ← اختر حساباً من القائمة على اليسار لعرض كشف الحساب
+          </div>
+        )}
+        {selectedCode && !stmt && !loading && (
+          <div style={{ background:C.surface, border:`1px dashed ${C.border}`, borderRadius:14, padding:40, textAlign:'center', color:C.muted, fontSize:13 }}>
+            اضغط "عرض الكشف" لتحميل بيانات الحساب
+          </div>
+        )}
+        {loading && <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:40 }}><Spinner C={C} /></div>}
+        {stmt && !loading && (
+          <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, overflow:'hidden' }}>
+            {/* Account header */}
+            <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.border}`, background:C.bg3, display:'flex', gap:24, flexWrap:'wrap', alignItems:'center' }}>
+              <div>
+                <span style={{ fontFamily:'monospace', fontSize:12, fontWeight:800, color:C.gold }}>{stmt.account.code}</span>
+                <span style={{ marginLeft:10, fontSize:15, fontWeight:800, color:C.ink }}>{stmt.account.name}</span>
+              </div>
+              <div style={{ marginLeft:'auto', display:'flex', gap:20 }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>رصيد افتتاحي</div>
+                  <div style={{ fontFamily:'monospace', fontWeight:800, color:C.blue, fontSize:13 }}>{fmt(stmt.openingBalance)}</div>
+                </div>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>الحركات</div>
+                  <div style={{ fontFamily:'monospace', fontWeight:800, color:C.ink, fontSize:13 }}>{stmt.rows.length} قيد</div>
+                </div>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>رصيد إقفال</div>
+                  <div style={{ fontFamily:'monospace', fontWeight:800, color:C.gold, fontSize:14 }}>{fmt(stmt.closingBalance)}</div>
+                </div>
+              </div>
+            </div>
+            {/* Table */}
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:C.bg3 }}>
+                    {['التاريخ','رقم القيد','البيان','مدين','دائن','الرصيد'].map(h => (
+                      <th key={h} style={{ padding:'8px 14px', textAlign: ['مدين','دائن','الرصيد'].includes(h) ? 'right' : 'left', color:C.muted, fontSize:10, fontWeight:800, textTransform:'uppercase', borderBottom:`1px solid ${C.border}` }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Opening row */}
+                  <tr style={{ background: 'rgba(250,204,21,0.05)' }}>
+                    <td colSpan={5} style={{ padding:'8px 14px', color:C.muted, fontStyle:'italic', fontSize:11, borderBottom:`1px solid ${C.border}` }}>← رصيد افتتاحي / Opening Balance</td>
+                    <td style={{ padding:'8px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:800, color:C.blue, borderBottom:`1px solid ${C.border}` }}>{fmt(stmt.openingBalance)}</td>
+                  </tr>
+                  {stmt.rows.length === 0 && (
+                    <tr><td colSpan={6} style={{ padding:24, textAlign:'center', color:C.muted }}>لا توجد حركات في هذه الفترة</td></tr>
+                  )}
+                  {stmt.rows.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.bg3 }}>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, color:C.muted, fontSize:11 }}>{fmtDate(row.entry_date)}</td>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, fontFamily:'monospace', fontSize:11, color:C.muted2 }}>{row.entry_number || '—'}</td>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, color:C.ink, maxWidth:260 }}>{row.description || '—'}</td>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, textAlign:'right', fontFamily:'monospace', color:C.blue, fontWeight: row.debit > 0 ? 700 : 400 }}>{row.debit > 0 ? fmt(row.debit) : ''}</td>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, textAlign:'right', fontFamily:'monospace', color:C.red, fontWeight: row.credit > 0 ? 700 : 400 }}>{row.credit > 0 ? fmt(row.credit) : ''}</td>
+                      <td style={{ padding:'7px 14px', borderBottom:`1px solid ${C.border}`, textAlign:'right', fontFamily:'monospace', fontWeight:700, color: row.running_balance >= 0 ? C.gold : C.red }}>{fmt(row.running_balance)}</td>
+                    </tr>
+                  ))}
+                  {/* Closing row */}
+                  <tr style={{ background:C.g10, borderTop:`2px solid ${C.border}` }}>
+                    <td colSpan={5} style={{ padding:'10px 14px', fontWeight:800, fontSize:13, color:C.ink }}>رصيد الإقفال / Closing Balance</td>
+                    <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:900, fontSize:14, color:C.gold }}>{fmt(stmt.closingBalance)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function LedgerTab({ C }) {
   const [view, setView] = useState('accounts')
   const [accounts, setAccounts] = useState([])
@@ -2074,19 +2301,26 @@ function LedgerTab({ C }) {
     <div style={{ padding:28 }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.ink }}>Ledger & Accounting</div>
-        <div style={{ display:'flex', gap:6 }}>
-          {['accounts','journal','audit'].map(v => (
-            <button key={v} onClick={() => { setView(v) }} style={{
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {[
+            { id:'accounts',       label:'📂 الحسابات' },
+            { id:'general_ledger', label:'📋 دفتر الأستاذ' },
+            { id:'journal',        label:'📓 اليومية' },
+            { id:'audit',          label:'🔍 سجل التدقيق' },
+          ].map(v => (
+            <button key={v.id} onClick={() => { setView(v.id) }} style={{
               padding:'7px 16px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
-              background: view === v ? C.gold : C.g10,
-              color: view === v ? C.goldText : C.muted,
-              border: `1px solid ${view === v ? C.gold : C.border}`,
-            }}>{v === 'accounts' ? '📂 Accounts' : v === 'journal' ? '📓 Journal' : '🔍 Audit Log'}</button>
+              background: view === v.id ? C.gold : C.g10,
+              color: view === v.id ? C.goldText : C.muted,
+              border: `1px solid ${view === v.id ? C.gold : C.border}`,
+            }}>{v.label}</button>
           ))}
         </div>
       </div>
 
       {loading && <Spinner C={C} />}
+
+      {view === 'general_ledger' && <GeneralLedgerView C={C} />}
 
       {!loading && view === 'accounts' && (
         <div style={{ display:'grid', gap:16 }}>

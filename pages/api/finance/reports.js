@@ -1,5 +1,5 @@
 import { requireAuth } from '../../../lib/auth'
-import { getPLReport, getCashFlowReport, getAuditLog, getAccounts, getJournalEntries, getBalanceSheet, getTrialBalance } from '../../../lib/finance-db'
+import { getPLReport, getCashFlowReport, getAuditLog, getAccounts, getJournalEntries, getBalanceSheet, getTrialBalance, getAccountStatement } from '../../../lib/finance-db'
 
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
@@ -13,6 +13,13 @@ async function handler(req, res) {
     if (type === 'accounts')      return res.status(200).json({ accounts: await getAccounts() })
     if (type === 'balance_sheet') return res.status(200).json(await getBalanceSheet({ asOfDate }))
     if (type === 'trial_balance') return res.status(200).json(await getTrialBalance({ dateFrom, dateTo }))
+    if (type === 'account_statement') {
+      const { accountCode } = req.query
+      if (!accountCode) return res.status(400).json({ error: 'accountCode required' })
+      const stmt = await getAccountStatement({ accountCode, dateFrom, dateTo })
+      if (!stmt) return res.status(404).json({ error: 'Account not found' })
+      return res.status(200).json(stmt)
+    }
     if (type === 'journal') {
       return res.status(200).json(await getJournalEntries({
         dateFrom, dateTo, sourceType: req.query.sourceType,
