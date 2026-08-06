@@ -1337,6 +1337,7 @@ function WithdrawalsTab({ C }) {
   const [status, setStatus] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [employees, setEmployees] = useState([])
+  const [deleting, setDeleting]   = useState(null)
   const [msg, setMsg] = useState('')
   const [form, setForm] = useState({ employeeId:'', amount:'', currency:'JOD', reason:'' })
 
@@ -1382,6 +1383,16 @@ function WithdrawalsTab({ C }) {
     if (r.ok) { setMsg(`Status: ${st}`); load() }
   }
 
+  async function deleteWithdrawal(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا السحب؟ سيتم إلغاء القيد المحاسبي المرتبط به تلقائياً.')) return
+    setDeleting(id)
+    const r = await fetch(`/api/finance/withdrawals?id=${id}`, { method: 'DELETE' })
+    const d = await r.json()
+    if (r.ok) { setMsg('✅ تم حذف السحب وإلغاء القيد المحاسبي'); load() }
+    else setMsg(`❌ خطأ: ${d.error}`)
+    setDeleting(null)
+  }
+
   const WORKFLOW = {
     requested:    { label:'Requested', color:C.yellow },
     under_review: { label:'Under Review', color:C.blue },
@@ -1399,11 +1410,17 @@ function WithdrawalsTab({ C }) {
     { key:'requested_at', label:'Requested', render: r => fmtDate(r.requested_at) },
     { key:'payment_date', label:'Paid On', render: r => r.payment_date ? fmtDate(r.payment_date) : '—' },
     { key:'actions', label:'', render: r => (
-      <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+      <div style={{ display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
         {r.status === 'requested'    && <Btn onClick={() => action(r.id,'under_review')} C={C} variant="outline" style={{ padding:'3px 9px', fontSize:11 }}>Review</Btn>}
         {r.status === 'under_review' && <Btn onClick={() => action(r.id,'approved')} C={C} style={{ padding:'3px 9px', fontSize:11 }}>Approve</Btn>}
         {r.status === 'under_review' && <Btn onClick={() => action(r.id,'rejected')} C={C} variant="danger" style={{ padding:'3px 9px', fontSize:11 }}>Reject</Btn>}
         {r.status === 'approved'     && <Btn onClick={() => action(r.id,'paid')} C={C} variant="outline" style={{ padding:'3px 9px', fontSize:11 }}>Mark Paid</Btn>}
+        <button onClick={() => deleteWithdrawal(r.id)} disabled={deleting === r.id}
+          style={{ padding:'3px 9px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer',
+            background:'rgba(240,128,122,0.10)', color:C.red, border:`1px solid rgba(240,128,122,0.3)`,
+            opacity: deleting === r.id ? 0.5 : 1 }}>
+          {deleting === r.id ? '⏳' : '🗑'}
+        </button>
       </div>
     )},
   ]

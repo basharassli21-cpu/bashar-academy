@@ -1,5 +1,5 @@
 import { requireAuth } from '../../../lib/auth'
-import { createWithdrawal, getWithdrawals, updateWithdrawal } from '../../../lib/finance-db'
+import { createWithdrawal, getWithdrawals, updateWithdrawal, softDeleteWithdrawal } from '../../../lib/finance-db'
 
 async function handler(req, res) {
   if (req.method === 'GET') {
@@ -23,6 +23,18 @@ async function handler(req, res) {
     if (!valid.includes(updates.status)) return res.status(400).json({ error: 'invalid status' })
     const wd = await updateWithdrawal(id, { ...updates, approvedBy: req.user.username }, req.user.username)
     return res.status(200).json({ withdrawal: wd })
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.query
+    if (!id) return res.status(400).json({ error: 'Missing id' })
+    try {
+      await softDeleteWithdrawal(parseInt(id), req.user?.username || 'admin')
+      return res.status(200).json({ ok: true })
+    } catch (e) {
+      console.error('withdrawals DELETE error:', e)
+      return res.status(500).json({ error: e.message })
+    }
   }
 
   return res.status(405).end()
