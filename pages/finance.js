@@ -47,7 +47,16 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB') : '—'
 const fmtPct = n => (parseFloat(n) || 0).toFixed(1) + '%'
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const PRODUCT_TYPES = ['course','consultation','coaching','bundle','other']
-const PAYMENT_METHODS = ['stripe','paypal','cash','bank','crypto','manual','transfer']
+const PAYMENT_METHODS = [
+  { value:'stripe',     label:'Stripe (بطاقة ائتمان)' },
+  { value:'paypal',     label:'PayPal' },
+  { value:'bank',       label:'تحويل بنكي — البنك الرئيسي' },
+  { value:'bank_alfan', label:'تحويل بنكي — بنك الفان' },
+  { value:'cash',       label:'نقداً (Cash)' },
+  { value:'transfer',   label:'حوالة (Wire Transfer)' },
+  { value:'crypto',     label:'كريبتو' },
+  { value:'manual',     label:'يدوي' },
+]
 const PAYMENT_STATUSES = ['pending','paid','partial','failed','refunded','cancelled']
 const EXPENSE_CATS = ['Marketing','Ads','Meta Ads','Hosting','Software','Monthly Subscription','Employees','Freelancers','Office','Taxes','Utilities','Travel','Education','Equipment','Phone','Other']
 const COURSE_OPTIONS = [
@@ -505,7 +514,8 @@ const STATUS_AR = {
 }
 const METHOD_AR = {
   stripe:'بطاقة ائتمان', paypal:'PayPal', cash:'نقداً',
-  bank:'تحويل بنكي', transfer:'تحويل', manual:'يدوي', crypto:'كريبتو',
+  bank:'تحويل بنكي — البنك الرئيسي', bank_alfan:'تحويل بنكي — بنك الفان',
+  transfer:'حوالة', manual:'يدوي', crypto:'كريبتو',
 }
 const PRODUCT_AR = {
   course:'كورس تدريبي', consultation:'استشارة', coaching:'كوتشينج',
