@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import Head from 'next/head'
 import { Cairo } from 'next/font/google'
 import '../styles/globals.css'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -95,10 +94,6 @@ export default function App({ Component, pageProps }) {
   }
 
   return (
-    <>
-      <Head>
-        <meta name="facebook-domain-verification" content="v1zmipsekphf29ytvductky9py401d" />
-      </Head>
     <ThemeContext.Provider value={{ theme, toggleTheme: handleToggleTheme }}>
       <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
         <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cairo.className} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'Cairo, Tajawal, sans-serif' }}>
@@ -109,6 +104,5 @@ export default function App({ Component, pageProps }) {
         </div>
       </LangContext.Provider>
     </ThemeContext.Provider>
-    </>
   )
 }
