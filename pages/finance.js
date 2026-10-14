@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useTheme, useLang } from './_app'
@@ -538,10 +539,14 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
     s.id = 'inv-print-css'
     s.textContent = `
       @media print {
+        html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
         body > * { display: none !important; }
-        #inv-root  { display: block !important; position: static !important; background: #fff !important; }
+        #inv-root  { display: block !important; position: static !important; background: #fff !important;
+                     padding: 0 !important; overflow: visible !important; height: auto !important; }
         .inv-controls { display: none !important; }
-        .inv-paper { box-shadow: none !important; margin: 0 !important; }
+        .inv-paper { box-shadow: none !important; margin: 0 !important; border-radius: 0 !important;
+                     width: 100% !important; min-height: 0 !important; padding: 0 !important;
+                     box-sizing: border-box !important; position: relative !important; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         @page { size: A4 portrait; margin: 12mm 15mm; }
       }
@@ -567,7 +572,10 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
 
   const statusColor = { paid:'#16a34a', pending:'#d97706', partial:'#2563eb', refunded:'#7c3aed', failed:'#dc2626', cancelled:'#6b7280' }
 
-  return (
+  // Portal to <body>: the print CSS hides every direct child of body, so the modal
+  // must be one — inside #__next it gets hidden too and the page prints blank/dark.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div id="inv-root" style={{
       position:'fixed', inset:0, zIndex:10000,
       background:'rgba(0,0,0,0.75)', overflowY:'auto',
@@ -789,7 +797,8 @@ function PrintInvoiceModal({ sale, currency, onCurrencyChange, onClose }) {
           }}>مدفوعة • PAID</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
