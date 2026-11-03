@@ -980,6 +980,89 @@ function AdminLeadDetailPanel({ C, leadId, onClose, onUpdated, employees }) {
   )
 }
 
+// ─── ADMIN: Transfer Leads Modal ─────────────────────────────────────────────
+function TransferLeadsModal({ C, employees, onClose, onDone }) {
+  const [from, setFrom]     = useState('')
+  const [to, setTo]         = useState('')
+  const [status, setStatus] = useState('')
+  const [busy, setBusy]     = useState(false)
+  const [err, setErr]       = useState('')
+  const [result, setResult] = useState(null)
+
+  const inp = { background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'9px 12px', color:C.white, fontSize:13, width:'100%', fontFamily:'inherit', boxSizing:'border-box', appearance:'none' }
+
+  async function doTransfer() {
+    setErr(''); setBusy(true); setResult(null)
+    if (!from || !to) { setErr('اختر الموظف المصدر والهدف'); setBusy(false); return }
+    if (from === to) { setErr('الموظف المصدر والهدف متطابقان'); setBusy(false); return }
+    try {
+      const r = await fetch('/api/crm/leads/transfer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ fromEmployeeId:parseInt(from), toEmployeeId:parseInt(to), status:status||undefined }) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error||'فشل النقل')
+      setResult(d.transferred)
+    } catch(e) { setErr(e.message) } finally { setBusy(false) }
+  }
+
+  const fromName = (employees||[]).find(e=>String(e.id)===from)?.name || ''
+  const toName   = (employees||[]).find(e=>String(e.id)===to)?.name   || ''
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:20 }} onClick={onClose}>
+      <div dir="rtl" onClick={e=>e.stopPropagation()} style={{ background:C.surface, border:`1px solid ${C.g30}`, borderRadius:20, padding:28, maxWidth:460, width:'100%' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ color:C.white, fontWeight:900, fontSize:17 }}>🔄 نقل ليدز بين موظفين</h2>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', background:C.g10, border:`1px solid ${C.g20}`, color:C.silver, cursor:'pointer', fontSize:16 }}>✕</button>
+        </div>
+
+        {result !== null ? (
+          <div style={{ textAlign:'center', padding:'20px 0' }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>✅</div>
+            <p style={{ color:C.gold, fontWeight:900, fontSize:20, marginBottom:8 }}>تم النقل!</p>
+            <p style={{ color:C.silver, fontSize:14 }}>تم نقل <span style={{ color:C.white, fontWeight:700 }}>{result}</span> lead من <span style={{ color:C.gold }}>{fromName}</span> إلى <span style={{ color:C.emerald }}>{toName}</span></p>
+            <button onClick={onDone} style={{ marginTop:20, padding:'10px 32px', borderRadius:12, background:C.gold, border:'none', color:C.navy, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>حسناً</button>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {err && <div style={{ background:`${C.red}20`, border:`1px solid ${C.red}40`, borderRadius:10, padding:'9px 14px', color:C.red, fontSize:13 }}>{err}</div>}
+            <div>
+              <label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>من موظف *</label>
+              <select style={inp} value={from} onChange={e=>setFrom(e.target.value)}>
+                <option value="">— اختر الموظف المصدر —</option>
+                {(employees||[]).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>إلى موظف *</label>
+              <select style={inp} value={to} onChange={e=>setTo(e.target.value)}>
+                <option value="">— اختر الموظف الهدف —</option>
+                {(employees||[]).filter(e=>String(e.id)!==from).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>حالة الليدز (اختياري — فارغ = كل الحالات)</label>
+              <select style={inp} value={status} onChange={e=>setStatus(e.target.value)}>
+                <option value="">كل الحالات</option>
+                {STATUS_ORDER.map(s=><option key={s} value={s}>{STATUS_META[s]?.ar}</option>)}
+              </select>
+            </div>
+            {from && to && (
+              <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'10px 14px', color:C.silver, fontSize:13 }}>
+                سيتم نقل {status ? `ليدز "${STATUS_META[status]?.ar}"` : 'جميع الليدز'} من <span style={{ color:C.gold, fontWeight:700 }}>{fromName}</span> إلى <span style={{ color:C.emerald, fontWeight:700 }}>{toName}</span>
+              </div>
+            )}
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
+              <button type="button" onClick={onClose} style={{ padding:'10px 20px', borderRadius:10, background:'none', border:`1px solid ${C.g30}`, color:C.silver, fontSize:13, cursor:'pointer' }}>إلغاء</button>
+              <button onClick={doTransfer} disabled={busy||!from||!to} style={{ padding:'10px 28px', borderRadius:10, background:busy||!from||!to?C.g15:C.purple, border:'none', color:busy||!from||!to?C.silver:'#fff', fontSize:14, fontWeight:700, cursor:busy||!from||!to?'not-allowed':'pointer', fontFamily:'inherit' }}>
+                {busy ? '⏳ جارٍ النقل...' : '🔄 نقل الليدز'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── ADMIN: Leads Management ──────────────────────────────────────────────────
 function AdminLeadsPage({ C, employees }) {
   const [leads, setLeads]       = useState([])
@@ -991,6 +1074,7 @@ function AdminLeadsPage({ C, employees }) {
   const [empFilter, setEmpFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const [showTransfer, setShowTransfer] = useState(false)
   const timer = useRef()
   const LIMIT = 40
 
@@ -1040,6 +1124,7 @@ function AdminLeadsPage({ C, employees }) {
           {STATUS_ORDER.map(s=><option key={s} value={s}>{STATUS_META[s]?.ar}</option>)}
         </select>
         <div style={{ background:C.g15, border:`1px solid ${C.g30}`, borderRadius:8, padding:'8px 14px', color:C.gold, fontSize:13, fontWeight:700 }}>{total.toLocaleString()} lead</div>
+        <button onClick={()=>setShowTransfer(true)} style={{ padding:'8px 16px', borderRadius:8, background:'none', border:`1px solid ${C.purple}44`, color:C.purple, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🔄 نقل ليدز</button>
       </div>
 
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
@@ -1074,6 +1159,7 @@ function AdminLeadsPage({ C, employees }) {
         </div>
       )}
 
+      {showTransfer && <TransferLeadsModal C={C} employees={employees} onClose={()=>setShowTransfer(false)} onDone={()=>{ setShowTransfer(false); load(search,empFilter,statusFilter,page) }} />}
       {selectedId && <AdminLeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={()=>load(search,empFilter,statusFilter,page)} employees={employees} />}
     </div>
   )
