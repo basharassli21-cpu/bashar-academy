@@ -506,8 +506,8 @@ function LeadsPage({ C }) {
 }
 
 // ─── EMPLOYEE: Create Sale Modal ──────────────────────────────────────────────
-function CreateSaleModal({ C, onClose, onSuccess }) {
-  const [f, setF] = useState({ studentName:'', studentPhone:'', packageName:'', amountPaid:'', deposit:'', paymentMethod:'bank_transfer', saleStatus:'paid', notes:'' })
+function CreateSaleModal({ C, onClose, onSuccess, employees, isAdmin }) {
+  const [f, setF] = useState({ studentName:'', studentPhone:'', packageName:'', amountPaid:'', deposit:'', paymentMethod:'bank_transfer', saleStatus:'paid', notes:'', employeeId:'' })
   const [proofFile, setProofFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [uploading, setUploading]   = useState(false)
@@ -525,6 +525,7 @@ function CreateSaleModal({ C, onClose, onSuccess }) {
     if (!f.studentName.trim()) return setErr('اسم الطالب مطلوب')
     if (!f.studentPhone.trim()) return setErr('رقم الهاتف مطلوب')
     if (!f.packageName) return setErr('اختر الباقة')
+    if (isAdmin && !f.employeeId) return setErr('اختر الموظف')
     if (!proofFile) return setErr('صورة إثبات البيعة مطلوبة')
     setUploading(true)
     try {
@@ -532,7 +533,9 @@ function CreateSaleModal({ C, onClose, onSuccess }) {
       const upR = await fetch('/api/sales/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ base64, contentType:proofFile.type, filename:proofFile.name }) })
       if (!upR.ok) { const d=await upR.json(); throw new Error(d.error||'فشل رفع الصورة') }
       const { url:proofImageUrl } = await upR.json()
-      const saleR = await fetch('/api/sales/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...f, proofImageUrl }) })
+      const body = { ...f, proofImageUrl }
+      if (isAdmin && f.employeeId) body.employeeId = parseInt(f.employeeId)
+      const saleR = await fetch('/api/sales/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
       const saleD = await saleR.json()
       if (!saleR.ok) throw new Error(saleD.error||'فشل تسجيل البيعة')
       onSuccess(saleD)
@@ -560,6 +563,14 @@ function CreateSaleModal({ C, onClose, onSuccess }) {
               {PACKAGES.map(p=><option key={p.value} value={p.value}>{p.labelAr}</option>)}
             </select>
           </div>
+          {isAdmin && (
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>الموظف *</label>
+              <select style={{ ...inp, appearance:'none' }} value={f.employeeId} onChange={e=>setF({...f,employeeId:e.target.value})} required>
+                <option value="">— اختر الموظف —</option>
+                {(employees||[]).map(emp=><option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>العربون (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.deposit} onChange={e=>setF({...f,deposit:e.target.value})} /></div>
@@ -1185,6 +1196,8 @@ function AdminSalesPage({ C, employees }) {
   const [year, setYear]         = useState(new Date().getFullYear())
   const [empFilter, setEmpFilter] = useState('')
   const [stats, setStats]       = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [successData, setSuccessData] = useState(null)
 
   useEffect(()=>{ loadRecords() },[month, year, empFilter])
   useEffect(()=>{ fetch('/api/crm/stats').then(r=>r.json()).then(d=>setStats(d)).catch(()=>{}) },[])
@@ -1227,6 +1240,7 @@ function AdminSalesPage({ C, employees }) {
           {(employees||[]).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
         <div style={{ marginRight:'auto', background:C.g15, border:`1px solid ${C.g30}`, borderRadius:8, padding:'8px 14px', color:C.gold, fontSize:13, fontWeight:700 }}>{total} بيعة</div>
+        <button onClick={()=>setShowCreate(true)} style={{ background:C.gold, color:C.navy, border:'none', borderRadius:8, padding:'8px 18px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>+ بيعة جديدة</button>
       </div>
 
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
@@ -1257,6 +1271,8 @@ function AdminSalesPage({ C, employees }) {
           </tbody>
         </table>
       </div>
+      {showCreate && <CreateSaleModal C={C} employees={employees} isAdmin={true} onClose={()=>setShowCreate(false)} onSuccess={d=>{setShowCreate(false);setSuccessData(d);loadRecords()}} />}
+      {successData && <SaleSuccessModal C={C} data={successData} onClose={()=>setSuccessData(null)} />}
     </div>
   )
 }
