@@ -70,9 +70,28 @@ async function handler(req, res) {
     return res.status(200).json(data)
   }
 
+  // ── PATCH — update sale status/amount ────────────────────────────────────
+  if (req.method === 'PATCH') {
+    const { id } = req.query
+    if (!id) return res.status(400).json({ error: 'id مطلوب' })
+    const { updateSaleRecord } = await import('../../../lib/sales-db')
+    let employeeId
+    if (req.user.role === 'admin') {
+      employeeId = null
+    } else {
+      const employee = await getEmployeeByUsername(req.user.username)
+      if (!employee) return res.status(404).json({ error: 'الموظف غير موجود' })
+      employeeId = employee.id
+    }
+    const { saleStatus, amountPaid, deposit, paymentMethod } = req.body || {}
+    const record = await updateSaleRecord(parseInt(id), employeeId, { saleStatus, amountPaid, deposit, paymentMethod })
+    if (!record) return res.status(404).json({ error: 'السجل غير موجود' })
+    return res.status(200).json({ record })
+  }
+
   // ── POST ─────────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
-    const { studentName, studentPhone, packageName, notes, proofImageUrl } = req.body || {}
+    const { studentName, studentPhone, packageName, notes, proofImageUrl, amountPaid, deposit, paymentMethod, saleStatus } = req.body || {}
 
     if (!studentName?.trim()) return res.status(400).json({ error: 'اسم الطالب مطلوب' })
     if (!studentPhone?.trim()) return res.status(400).json({ error: 'رقم الهاتف مطلوب' })
@@ -116,6 +135,10 @@ async function handler(req, res) {
       studentUsername: accountResult.username,
       studentAccountCreated: accountResult.created,
       studentAccountExisting: accountResult.existing,
+      amountPaid: amountPaid ? parseFloat(amountPaid) : null,
+      deposit: deposit ? parseFloat(deposit) : null,
+      paymentMethod: paymentMethod || 'bank_transfer',
+      saleStatus: saleStatus || 'paid',
     })
 
     return res.status(201).json({
