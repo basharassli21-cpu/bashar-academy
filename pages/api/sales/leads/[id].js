@@ -12,7 +12,7 @@ async function handler(req, res) {
   const leadId = parseInt(req.query.id, 10)
   if (!leadId || leadId <= 0) return res.status(400).json({ error: 'معرّف غير صحيح' })
 
-  const { status, note, lastContactDate, nextFollowupDate } = req.body || {}
+  const { status, note, lastContactDate, nextFollowupDate, noteType } = req.body || {}
   const VALID_STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'closed_sale', 'cancelled', 'unreachable']
   if (status && !VALID_STATUSES.includes(status)) {
     return res.status(400).json({ error: 'حالة غير صحيحة' })
@@ -29,12 +29,12 @@ async function handler(req, res) {
   if (!target) return res.status(404).json({ error: 'العميل المحتمل غير موجود' })
   if (target.locked) return res.status(403).json({ error: 'يجب التعامل مع العملاء السابقين أولاً' })
 
-  if (!status && !note && !lastContactDate && !nextFollowupDate) {
+  if (!status && !note && !lastContactDate && !nextFollowupDate && !noteType) {
     return res.status(400).json({ error: 'لا يوجد تغييرات لحفظها' })
   }
 
   try {
-    const updated = await updateLead(leadId, { status, note, lastContactDate, nextFollowupDate })
+    const updated = await updateLead(leadId, { status, note, lastContactDate, nextFollowupDate, noteType })
 
     if (AUTO_OPENC_STATUSES.includes(updated.status) && target.status !== updated.status) {
       const reason = (note && note.trim()) || `تم تحديد الحالة: ${STATUS_LABELS_AR[updated.status]}`

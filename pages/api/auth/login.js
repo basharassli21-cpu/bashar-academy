@@ -122,6 +122,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     success: true,
+    requiresPasswordChange: user.requiresPasswordChange || false,
     user: { username: usernameNorm, name: user.name, role: user.role, avatar: user.avatar },
   })
 }
