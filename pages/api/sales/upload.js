@@ -20,8 +20,13 @@ async function handler(req, res) {
   const ext = contentType.split('/')[1].replace('jpeg', 'jpg')
   const safeName = `sale-proofs/${Date.now()}-${req.user.username}.${ext}`
 
-  const { url } = await put(safeName, buffer, { access: 'public', contentType })
-  return res.status(200).json({ url })
+  try {
+    const { url } = await put(safeName, buffer, { access: 'public', contentType })
+    return res.status(200).json({ url })
+  } catch (e) {
+    console.error('[upload] blob error:', e.message)
+    return res.status(500).json({ error: 'فشل رفع الصورة: ' + e.message })
+  }
 }
 
 export default requireAuth(handler)

@@ -91,6 +91,7 @@ async function handler(req, res) {
 
   // ── POST ─────────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
+    try {
     const { studentName, studentPhone, packageName, notes, proofImageUrl, amountPaid, deposit, paymentMethod, saleStatus } = req.body || {}
 
     if (!studentName?.trim()) return res.status(400).json({ error: 'اسم الطالب مطلوب' })
@@ -151,6 +152,10 @@ async function handler(req, res) {
         studentName: studentName.trim(),
       },
     })
+    } catch (e) {
+      console.error('[sale POST]', e.message)
+      return res.status(500).json({ error: e.message || 'خطأ في تسجيل البيعة' })
+    }
   }
 
   return res.status(405).end()

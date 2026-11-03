@@ -531,13 +531,18 @@ function CreateSaleModal({ C, onClose, onSuccess, employees, isAdmin }) {
     try {
       const base64 = await new Promise((res,rej)=>{ const reader=new FileReader(); reader.onload=()=>res(reader.result.split(',')[1]); reader.onerror=rej; reader.readAsDataURL(proofFile) })
       const upR = await fetch('/api/sales/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ base64, contentType:proofFile.type, filename:proofFile.name }) })
-      if (!upR.ok) { const d=await upR.json(); throw new Error(d.error||'فشل رفع الصورة') }
+      if (!upR.ok) {
+        let upErr = 'فشل رفع الصورة'
+        try { const d=await upR.json(); upErr = d.error||upErr } catch {}
+        throw new Error(upErr)
+      }
       const { url:proofImageUrl } = await upR.json()
       const body = { ...f, proofImageUrl }
       if (isAdmin && f.employeeId) body.employeeId = parseInt(f.employeeId)
       const saleR = await fetch('/api/sales/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
-      const saleD = await saleR.json()
-      if (!saleR.ok) throw new Error(saleD.error||'فشل تسجيل البيعة')
+      let saleD
+      try { saleD = await saleR.json() } catch { throw new Error('فشل تسجيل البيعة') }
+      if (!saleR.ok) throw new Error(saleD?.error||'فشل تسجيل البيعة')
       onSuccess(saleD)
     } catch(ex) { setErr(ex.message) } finally { setUploading(false) }
   }
@@ -651,9 +656,11 @@ function SalesPage({ C }) {
 
   async function loadRecords() {
     setLoading(true)
-    const r = await fetch(`/api/sales/records?month=${month}&year=${year}`)
-    const d = await r.json()
-    setRecords(d.records||[]); setTotal(d.total||0); setLoading(false)
+    try {
+      const r = await fetch(`/api/sales/records?month=${month}&year=${year}`)
+      const d = await r.json()
+      setRecords(d.records||[]); setTotal(d.total||0)
+    } catch { setRecords([]); setTotal(0) } finally { setLoading(false) }
   }
 
   async function updateStatus(id, saleStatus) {
@@ -1204,10 +1211,12 @@ function AdminSalesPage({ C, employees }) {
 
   async function loadRecords() {
     setLoading(true)
-    let url = `/api/sales/records?month=${month}&year=${year}&limit=200`
-    if (empFilter) url += `&employeeId=${empFilter}`
-    const r = await fetch(url); const d = await r.json()
-    setRecords(d.records||[]); setTotal(d.total||0); setLoading(false)
+    try {
+      let url = `/api/sales/records?month=${month}&year=${year}&limit=200`
+      if (empFilter) url += `&employeeId=${empFilter}`
+      const r = await fetch(url); const d = await r.json()
+      setRecords(d.records||[]); setTotal(d.total||0)
+    } catch { setRecords([]); setTotal(0) } finally { setLoading(false) }
   }
 
   const years = [new Date().getFullYear(), new Date().getFullYear()-1]
