@@ -736,13 +736,17 @@ function SalesPage({ C }) {
 function AdminDashboard({ C }) {
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)
+  const [err, setErr]     = useState('')
 
   useEffect(()=>{
-    fetch('/api/crm/stats').then(r=>r.json()).then(d=>{setData(d);setLoading(false)}).catch(()=>setLoading(false))
+    fetch('/api/crm/stats')
+      .then(r=>{ if(!r.ok) throw new Error(r.status+' '+r.statusText); return r.json() })
+      .then(d=>{ setData(d); setLoading(false) })
+      .catch(e=>{ setErr(e.message); setLoading(false) })
   },[])
 
   if (loading) return <div style={{ textAlign:'center', padding:80, color:C.silver }}>جارٍ التحميل...</div>
-  if (!data) return <div style={{ textAlign:'center', padding:80, color:C.red }}>خطأ في تحميل البيانات</div>
+  if (err || !data) return <div style={{ textAlign:'center', padding:80, color:C.red }}>خطأ في تحميل البيانات{err?' — '+err:''}</div>
 
   return (
     <div dir="rtl">
