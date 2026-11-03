@@ -9,7 +9,9 @@ async function handler(req, res) {
   if (!employee) return res.status(404).json({ error: 'الموظف غير موجود' })
 
   const stats = await getDashboardStats(employee.id)
-  return res.status(200).json({ stats, employee: { name: employee.name, monthlyTarget: employee.monthly_target || 0 } })
+  const target = employee.monthly_target || 0
+  const targetProgress = target > 0 ? Math.min(Math.round((stats.revenueThisMonth / target) * 100), 100) : 0
+  return res.status(200).json({ stats, employee: { name: employee.name, monthlyTarget: target, targetProgress } })
 }
 
 export default requireAuth(handler)

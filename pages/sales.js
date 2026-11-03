@@ -173,12 +173,13 @@ function StatCard({ C, label, value, sub, accent, icon }) {
 // ─── Home Dashboard ───────────────────────────────────────────────────────
 function HomeDashboard({ C, employeeName }) {
   const [stats, setStats] = useState(null)
+  const [empInfo, setEmpInfo] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/sales/dashboard')
       .then(r => r.json())
-      .then(d => { setStats(d.stats); setLoading(false) })
+      .then(d => { setStats(d.stats); setEmpInfo(d.employee); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -210,11 +211,34 @@ function HomeDashboard({ C, employeeName }) {
       </div>
 
       {/* Revenue Row */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:28 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:12 }}>
         <StatCard C={C} label="Revenue Today"      value={fmtMoney(stats.revenueToday)}     accent="emerald" icon="💵" />
         <StatCard C={C} label="Revenue This Month" value={fmtMoney(stats.revenueThisMonth)} accent="emerald" icon="📅" />
         <StatCard C={C} label="Revenue This Year"  value={fmtMoney(stats.revenueThisYear)}  accent="emerald" icon="🗓" />
       </div>
+
+      {/* Monthly Target Progress */}
+      {empInfo?.monthlyTarget > 0 && (
+        <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, padding:'18px 22px', marginBottom:28 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ color:C.white, fontWeight:700, fontSize:14 }}>🎯 الهدف الشهري</span>
+            <span style={{ color:C.gold, fontWeight:900, fontSize:16 }}>
+              {fmtMoney(stats.revenueThisMonth)} <span style={{ color:C.silver, fontWeight:400, fontSize:13 }}>/ {fmtMoney(empInfo.monthlyTarget)}</span>
+            </span>
+          </div>
+          <div style={{ background:C.g20, borderRadius:20, height:14, overflow:'hidden' }}>
+            <div style={{
+              width:`${empInfo.targetProgress}%`, height:'100%', borderRadius:20,
+              background: empInfo.targetProgress >= 100 ? '#4ADE80' : empInfo.targetProgress >= 60 ? '#F59E0B' : '#EF4444',
+              transition:'width 0.6s ease'
+            }} />
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
+            <span style={{ color:C.silver, fontSize:11 }}>التقدم: {empInfo.targetProgress}%</span>
+            <span style={{ color:C.silver, fontSize:11 }}>المتبقي: {fmtMoney(Math.max(0, empInfo.monthlyTarget - stats.revenueThisMonth))}</span>
+          </div>
+        </div>
+      )}
 
       {/* Today's Follow-ups */}
       {stats.dueToday?.length > 0 && (
@@ -998,7 +1022,7 @@ function AdminEmployeesView({ C, onEmployeesChange }) {
           <div><label style={{color:C.silver,fontSize:11,display:'block',marginBottom:5}}>الاسم *</label><input style={inp} value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required /></div>
           <div><label style={{color:C.silver,fontSize:11,display:'block',marginBottom:5}}>اسم المستخدم *</label><input style={{...inp,direction:'ltr'}} value={form.username} onChange={e=>setForm({...form,username:e.target.value})} required /></div>
           <div><label style={{color:C.silver,fontSize:11,display:'block',marginBottom:5}}>كلمة المرور (12+ حرف)</label><input type="password" style={{...inp,direction:'ltr'}} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></div>
-          <div><label style={{color:C.silver,fontSize:11,display:'block',marginBottom:5}}>الهدف الشهري</label><input type="number" style={inp} value={form.monthlyTarget} onChange={e=>setForm({...form,monthlyTarget:Number(e.target.value)})} min="0" /></div>
+          <div><label style={{color:C.silver,fontSize:11,display:'block',marginBottom:5}}>الهدف الشهري (JOD)</label><input type="number" style={inp} value={form.monthlyTarget} onChange={e=>setForm({...form,monthlyTarget:Number(e.target.value)})} min="0" placeholder="مثال: 5000" /></div>
           <div style={{gridColumn:'1/-1',display:'flex',justifyContent:'flex-end'}}>
             <button type="submit" disabled={busy} style={{padding:'9px 24px',borderRadius:8,background:busy?C.g15:C.gold,border:'none',color:busy?C.silver:C.navy,fontSize:13,fontWeight:700,cursor:busy?'not-allowed':'pointer'}}>{busy?'⏳...':'✅ إضافة'}</button>
           </div>
@@ -1013,9 +1037,9 @@ function AdminEmployeesView({ C, onEmployeesChange }) {
                 <p style={{color:C.white,fontWeight:700,fontSize:14}}>{emp.name}</p>
                 <p style={{color:C.silver,fontSize:12}}>@{emp.username}</p>
               </div>
-              <div style={{textAlign:'left'}}>
-                <p style={{color:C.gold,fontSize:16,fontWeight:900}}>{emp.stats?.closedSales||0}</p>
-                <p style={{color:C.silver,fontSize:11}}>بيعة</p>
+              <div style={{textAlign:'left',minWidth:120}}>
+                <p style={{color:C.gold,fontSize:14,fontWeight:900}}>{fmtMoney(emp.stats?.revenueThisMonth||0)}</p>
+                <p style={{color:C.silver,fontSize:11}}>{emp.stats?.monthlyTarget > 0 ? `هدف: ${fmtMoney(emp.stats.monthlyTarget)} — ${emp.stats.targetProgress}%` : 'لا يوجد هدف'}</p>
               </div>
               <button onClick={()=>del(emp.id,emp.name)} style={{width:32,height:32,borderRadius:8,background:`${C.red}15`,border:`1px solid ${C.red}40`,color:C.red,cursor:'pointer',fontSize:14,flexShrink:0}}>🗑</button>
             </div>

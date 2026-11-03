@@ -996,7 +996,7 @@ function SalesTeamTab({ lang }) {
           <input placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full name'} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
           <input placeholder={lang === 'ar' ? 'اسم المستخدم' : 'Username'} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} style={inputStyle} />
           <input type="password" placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inputStyle} />
-          <input type="number" min="0" placeholder={lang === 'ar' ? 'التارجت الشهري' : 'Monthly target'} value={form.monthlyTarget} onChange={e => setForm(f => ({ ...f, monthlyTarget: e.target.value }))} style={inputStyle} />
+          <input type="number" min="0" placeholder={lang === 'ar' ? 'الهدف الشهري (JOD)' : 'Monthly target (JOD)'} value={form.monthlyTarget} onChange={e => setForm(f => ({ ...f, monthlyTarget: e.target.value }))} style={inputStyle} />
           {error && <p style={{ color: C.red, fontSize: '12px', gridColumn: '1 / -1' }}>{error}</p>}
           <button type="submit" disabled={saving} style={{
             gridColumn: '1 / -1', padding: '10px', borderRadius: '10px', border: 'none',
@@ -1024,7 +1024,7 @@ function SalesTeamTab({ lang }) {
                     <p style={{ color: C.silver, fontSize: '11.5px' }}>@{emp.username}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '14px', fontSize: '11.5px', color: C.silver, flexWrap: 'wrap' }}>
-                    <span>{lang === 'ar' ? 'مبيعات' : 'Sales'}: <b style={{ color: C.emerald }}>{emp.stats.closedSales}</b></span>
+                    <span>{lang === 'ar' ? 'إيراد الشهر' : 'Month Rev'}: <b style={{ color: C.emerald }}>{(emp.stats.revenueThisMonth || 0).toFixed(0)} JOD</b></span>
                     <span>{lang === 'ar' ? 'مكالمات' : 'Calls'}: <b style={{ color: C.gold }}>{emp.stats.totalCalls}</b></span>
                     <span>{lang === 'ar' ? 'الإنجاز' : 'Progress'}: <b style={{ color: C.purple }}>{emp.stats.targetProgress}%</b></span>
                   </div>
@@ -1033,8 +1033,8 @@ function SalesTeamTab({ lang }) {
                     value={targetEdits[emp.id] ?? emp.monthlyTarget}
                     onChange={e => setTargetEdits(t => ({ ...t, [emp.id]: e.target.value }))}
                     onBlur={() => targetEdits[emp.id] !== undefined && saveTarget(emp.id)}
-                    title={lang === 'ar' ? 'التارجت الشهري' : 'Monthly target'}
-                    style={{ width: '70px', background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '6px 8px', color: C.white, fontSize: '12px', outline: 'none' }}
+                    title={lang === 'ar' ? 'الهدف الشهري (JOD)' : 'Monthly target (JOD)'}
+                    style={{ width: '80px', background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '6px 8px', color: C.white, fontSize: '12px', outline: 'none' }}
                   />
                   <button onClick={() => toggleExpand(emp.id)} style={{ background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '8px', color: C.gold, padding: '6px 12px', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer' }}>
                     {expandedId === emp.id ? (lang === 'ar' ? 'إغلاق' : 'Close') : (lang === 'ar' ? 'العملاء المحتملون' : 'Leads')}
