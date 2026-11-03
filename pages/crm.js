@@ -86,6 +86,7 @@ function monthName(m) {
 
 // ─── Shared: Sidebar ──────────────────────────────────────────────────────────
 function Sidebar({ C, user, view, setView, onLogout, navItems, collapsed, setCollapsed }) {
+  const { theme, toggleTheme } = useTheme()
   return (
     <aside dir="rtl" style={{
       position:'fixed', right:0, top:0, height:'100%', width:collapsed?72:240,
@@ -140,7 +141,16 @@ function Sidebar({ C, user, view, setView, onLogout, navItems, collapsed, setCol
           })}
         </nav>
       </div>
-      <div style={{ padding:collapsed?'12px 8px':12, borderTop:`1px solid ${C.g20}` }}>
+      <div style={{ padding:collapsed?'12px 8px':12, borderTop:`1px solid ${C.g20}`, display:'flex', flexDirection:'column', gap:6 }}>
+        <button onClick={toggleTheme} title={collapsed?(theme==='dark'?'وضع الفاتح':'وضع الداكن'):undefined} style={{
+          width:'100%', padding:collapsed?8:'8px 14px', borderRadius:10,
+          background:'none', border:`1px solid ${C.g20}`, color:C.silver,
+          fontSize:12, fontWeight:600, cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:collapsed?'center':'flex-start', gap:8,
+        }}>
+          <span>{theme==='dark'?'☀️':'🌙'}</span>
+          {!collapsed && <span>{theme==='dark'?'الوضع الفاتح':'الوضع الداكن'}</span>}
+        </button>
         <button onClick={onLogout} title={collapsed?'تسجيل الخروج':undefined} style={{
           width:'100%', padding:collapsed?8:'8px 14px', borderRadius:10,
           background:'none', border:`1px solid ${C.red}33`, color:C.red,
