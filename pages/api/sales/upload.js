@@ -21,7 +21,7 @@ async function handler(req, res) {
   const safeName = `sale-proofs/${Date.now()}-${req.user.username}.${ext}`
 
   try {
-    const { url } = await put(safeName, buffer, { access: 'public', contentType })
+    const { url } = await put(safeName, buffer, { access: 'private', contentType })
     return res.status(200).json({ url })
   } catch (e) {
     console.error('[upload] blob error:', e.message)
