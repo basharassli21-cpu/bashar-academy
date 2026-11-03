@@ -1063,6 +1063,69 @@ function TransferLeadsModal({ C, employees, onClose, onDone }) {
   )
 }
 
+// ─── ADMIN: Transfer Selected Leads Modal ─────────────────────────────────────
+function TransferSelectedModal({ C, employees, leadIds, onClose, onDone }) {
+  const [to, setTo]     = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr]   = useState('')
+  const [done, setDone] = useState(null)
+
+  const inp = { background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'9px 12px', color:C.white, fontSize:13, width:'100%', fontFamily:'inherit', boxSizing:'border-box', appearance:'none' }
+
+  async function doTransfer() {
+    if (!to) { setErr('اختر موظفاً'); return }
+    setBusy(true); setErr('')
+    try {
+      const r = await fetch('/api/crm/leads/transfer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ leadIds, toEmployeeId:parseInt(to) }) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error||'فشل النقل')
+      setDone(d.transferred)
+    } catch(e) { setErr(e.message); setBusy(false) }
+  }
+
+  const toName = (employees||[]).find(e=>String(e.id)===to)?.name || ''
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:20 }} onClick={onClose}>
+      <div dir="rtl" onClick={e=>e.stopPropagation()} style={{ background:C.surface, border:`1px solid ${C.g30}`, borderRadius:20, padding:28, maxWidth:420, width:'100%' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ color:C.white, fontWeight:900, fontSize:17 }}>🔀 نقل الليدز المحددة</h2>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', background:C.g10, border:`1px solid ${C.g20}`, color:C.silver, cursor:'pointer', fontSize:16 }}>✕</button>
+        </div>
+
+        {done !== null ? (
+          <div style={{ textAlign:'center', padding:'20px 0' }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>✅</div>
+            <p style={{ color:C.gold, fontWeight:900, fontSize:20, marginBottom:8 }}>تم النقل!</p>
+            <p style={{ color:C.silver, fontSize:14 }}>تم نقل <span style={{ color:C.white, fontWeight:700 }}>{done}</span> lead إلى <span style={{ color:C.emerald }}>{toName}</span></p>
+            <button onClick={()=>onDone(done)} style={{ marginTop:20, padding:'10px 32px', borderRadius:12, background:C.gold, border:'none', color:C.navy, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>حسناً</button>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'10px 14px', color:C.silver, fontSize:13 }}>
+              <span style={{ color:C.purple, fontWeight:700 }}>{leadIds.length}</span> lead محددة جاهزة للنقل
+            </div>
+            {err && <div style={{ background:`${C.red}20`, border:`1px solid ${C.red}40`, borderRadius:10, padding:'9px 14px', color:C.red, fontSize:13 }}>{err}</div>}
+            <div>
+              <label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>إلى موظف *</label>
+              <select style={inp} value={to} onChange={e=>setTo(e.target.value)}>
+                <option value="">— اختر الموظف الهدف —</option>
+                {(employees||[]).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
+              <button type="button" onClick={onClose} style={{ padding:'10px 20px', borderRadius:10, background:'none', border:`1px solid ${C.g30}`, color:C.silver, fontSize:13, cursor:'pointer' }}>إلغاء</button>
+              <button onClick={doTransfer} disabled={busy||!to} style={{ padding:'10px 28px', borderRadius:10, background:busy||!to?C.g15:C.purple, border:'none', color:busy||!to?C.silver:'#fff', fontSize:14, fontWeight:700, cursor:busy||!to?'not-allowed':'pointer', fontFamily:'inherit' }}>
+                {busy ? '⏳ جارٍ النقل...' : `🔀 نقل ${leadIds.length} lead`}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── ADMIN: Leads Management ──────────────────────────────────────────────────
 function AdminLeadsPage({ C, employees }) {
   const [leads, setLeads]       = useState([])
@@ -1075,11 +1138,14 @@ function AdminLeadsPage({ C, employees }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [showTransfer, setShowTransfer] = useState(false)
+  const [selectedLeads, setSelectedLeads] = useState(new Set())
+  const [showTransferSelected, setShowTransferSelected] = useState(false)
   const timer = useRef()
   const LIMIT = 40
 
   const load = useCallback(async (q, eid, st, pg) => {
     setLoading(true)
+    setSelectedLeads(new Set())
     try {
       const params = new URLSearchParams({ q, page:pg, limit:LIMIT })
       if (eid) params.set('employeeId', eid)
@@ -1127,26 +1193,52 @@ function AdminLeadsPage({ C, employees }) {
         <button onClick={()=>setShowTransfer(true)} style={{ padding:'8px 16px', borderRadius:8, background:'none', border:`1px solid ${C.purple}44`, color:C.purple, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🔄 نقل ليدز</button>
       </div>
 
+      {selectedLeads.size > 0 && (
+        <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:14, background:`${C.purple}18`, border:`1px solid ${C.purple}44`, borderRadius:12, padding:'10px 16px' }}>
+          <span style={{ color:C.purple, fontWeight:700, fontSize:14 }}>{selectedLeads.size} lead محدد</span>
+          <span style={{ flex:1 }} />
+          <button onClick={()=>setSelectedLeads(new Set())} style={{ padding:'6px 14px', borderRadius:8, background:'none', border:`1px solid ${C.g30}`, color:C.silver, fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>إلغاء التحديد</button>
+          <button onClick={()=>setShowTransferSelected(true)} style={{ padding:'6px 16px', borderRadius:8, background:C.purple, border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>🔀 نقل المحدد</button>
+        </div>
+      )}
+
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>
+            <th style={{ ...th, width:38, padding:'11px 8px 11px 14px' }}>
+              <input type="checkbox"
+                checked={leads.length>0 && leads.every(l=>selectedLeads.has(l.id))}
+                ref={el=>{ if(el) el.indeterminate = leads.some(l=>selectedLeads.has(l.id)) && !leads.every(l=>selectedLeads.has(l.id)) }}
+                onChange={()=>{
+                  const allSel = leads.every(l=>selectedLeads.has(l.id))
+                  setSelectedLeads(prev=>{ const s=new Set(prev); leads.forEach(l=>allSel?s.delete(l.id):s.add(l.id)); return s })
+                }}
+                style={{ cursor:'pointer', accentColor:C.purple, width:15, height:15 }}
+              />
+            </th>
             {['NAME','PHONE','الموظف','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={7} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
             : leads.length===0 ? <tr><td colSpan={7} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
-            : leads.map(lead=>(
-              <tr key={lead.id} onClick={()=>setSelectedId(lead.id)} style={{ borderTop:`1px solid ${C.g15}`, cursor:'pointer' }}
-                onMouseEnter={e=>e.currentTarget.style.background=C.g10}
-                onMouseLeave={e=>e.currentTarget.style.background=''}>
-                <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
-                <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
-                <td style={{ ...td, color:C.gold, fontSize:12 }}>{lead.employee_name||<span style={{ color:C.silver }}>—</span>}</td>
-                <td style={{ ...td, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
-                <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
-                <td style={{ ...td, color:lead.next_followup_date?C.orange:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.next_followup_date)}</td>
-              </tr>
-            ))}
+            : leads.map(lead=>{
+              const isSel = selectedLeads.has(lead.id)
+              return (
+                <tr key={lead.id} onClick={()=>setSelectedId(lead.id)} style={{ borderTop:`1px solid ${C.g15}`, cursor:'pointer', background:isSel?`${C.purple}12`:'' }}
+                  onMouseEnter={e=>e.currentTarget.style.background=isSel?`${C.purple}1E`:C.g10}
+                  onMouseLeave={e=>e.currentTarget.style.background=isSel?`${C.purple}12`:''}>
+                  <td style={{ padding:'11px 8px 11px 14px' }} onClick={e=>{ e.stopPropagation(); setSelectedLeads(prev=>{ const s=new Set(prev); isSel?s.delete(lead.id):s.add(lead.id); return s }) }}>
+                    <input type="checkbox" checked={isSel} onChange={()=>{}} style={{ cursor:'pointer', accentColor:C.purple, width:15, height:15 }} />
+                  </td>
+                  <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
+                  <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
+                  <td style={{ ...td, color:C.gold, fontSize:12 }}>{lead.employee_name||<span style={{ color:C.silver }}>—</span>}</td>
+                  <td style={{ ...td, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
+                  <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
+                  <td style={{ ...td, color:lead.next_followup_date?C.orange:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.next_followup_date)}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -1160,6 +1252,7 @@ function AdminLeadsPage({ C, employees }) {
       )}
 
       {showTransfer && <TransferLeadsModal C={C} employees={employees} onClose={()=>setShowTransfer(false)} onDone={()=>{ setShowTransfer(false); load(search,empFilter,statusFilter,page) }} />}
+      {showTransferSelected && <TransferSelectedModal C={C} employees={employees} leadIds={[...selectedLeads]} onClose={()=>setShowTransferSelected(false)} onDone={()=>{ setShowTransferSelected(false); setSelectedLeads(new Set()); load(search,empFilter,statusFilter,page) }} />}
       {selectedId && <AdminLeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={()=>load(search,empFilter,statusFilter,page)} employees={employees} />}
     </div>
   )
