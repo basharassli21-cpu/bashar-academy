@@ -16,23 +16,31 @@ async function handler(req, res) {
     return res.status(400).json({ error: 'الموظف المصدر والهدف متطابقان' })
 
   try {
-    let rows
-    if (status) {
-      rows = await sql`
+    const fromId = parseInt(fromEmployeeId)
+    const toId   = parseInt(toEmployeeId)
+
+    // Get leads to transfer (ordered by sequence)
+    const leads = status
+      ? await sql`SELECT id FROM leads WHERE employee_id = ${fromId} AND status = ${status} ORDER BY sequence ASC`
+      : await sql`SELECT id FROM leads WHERE employee_id = ${fromId} ORDER BY sequence ASC`
+
+    if (!leads.length) return res.status(200).json({ transferred: 0 })
+
+    // Get current max sequence for destination employee
+    const [maxRow] = await sql`SELECT COALESCE(MAX(sequence), 0)::int AS mx FROM leads WHERE employee_id = ${toId}`
+    let nextSeq = maxRow.mx + 1
+
+    // Transfer one by one with new sequence numbers to avoid constraint violation
+    for (const lead of leads) {
+      await sql`
         UPDATE leads
-        SET employee_id = ${parseInt(toEmployeeId)}, updated_at = now()
-        WHERE employee_id = ${parseInt(fromEmployeeId)} AND status = ${status}
-        RETURNING id
+        SET employee_id = ${toId}, sequence = ${nextSeq}, updated_at = now()
+        WHERE id = ${lead.id}
       `
-    } else {
-      rows = await sql`
-        UPDATE leads
-        SET employee_id = ${parseInt(toEmployeeId)}, updated_at = now()
-        WHERE employee_id = ${parseInt(fromEmployeeId)}
-        RETURNING id
-      `
+      nextSeq++
     }
-    return res.status(200).json({ transferred: rows.length })
+
+    return res.status(200).json({ transferred: leads.length })
   } catch (e) {
     console.error('[transfer]', e.message)
     return res.status(500).json({ error: e.message })
