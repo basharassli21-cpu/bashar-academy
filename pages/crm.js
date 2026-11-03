@@ -431,9 +431,15 @@ function LeadsPage({ C }) {
 
   const load = useCallback(async (t, q, pg) => {
     setLoading(true)
-    const r = await fetch(`/api/sales/leads-page?tab=${t}&q=${encodeURIComponent(q)}&page=${pg}&limit=30`)
-    const d = await r.json()
-    setLeads(d.leads||[]); setTotal(d.total||0); setLoading(false)
+    try {
+      const r = await fetch(`/api/sales/leads-page?tab=${t}&q=${encodeURIComponent(q)}&page=${pg}&limit=30`)
+      const d = await r.json()
+      setLeads(d.leads||[]); setTotal(d.total||0)
+    } catch(e) {
+      setLeads([]); setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(()=>{ load(tab,search,page) },[tab,search,page])
@@ -959,12 +965,19 @@ function AdminLeadsPage({ C, employees }) {
 
   const load = useCallback(async (q, eid, st, pg) => {
     setLoading(true)
-    const params = new URLSearchParams({ q, page:pg, limit:LIMIT })
-    if (eid) params.set('employeeId', eid)
-    if (st) params.set('status', st)
-    const r = await fetch(`/api/crm/leads?${params}`)
-    const d = await r.json()
-    setLeads(d.leads||[]); setTotal(d.total||0); setLoading(false)
+    try {
+      const params = new URLSearchParams({ q, page:pg, limit:LIMIT })
+      if (eid) params.set('employeeId', eid)
+      if (st) params.set('status', st)
+      const r = await fetch(`/api/crm/leads?${params}`)
+      const d = await r.json()
+      setLeads(d.leads||[]); setTotal(d.total||0)
+    } catch(e) {
+      console.error('leads load error:', e)
+      setLeads([]); setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   },[])
 
   useEffect(()=>{ load(search, empFilter, statusFilter, page) },[search, empFilter, statusFilter, page])
