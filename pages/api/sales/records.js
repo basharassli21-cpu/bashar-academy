@@ -142,6 +142,35 @@ async function handler(req, res) {
       saleStatus: saleStatus || 'paid',
     })
 
+    // Auto-sync to finance (best-effort — never blocks CRM sale)
+    try {
+      const { createSale: createFinSale } = await import('../../../lib/finance-db')
+      const PAY_MAP = { bank_transfer:'bank', cash:'cash', cliq:'bank', other:'manual' }
+      const PKG_NAME = { elite:'Elite — الباقة الكاملة', professional:'Professional — الباقة المتوسطة', starter:'Starter — باقة التنفيذ' }
+      const total   = amountPaid  ? parseFloat(amountPaid)  : 0
+      const dep     = deposit     ? parseFloat(deposit)     : 0
+      const status  = saleStatus === 'cancelled' ? 'cancelled'
+                    : saleStatus === 'paid'       ? 'paid'
+                    : dep > 0                     ? 'partial' : 'pending'
+      await createFinSale({
+        customerName:  studentName.trim(),
+        customerPhone: normalized,
+        employeeId,
+        productType:   'course',
+        productName:   PKG_NAME[packageName] || packageName,
+        total,
+        amountPaid:    dep || undefined,
+        paymentMethod: PAY_MAP[paymentMethod] || 'bank',
+        paymentStatus: status,
+        currency:      'JOD',
+        source:        'crm',
+        notes:         notes || null,
+        saleDate:      new Date().toISOString().split('T')[0],
+      }, req.user.username)
+    } catch (fe) {
+      console.error('[sale POST] finance sync failed:', fe.message)
+    }
+
     return res.status(201).json({
       record,
       studentAccount: {
