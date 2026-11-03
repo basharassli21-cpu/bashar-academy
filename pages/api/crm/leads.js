@@ -25,7 +25,7 @@ async function handler(req, res) {
     // No filters — fastest path
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l
@@ -38,7 +38,7 @@ async function handler(req, res) {
   } else if (hasQ && !hasEmp && !hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -50,7 +50,7 @@ async function handler(req, res) {
   } else if (!hasQ && hasEmp && !hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -62,7 +62,7 @@ async function handler(req, res) {
   } else if (!hasQ && !hasEmp && hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -74,7 +74,7 @@ async function handler(req, res) {
   } else if (hasQ && hasEmp && !hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -87,7 +87,7 @@ async function handler(req, res) {
   } else if (hasQ && !hasEmp && hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -100,7 +100,7 @@ async function handler(req, res) {
   } else if (!hasQ && hasEmp && hasSt) {
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id
@@ -113,7 +113,7 @@ async function handler(req, res) {
     // hasQ && hasEmp && hasSt
     ;[rows, countRows] = await Promise.all([
       sql`
-        SELECT l.id, l.customer_name, l.phone, l.status, l.source,
+        SELECT l.id, l.customer_name, l.phone, l.status,
                l.created_at, l.last_contact_date, l.next_followup_date,
                e.name AS employee_name
         FROM leads l LEFT JOIN employees e ON e.id = l.employee_id

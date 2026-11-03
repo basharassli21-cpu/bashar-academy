@@ -361,7 +361,7 @@ function LeadDetailPanel({ C, leadId, onClose, onUpdated }) {
         {loading ? <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:C.silver }}>جارٍ التحميل...</div>
         : lead ? (<>
           <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.g15}`, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[['المصدر',lead.source||'—'],['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
+            {[['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
               <div key={l}><p style={{ color:C.silver, fontSize:11, marginBottom:3 }}>{l}</p><p style={{ color:C.white, fontSize:13 }}>{v}</p></div>
             ))}
           </div>
@@ -455,7 +455,7 @@ function LeadsPage({ C }) {
     { id:'all',   label:'My Leads', icon:'👤' },
     { id:'followups', label:'Follow-ups', icon:'📅' },
   ]
-  const cols = ['NAME','PHONE','SOURCE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
+  const cols = ['NAME','PHONE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
   const th = { padding:'11px 14px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap' }
   const td = { padding:'11px 14px', fontSize:13 }
 
@@ -484,7 +484,6 @@ function LeadsPage({ C }) {
                 onMouseLeave={e=>e.currentTarget.style.background=''}>
                 <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
                 <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
-                <td style={{ ...td, color:C.silver }}>{lead.source||'—'}</td>
                 <td style={{ ...td, color:C.silver, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
                 <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
                 <td style={{ ...td, color:C.silver, whiteSpace:'nowrap' }}>{fmtDate(lead.last_contact_date)}</td>
@@ -896,7 +895,7 @@ function AdminLeadDetailPanel({ C, leadId, onClose, onUpdated, employees }) {
         {loading ? <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:C.silver }}>جارٍ التحميل...</div>
         : lead ? (<>
           <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.g15}`, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[['المصدر',lead.source||'—'],['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
+            {[['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
               <div key={l}><p style={{ color:C.silver, fontSize:11, marginBottom:3 }}>{l}</p><p style={{ color:C.white, fontSize:13 }}>{v}</p></div>
             ))}
           </div>
@@ -1018,7 +1017,7 @@ function AdminLeadsPage({ C, employees }) {
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>
-            {['NAME','PHONE','الموظف','SOURCE','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
+            {['NAME','PHONE','الموظف','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={7} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
@@ -1030,7 +1029,6 @@ function AdminLeadsPage({ C, employees }) {
                 <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
                 <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
                 <td style={{ ...td, color:C.gold, fontSize:12 }}>{lead.employee_name||<span style={{ color:C.silver }}>—</span>}</td>
-                <td style={{ ...td, color:C.silver, fontSize:12 }}>{lead.source||'—'}</td>
                 <td style={{ ...td, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
                 <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
                 <td style={{ ...td, color:lead.next_followup_date?C.orange:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.next_followup_date)}</td>
