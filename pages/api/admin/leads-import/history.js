@@ -15,8 +15,27 @@ async function handler(req, res) {
   if (req.method === 'DELETE') {
     const { id } = req.query
     if (!id) return res.status(400).json({ error: 'id مطلوب' })
-    await sql`DELETE FROM lead_imports WHERE id = ${parseInt(id)}`
-    return res.status(200).json({ ok: true })
+    const iid = parseInt(id)
+
+    // Fetch the import record to know its timestamp (for legacy fallback)
+    const [row] = await sql`SELECT * FROM lead_imports WHERE id = ${iid}`
+    if (!row) return res.status(404).json({ error: 'السجل غير موجود' })
+
+    // Delete leads linked by import_id (new imports)
+    const linked = await sql`DELETE FROM leads WHERE import_id = ${iid} RETURNING id`
+
+    // Fallback for legacy imports (no import_id): delete leads created in the same minute
+    if (linked.length === 0 && row.imported_count > 0) {
+      await sql`
+        DELETE FROM leads
+        WHERE import_id IS NULL
+          AND created_at >= ${row.created_at}::timestamptz - interval '5 seconds'
+          AND created_at <= ${row.created_at}::timestamptz + interval '5 minutes'
+      `
+    }
+
+    await sql`DELETE FROM lead_imports WHERE id = ${iid}`
+    return res.status(200).json({ ok: true, deletedLeads: linked.length })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
