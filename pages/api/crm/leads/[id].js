@@ -54,6 +54,13 @@ async function handler(req, res) {
     return res.status(200).json({ lead: { ...leadRows[0], notes } })
   }
 
+  // ── DELETE ────────────────────────────────────────────────────────────
+  if (req.method === 'DELETE') {
+    await sql`DELETE FROM lead_notes WHERE lead_id = ${id}`
+    await sql`DELETE FROM leads WHERE id = ${id}`
+    return res.status(200).json({ ok: true })
+  }
+
   return res.status(405).end()
 }
 

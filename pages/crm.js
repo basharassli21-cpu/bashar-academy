@@ -1217,10 +1217,11 @@ function AdminLeadsPage({ C, employees }) {
               />
             </th>
             {['NAME','PHONE','الموظف','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
+            <th style={{ ...th, width:40 }} />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
-            : leads.length===0 ? <tr><td colSpan={7} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
+            {loading ? <tr><td colSpan={8} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
+            : leads.length===0 ? <tr><td colSpan={8} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
             : leads.map(lead=>{
               const isSel = selectedLeads.has(lead.id)
               return (
@@ -1236,6 +1237,15 @@ function AdminLeadsPage({ C, employees }) {
                   <td style={{ ...td, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
                   <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
                   <td style={{ ...td, color:lead.next_followup_date?C.orange:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.next_followup_date)}</td>
+                  <td style={{ padding:'4px 8px' }} onClick={e=>e.stopPropagation()}>
+                    <button onClick={async()=>{
+                      if (!confirm(`حذف "${lead.customer_name}"؟`)) return
+                      await fetch(`/api/crm/leads/${lead.id}`, { method:'DELETE' })
+                      setLeads(prev=>prev.filter(l=>l.id!==lead.id))
+                      setTotal(prev=>prev-1)
+                      setSelectedLeads(prev=>{ const s=new Set(prev); s.delete(lead.id); return s })
+                    }} style={{ width:28, height:28, borderRadius:7, background:`${C.red}15`, border:`1px solid ${C.red}30`, color:C.red, cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center' }}>🗑</button>
+                  </td>
                 </tr>
               )
             })}
