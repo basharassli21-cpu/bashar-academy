@@ -250,6 +250,11 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
                   <span>{lang === 'ar' ? 'متجاهل' : 'Skipped'}: <b style={{ color: C.silver }}>{h.skipped_count}</b></span>
                   <span>{lang === 'ar' ? 'غير صالح' : 'Invalid'}: <b style={{ color: C.red }}>{h.invalid_count}</b></span>
                 </div>
+                <button onClick={async () => {
+                  if (!confirm(lang === 'ar' ? `حذف سجل "${h.filename}"؟` : `Delete record "${h.filename}"?`)) return
+                  await fetch(`/api/admin/leads-import/history?id=${h.id}`, { method: 'DELETE' })
+                  setHistory(prev => prev.filter(x => x.id !== h.id))
+                }} style={{ width: 28, height: 28, borderRadius: 8, background: `${C.red}15`, border: `1px solid ${C.red}40`, color: C.red, cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>🗑</button>
               </div>
             ))}
           </div>
