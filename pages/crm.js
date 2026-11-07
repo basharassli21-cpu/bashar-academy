@@ -623,7 +623,33 @@ function CreateSaleModal({ C, onClose, onSuccess, employees, isAdmin }) {
 }
 
 function SaleSuccessModal({ C, data, onClose }) {
-  const { studentAccount, record } = data
+  const { studentAccount, record, pendingApproval } = data
+
+  // Pending approval case (employee submitted, waiting for admin)
+  if (pendingApproval) {
+    return (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:110, padding:20 }}>
+        <div dir="rtl" style={{ background:C.surface, border:`1px solid ${C.g30}`, borderRadius:20, padding:32, maxWidth:420, width:'100%' }}>
+          <div style={{ textAlign:'center', marginBottom:20 }}>
+            <div style={{ fontSize:44, marginBottom:10 }}>⏳</div>
+            <h2 style={{ color:C.orange, fontWeight:900, fontSize:20, marginBottom:6 }}>بيعتك في انتظار الموافقة</h2>
+            <p style={{ color:C.silver, fontSize:13 }}>سيتم إنشاء حساب الطالب بعد مراجعة الأدمن وقبول البيعة.</p>
+          </div>
+          <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:14, padding:16, marginBottom:18 }}>
+            {[['اسم الطالب',record?.student_name],['رقم الهاتف',record?.student_phone],['الباقة',PACKAGES.find(p=>p.value===record?.package_name)?.labelAr||record?.package_name]].map(([l,v,mono])=>(
+              <div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                <span style={{ color:C.silver, fontSize:12 }}>{l}</span>
+                <span style={{ color:C.white, fontSize:13, fontWeight:700, fontFamily:mono?'monospace':'inherit', direction:'ltr' }}>{v||'—'}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ color:C.orange, fontSize:13, padding:'8px 12px', background:`${C.orange}15`, borderRadius:10, marginBottom:14 }}>⚠️ لن يتمكن الطالب من الوصول للدروس حتى تُقبل البيعة.</div>
+          <button onClick={onClose} style={{ width:'100%', padding:12, borderRadius:12, background:C.gold, border:'none', color:C.navy, fontSize:15, fontWeight:700, cursor:'pointer' }}>حسناً</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:110, padding:20 }}>
       <div dir="rtl" style={{ background:C.surface, border:`1px solid ${C.g30}`, borderRadius:20, padding:32, maxWidth:420, width:'100%' }}>
@@ -1394,19 +1420,35 @@ function AdminOpenCPage({ C }) {
 }
 
 // ─── ADMIN: All Sales ─────────────────────────────────────────────────────────
-function AdminSalesPage({ C, employees }) {
-  const [records, setRecords]   = useState([])
-  const [total, setTotal]       = useState(0)
-  const [loading, setLoading]   = useState(true)
-  const [month, setMonth]       = useState(new Date().getMonth()+1)
-  const [year, setYear]         = useState(new Date().getFullYear())
-  const [empFilter, setEmpFilter] = useState('')
-  const [stats, setStats]       = useState(null)
+function AdminSalesPage({ C, employees, onPendingCountChange }) {
+  const [records, setRecords]       = useState([])
+  const [total, setTotal]           = useState(0)
+  const [loading, setLoading]       = useState(true)
+  const [month, setMonth]           = useState(new Date().getMonth()+1)
+  const [year, setYear]             = useState(new Date().getFullYear())
+  const [empFilter, setEmpFilter]   = useState('')
+  const [stats, setStats]           = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [successData, setSuccessData] = useState(null)
+  const [pendingSales, setPendingSales]       = useState([])
+  const [loadingPending, setLoadingPending]   = useState(true)
+  const [approveLoading, setApproveLoading]   = useState(null) // id being processed
+  const [approveResult, setApproveResult]     = useState(null) // { type:'approve'|'reject', sale }
 
   useEffect(()=>{ loadRecords() },[month, year, empFilter])
   useEffect(()=>{ fetch('/api/crm/stats').then(r=>r.json()).then(d=>setStats(d)).catch(()=>{}) },[])
+  useEffect(()=>{ loadPending() },[])
+
+  async function loadPending() {
+    setLoadingPending(true)
+    try {
+      const r = await fetch('/api/sales/records?approvalStatus=pending')
+      const d = await r.json()
+      const list = d.records||[]
+      setPendingSales(list)
+      onPendingCountChange?.(list.length)
+    } catch { setPendingSales([]) } finally { setLoadingPending(false) }
+  }
 
   async function loadRecords() {
     setLoading(true)
@@ -1418,6 +1460,31 @@ function AdminSalesPage({ C, employees }) {
     } catch { setRecords([]); setTotal(0) } finally { setLoading(false) }
   }
 
+  async function handleApprove(id) {
+    setApproveLoading(id)
+    try {
+      const r = await fetch('/api/sales/records/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id, action:'approve' }) })
+      const d = await r.json()
+      if (!r.ok) { alert(d.error||'خطأ في الموافقة'); return }
+      setApproveResult({ type:'approve', sale: pendingSales.find(s=>s.id===id), account: d.studentAccount })
+      await loadPending()
+      await loadRecords()
+    } catch (e) { alert(e.message) } finally { setApproveLoading(null) }
+  }
+
+  async function handleReject(id) {
+    if (!confirm('هل تريد رفض هذه البيعة؟')) return
+    setApproveLoading(id)
+    try {
+      const r = await fetch('/api/sales/records/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id, action:'reject' }) })
+      const d = await r.json()
+      if (!r.ok) { alert(d.error||'خطأ في الرفض'); return }
+      setApproveResult({ type:'reject', sale: pendingSales.find(s=>s.id===id) })
+      await loadPending()
+      await loadRecords()
+    } catch (e) { alert(e.message) } finally { setApproveLoading(null) }
+  }
+
   const years = [new Date().getFullYear(), new Date().getFullYear()-1]
   const months = Array.from({length:12},(_,i)=>i+1)
   const thStyle = { padding:'10px 14px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap', borderBottom:`1px solid ${C.g20}` }
@@ -1426,6 +1493,60 @@ function AdminSalesPage({ C, employees }) {
   return (
     <div dir="rtl">
       <h1 style={{ color:C.white, fontWeight:900, fontSize:18, marginBottom:18 }}>💰 جميع البيعات</h1>
+
+      {/* ── Pending Sales Section ───────────────────────────────────────── */}
+      {(loadingPending || pendingSales.length > 0) && (
+        <div style={{ marginBottom:28, background:`${C.orange}10`, border:`1px solid ${C.orange}40`, borderRadius:16, overflow:'hidden' }}>
+          <div style={{ padding:'14px 18px', borderBottom:`1px solid ${C.orange}30`, display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:16 }}>⏳</span>
+            <span style={{ color:C.orange, fontWeight:800, fontSize:15 }}>مبيعات بانتظار الموافقة</span>
+            {!loadingPending && <span style={{ background:C.orange, color:'#fff', borderRadius:20, fontSize:11, fontWeight:700, padding:'2px 10px', marginRight:4 }}>{pendingSales.length}</span>}
+          </div>
+          {loadingPending ? (
+            <div style={{ padding:30, textAlign:'center', color:C.silver }}>جارٍ التحميل...</div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <thead><tr style={{ background:`${C.orange}08` }}>
+                {['الطالب','الهاتف','الموظف','الباقة','المبلغ','التاريخ','الإجراء'].map(h=><th key={h} style={{ ...thStyle, color:C.orange }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {pendingSales.map(s=>(
+                  <tr key={s.id} style={{ borderTop:`1px solid ${C.orange}20` }}>
+                    <td style={{ ...tdStyle, color:C.white, fontWeight:600 }}>{s.student_name}</td>
+                    <td style={{ ...tdStyle, color:C.silver }} dir="ltr">{s.student_phone}</td>
+                    <td style={{ ...tdStyle, color:C.gold, fontSize:12 }}>{s.employee_name||'—'}</td>
+                    <td style={{ ...tdStyle, color:C.silver, fontSize:12 }}>{PACKAGES.find(p=>p.value===s.package_name)?.labelAr||s.package_name}</td>
+                    <td style={{ ...tdStyle, color:C.gold, fontWeight:700 }}>{fmtMoney(s.amount_paid)}</td>
+                    <td style={{ ...tdStyle, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(s.sale_date)}</td>
+                    <td style={{ ...tdStyle }}>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button
+                          disabled={approveLoading===s.id}
+                          onClick={()=>handleApprove(s.id)}
+                          style={{ background:C.emerald, color:'#fff', border:'none', borderRadius:8, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer', opacity:approveLoading===s.id?0.6:1, fontFamily:'inherit' }}
+                        >{approveLoading===s.id?'...':'✓ قبول'}</button>
+                        <button
+                          disabled={approveLoading===s.id}
+                          onClick={()=>handleReject(s.id)}
+                          style={{ background:C.red, color:'#fff', border:'none', borderRadius:8, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer', opacity:approveLoading===s.id?0.6:1, fontFamily:'inherit' }}
+                        >{approveLoading===s.id?'...':'✗ رفض'}</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Approve result toast ─────────────────────────────────────────── */}
+      {approveResult && (
+        <div style={{ position:'fixed', bottom:28, left:'50%', transform:'translateX(-50%)', zIndex:200, background:approveResult.type==='approve'?C.emerald:C.red, color:'#fff', borderRadius:14, padding:'12px 24px', fontSize:14, fontWeight:700, display:'flex', alignItems:'center', gap:12, boxShadow:'0 4px 24px rgba(0,0,0,0.3)' }}>
+          {approveResult.type==='approve' ? `✅ تم قبول بيعة ${approveResult.sale?.student_name} — حساب: ${approveResult.account?.username||''}` : `❌ تم رفض بيعة ${approveResult.sale?.student_name}`}
+          <button onClick={()=>setApproveResult(null)} style={{ background:'rgba(255,255,255,0.3)', border:'none', borderRadius:8, color:'#fff', cursor:'pointer', padding:'2px 10px', fontSize:14, fontFamily:'inherit' }}>✕</button>
+        </div>
+      )}
 
       {stats && (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
@@ -1542,12 +1663,14 @@ function EmployeePortal({ C, user }) {
 }
 
 function AdminPortal({ C, user }) {
-  const [view, setView]       = useState('dashboard')
+  const [view, setView]           = useState('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const [employees, setEmployees] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(()=>{
     fetch('/api/admin/employees').then(r=>r.json()).then(d=>setEmployees(d.employees||[])).catch(()=>{})
+    fetch('/api/sales/records?approvalStatus=pending').then(r=>r.json()).then(d=>setPendingCount((d.records||[]).length)).catch(()=>{})
   },[])
 
   const navItems = [
@@ -1555,7 +1678,7 @@ function AdminPortal({ C, user }) {
     { id:'leads',      icon:'🎯', label:'إدارة Leads',          badge:0 },
     { id:'employees',  icon:'👥', label:'الموظفون',              badge:0 },
     { id:'openc',      icon:'♻️', label:'OpenC Pool',           badge:0 },
-    { id:'sales',      icon:'💰', label:'جميع البيعات',          badge:0 },
+    { id:'sales',      icon:'💰', label:'جميع البيعات',          badge:pendingCount },
     { id:'import',     icon:'📥', label:'استيراد Leads',         badge:0 },
   ]
   const titles = { dashboard:'لوحة تحكم الشركة', leads:'إدارة العملاء المحتملين', employees:'الموظفون', openc:'OpenC Pool', sales:'جميع البيعات', import:'استيراد Leads' }
@@ -1578,7 +1701,7 @@ function AdminPortal({ C, user }) {
           {view==='leads'     && <AdminLeadsPage C={C} employees={employees} />}
           {view==='employees' && <AdminEmployeesPage C={C} onEmployeesChange={setEmployees} />}
           {view==='openc'     && <AdminOpenCPage C={C} />}
-          {view==='sales'     && <AdminSalesPage C={C} employees={employees} />}
+          {view==='sales'     && <AdminSalesPage C={C} employees={employees} onPendingCountChange={setPendingCount} />}
           {view==='import'    && <AdminImportPage C={C} employees={employees} />}
         </div>
       </main>

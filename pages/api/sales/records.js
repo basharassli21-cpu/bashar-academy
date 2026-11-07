@@ -3,6 +3,7 @@ import { hashPassword } from '../../../lib/db'
 import {
   createSaleRecord, getSaleRecords, getSaleRecordById,
   getEmployeeByUsername, normalizeJordanPhone, getSaleRecordByDuplicate,
+  approveSaleRecord, rejectSaleRecord, getPendingSaleRecords,
 } from '../../../lib/sales-db'
 import { getUser, createUser } from '../../../lib/users-store'
 
@@ -48,7 +49,14 @@ async function ensureStudentAccount(normalizedPhone, studentName, packageName) {
 async function handler(req, res) {
   // ── GET ──────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
-    const { employeeId, year, month, page, limit } = req.query
+    const { employeeId, year, month, page, limit, approvalStatus } = req.query
+
+    // Admin-only: return all pending sales
+    if (approvalStatus === 'pending') {
+      if (req.user.role !== 'admin') return res.status(403).json({ error: 'غير مسموح' })
+      const records = await getPendingSaleRecords()
+      return res.status(200).json({ records, total: records.length })
+    }
 
     // Employee can only see their own records
     if (req.user.role === 'employee') {
@@ -127,10 +135,23 @@ async function handler(req, res) {
       })
     }
 
-    // Create student account
+    // ── Employee: pending approval — no student account yet ────────────────
+    if (req.user.role === 'employee') {
+      const record = await createSaleRecord({
+        employeeId, studentName, studentPhone, packageName, notes, proofImageUrl,
+        studentUsername: null, studentAccountCreated: false, studentAccountExisting: false,
+        amountPaid: amountPaid ? parseFloat(amountPaid) : null,
+        deposit: deposit ? parseFloat(deposit) : null,
+        paymentMethod: paymentMethod || 'bank_transfer',
+        saleStatus: saleStatus || 'paid',
+        approvalStatus: 'pending',
+      })
+      return res.status(201).json({ record, pendingApproval: true })
+    }
+
+    // ── Admin: approved immediately — create student account ───────────────
     const accountResult = await ensureStudentAccount(normalized, studentName, packageName)
 
-    // Create sale record
     const record = await createSaleRecord({
       employeeId, studentName, studentPhone, packageName, notes, proofImageUrl,
       studentUsername: accountResult.username,
@@ -140,9 +161,10 @@ async function handler(req, res) {
       deposit: deposit ? parseFloat(deposit) : null,
       paymentMethod: paymentMethod || 'bank_transfer',
       saleStatus: saleStatus || 'paid',
+      approvalStatus: 'approved',
     })
 
-    // Auto-sync to finance (best-effort — never blocks CRM sale)
+    // Auto-sync to finance (best-effort)
     try {
       const { createSale: createFinSale } = await import('../../../lib/finance-db')
       const PAY_MAP = { bank_transfer:'bank', cash:'cash', cliq:'bank', other:'manual' }
@@ -165,7 +187,7 @@ async function handler(req, res) {
         currency:      'JOD',
         source:        'crm',
         notes:         notes || null,
-        saleDate:      new Date().toISOString().split('T')[0],
+        saleDate:      today,
       }, req.user.username)
     } catch (fe) {
       console.error('[sale POST] finance sync failed:', fe.message)

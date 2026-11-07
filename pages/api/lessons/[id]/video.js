@@ -31,7 +31,7 @@ async function handler(req, res) {
   const isAdmin = req.user.role === 'admin'
 
   if (!isAdmin) {
-    const course   = user.allowedCourse ? COURSES[user.allowedCourse] : null
+    const course   = COURSES[user.allowedCourse] || COURSES['starter']
     const inCourse = course && course.lessons.includes(lessonId)
     if (!inCourse && !lesson.free) {
       return res.status(403).json({ error: 'ليس لديك صلاحية الوصول لهذا الدرس' })
