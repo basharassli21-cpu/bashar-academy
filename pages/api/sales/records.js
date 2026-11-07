@@ -78,11 +78,11 @@ async function handler(req, res) {
     return res.status(200).json(data)
   }
 
-  // ── PATCH — update sale status/amount ────────────────────────────────────
+  // ── PATCH — update sale record (full edit) ───────────────────────────────
   if (req.method === 'PATCH') {
     const { id } = req.query
     if (!id) return res.status(400).json({ error: 'id مطلوب' })
-    const { updateSaleRecord } = await import('../../../lib/sales-db')
+
     let employeeId
     if (req.user.role === 'admin') {
       employeeId = null
@@ -91,9 +91,21 @@ async function handler(req, res) {
       if (!employee) return res.status(404).json({ error: 'الموظف غير موجود' })
       employeeId = employee.id
     }
-    const { saleStatus, amountPaid, deposit, paymentMethod } = req.body || {}
-    const record = await updateSaleRecord(parseInt(id), employeeId, { saleStatus, amountPaid, deposit, paymentMethod })
-    if (!record) return res.status(404).json({ error: 'السجل غير موجود' })
+
+    const { updateSaleRecord } = await import('../../../lib/sales-db')
+    const { studentName, studentPhone, packageName, notes, proofImageUrl,
+            saleStatus, amountPaid, deposit, paymentMethod } = req.body || {}
+
+    if (!studentName?.trim()) return res.status(400).json({ error: 'اسم الطالب مطلوب' })
+    if (!studentPhone?.trim()) return res.status(400).json({ error: 'رقم الهاتف مطلوب' })
+    if (!packageName) return res.status(400).json({ error: 'الباقة مطلوبة' })
+    if (!proofImageUrl) return res.status(400).json({ error: 'صورة الإثبات مطلوبة' })
+
+    const record = await updateSaleRecord(parseInt(id), employeeId, {
+      studentName: studentName.trim(), studentPhone: studentPhone.trim(),
+      packageName, notes, proofImageUrl, saleStatus, amountPaid, deposit, paymentMethod,
+    })
+    if (!record) return res.status(404).json({ error: 'السجل غير موجود أو لا تملك صلاحية تعديله' })
     return res.status(200).json({ record })
   }
 

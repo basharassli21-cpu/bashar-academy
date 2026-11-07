@@ -673,6 +673,112 @@ function SaleSuccessModal({ C, data, onClose }) {
   )
 }
 
+// ─── Edit Sale Modal ──────────────────────────────────────────────────────────
+function EditSaleModal({ C, record, onClose, onSuccess }) {
+  const [f, setF] = useState({
+    studentName:   record.student_name   || '',
+    studentPhone:  record.student_phone  || '',
+    packageName:   record.package_name   || '',
+    amountPaid:    record.amount_paid    != null ? String(record.amount_paid)  : '',
+    deposit:       record.deposit        != null ? String(record.deposit)      : '',
+    paymentMethod: record.payment_method || 'bank_transfer',
+    saleStatus:    record.sale_status    || 'paid',
+    notes:         record.notes          || '',
+  })
+  const [proofFile, setProofFile]   = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [uploading, setUploading]   = useState(false)
+  const [err, setErr]               = useState('')
+  const fileRef = useRef()
+
+  function handleFile(e) {
+    const file = e.target.files[0]; if (!file) return
+    if (file.size > 10*1024*1024) { setErr('حجم الصورة أكثر من 10MB'); return }
+    setProofFile(file); setPreviewUrl(URL.createObjectURL(file)); setErr('')
+  }
+
+  async function submit(e) {
+    e.preventDefault(); setErr('')
+    if (!f.studentName.trim()) return setErr('اسم الطالب مطلوب')
+    if (!f.studentPhone.trim()) return setErr('رقم الهاتف مطلوب')
+    if (!f.packageName) return setErr('اختر الباقة')
+    setUploading(true)
+    try {
+      let proofImageUrl = record.proof_image_url
+      if (proofFile) {
+        const base64 = await new Promise((res,rej)=>{ const reader=new FileReader(); reader.onload=()=>res(reader.result.split(',')[1]); reader.onerror=rej; reader.readAsDataURL(proofFile) })
+        const upR = await fetch('/api/sales/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ base64, contentType:proofFile.type, filename:proofFile.name }) })
+        if (!upR.ok) { const d=await upR.json(); throw new Error(d.error||'فشل رفع الصورة') }
+        const up = await upR.json(); proofImageUrl = up.url
+      }
+      const r = await fetch(`/api/sales/records?id=${record.id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...f, proofImageUrl }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error||'فشل التعديل')
+      onSuccess(d.record)
+    } catch(ex) { setErr(ex.message) } finally { setUploading(false) }
+  }
+
+  const inp = { background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'9px 12px', color:C.white, fontSize:13, width:'100%', fontFamily:'inherit', boxSizing:'border-box', direction:'rtl', outline:'none' }
+  const currentImg = previewUrl || record.proof_image_url
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:20, overflowY:'auto' }} onClick={onClose}>
+      <div dir="rtl" onClick={e=>e.stopPropagation()} style={{ background:C.surface, border:`1px solid ${C.g30}`, borderRadius:20, padding:28, maxWidth:560, width:'100%', maxHeight:'90vh', overflowY:'auto' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ color:C.white, fontWeight:900, fontSize:18 }}>✏️ تعديل البيعة</h2>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', background:C.g10, border:`1px solid ${C.g20}`, color:C.silver, cursor:'pointer', fontSize:16 }}>✕</button>
+        </div>
+        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          {err && <div style={{ background:`${C.red}20`, border:`1px solid ${C.red}40`, borderRadius:10, padding:'9px 14px', color:C.red, fontSize:13 }}>{err}</div>}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>اسم الطالب *</label><input style={inp} value={f.studentName} onChange={e=>setF({...f,studentName:e.target.value})} required /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>رقم الهاتف *</label><input style={{ ...inp, direction:'ltr' }} value={f.studentPhone} onChange={e=>setF({...f,studentPhone:e.target.value})} required /></div>
+          </div>
+          <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>الباقة *</label>
+            <select style={{ ...inp, appearance:'none' }} value={f.packageName} onChange={e=>setF({...f,packageName:e.target.value})} required>
+              <option value="">— اختر الباقة —</option>
+              {PACKAGES.map(p=><option key={p.value} value={p.value}>{p.labelAr}</option>)}
+            </select>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>العربون (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.deposit} onChange={e=>setF({...f,deposit:e.target.value})} /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>طريقة الدفع</label>
+              <select style={{ ...inp, appearance:'none' }} value={f.paymentMethod} onChange={e=>setF({...f,paymentMethod:e.target.value})}>
+                {PAYMENT_METHODS.map(p=><option key={p.value} value={p.value}>{p.labelAr}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>حالة البيعة</label>
+              <select style={{ ...inp, appearance:'none' }} value={f.saleStatus} onChange={e=>setF({...f,saleStatus:e.target.value})}>
+                {SALE_STATUSES.map(s=><option key={s.value} value={s.value}>{s.labelAr}</option>)}
+              </select>
+            </div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>ملاحظات</label><textarea style={{ ...inp, resize:'vertical', minHeight:38 }} value={f.notes} onChange={e=>setF({...f,notes:e.target.value})} /></div>
+          </div>
+          <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>صورة إثبات البيعة</label>
+            <div onClick={()=>fileRef.current?.click()} style={{ border:`2px dashed ${proofFile?C.gold:C.g30}`, borderRadius:12, padding:14, textAlign:'center', cursor:'pointer', background:C.g10 }}>
+              {currentImg ? (<div><img src={currentImg} alt="proof" style={{ maxWidth:'100%', maxHeight:120, borderRadius:8, marginBottom:4 }} /><p style={{ color:proofFile?C.gold:C.silver, fontSize:11 }}>{proofFile?'✅ صورة جديدة — انقر للتغيير':'📷 انقر لاستبدال الصورة'}</p></div>)
+              : (<div><p style={{ fontSize:22, marginBottom:4 }}>📷</p><p style={{ color:C.silver, fontSize:12 }}>انقر لاختيار صورة</p></div>)}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display:'none' }} />
+          </div>
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding:'10px 20px', borderRadius:10, background:'none', border:`1px solid ${C.g30}`, color:C.silver, fontSize:13, cursor:'pointer' }}>إلغاء</button>
+            <button type="submit" disabled={uploading} style={{ padding:'10px 28px', borderRadius:10, background:uploading?C.g15:C.gold, border:'none', color:uploading?C.silver:C.navy, fontSize:14, fontWeight:700, cursor:uploading?'not-allowed':'pointer' }}>
+              {uploading?'⏳ جارٍ الحفظ...':'✅ حفظ التعديلات'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── EMPLOYEE: Sales Page ─────────────────────────────────────────────────────
 function SalesPage({ C }) {
   const [records, setRecords]   = useState([])
@@ -683,9 +789,7 @@ function SalesPage({ C }) {
   const [showCreate, setShowCreate] = useState(false)
   const [successData, setSuccessData] = useState(null)
   const [stats, setStats]       = useState(null)
-  const [editId, setEditId]     = useState(null)
-  const [editStatus, setEditStatus] = useState('')
-  const [busyEdit, setBusyEdit] = useState(false)
+  const [editRecord, setEditRecord] = useState(null)
 
   useEffect(()=>{ loadRecords() },[month,year])
   useEffect(()=>{ fetch('/api/sales/dashboard').then(r=>r.json()).then(d=>setStats(d.stats)).catch(()=>{}) },[])
@@ -697,12 +801,6 @@ function SalesPage({ C }) {
       const d = await r.json()
       setRecords(d.records||[]); setTotal(d.total||0)
     } catch { setRecords([]); setTotal(0) } finally { setLoading(false) }
-  }
-
-  async function updateStatus(id, saleStatus) {
-    setBusyEdit(id)
-    await fetch(`/api/sales/records?id=${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ saleStatus }) })
-    setBusyEdit(null); setEditId(null); loadRecords()
   }
 
   const years = [new Date().getFullYear(), new Date().getFullYear()-1]
@@ -737,7 +835,7 @@ function SalesPage({ C }) {
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>
-            {['CUSTOMER','PHONE','PRODUCT','AMOUNT','DEPOSIT','PAYMENT','DATE','STATUS','ACTIONS'].map(h=><th key={h} style={thStyle}>{h}</th>)}
+            {['CUSTOMER','PHONE','PRODUCT','AMOUNT','DEPOSIT','PAYMENT','DATE','STATUS',''].map(h=><th key={h} style={thStyle}>{h}</th>)}
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={9} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
@@ -754,20 +852,12 @@ function SalesPage({ C }) {
                   <td style={{ ...tdStyle, color:C.silver }}>{fmtMoney(r.deposit)}</td>
                   <td style={{ ...tdStyle, color:C.silver, fontSize:12 }}>{PAYMENT_METHODS.find(p=>p.value===r.payment_method)?.labelAr||r.payment_method}</td>
                   <td style={{ ...tdStyle, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(r.sale_date)}</td>
+                  <td style={{ ...tdStyle }}><span style={{ color:sColor, fontSize:11, background:`${sColor}20`, padding:'3px 10px', borderRadius:20 }}>{ss?.labelAr||r.sale_status}</span></td>
                   <td style={{ ...tdStyle }}>
-                    {editId===r.id ? (
-                      <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-                        <select value={editStatus} onChange={e=>setEditStatus(e.target.value)} style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:6, padding:'4px 8px', color:C.white, fontSize:12, fontFamily:'inherit' }}>
-                          {SALE_STATUSES.map(s=><option key={s.value} value={s.value}>{s.labelAr}</option>)}
-                        </select>
-                        <button onClick={()=>updateStatus(r.id,editStatus)} disabled={busyEdit===r.id} style={{ padding:'4px 10px', borderRadius:6, background:C.gold, border:'none', color:C.navy, fontSize:11, cursor:'pointer' }}>✓</button>
-                        <button onClick={()=>setEditId(null)} style={{ padding:'4px 8px', borderRadius:6, background:'none', border:`1px solid ${C.g20}`, color:C.silver, fontSize:11, cursor:'pointer' }}>✕</button>
-                      </div>
-                    ) : <span style={{ color:sColor, fontSize:11, background:`${sColor}20`, padding:'3px 10px', borderRadius:20 }}>{ss?.labelAr||r.sale_status}</span>}
-                  </td>
-                  <td style={{ ...tdStyle }}>
-                    {editId!==r.id && <button onClick={()=>{setEditId(r.id);setEditStatus(r.sale_status||'paid')}} style={{ padding:'4px 12px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, cursor:'pointer' }}>تعديل</button>}
-                    {r.proof_image_url && <a href={r.proof_image_url} target="_blank" rel="noopener noreferrer" style={{ marginRight:6, padding:'4px 12px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, textDecoration:'none', display:'inline-block' }}>📷</a>}
+                    <div style={{ display:'flex', gap:6 }}>
+                      <button onClick={()=>setEditRecord(r)} style={{ padding:'4px 12px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, cursor:'pointer' }}>✏️ تعديل</button>
+                      {r.proof_image_url && <a href={r.proof_image_url} target="_blank" rel="noopener noreferrer" style={{ padding:'4px 12px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, textDecoration:'none', display:'inline-block' }}>📷</a>}
+                    </div>
                   </td>
                 </tr>
               )
@@ -777,6 +867,7 @@ function SalesPage({ C }) {
       </div>
       {showCreate && <CreateSaleModal C={C} onClose={()=>setShowCreate(false)} onSuccess={d=>{setShowCreate(false);setSuccessData(d);loadRecords()}} />}
       {successData && <SaleSuccessModal C={C} data={successData} onClose={()=>setSuccessData(null)} />}
+      {editRecord && <EditSaleModal C={C} record={editRecord} onClose={()=>setEditRecord(null)} onSuccess={()=>{ setEditRecord(null); loadRecords() }} />}
     </div>
   )
 }
@@ -1430,6 +1521,7 @@ function AdminSalesPage({ C, employees, onPendingCountChange }) {
   const [stats, setStats]           = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [successData, setSuccessData] = useState(null)
+  const [editRecord, setEditRecord]   = useState(null)
   const [pendingSales, setPendingSales]       = useState([])
   const [loadingPending, setLoadingPending]   = useState(true)
   const [approveLoading, setApproveLoading]   = useState(null) // id being processed
@@ -1575,11 +1667,11 @@ function AdminSalesPage({ C, employees, onPendingCountChange }) {
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>
-            {['CUSTOMER','PHONE','EMPLOYEE','PRODUCT','AMOUNT','DEPOSIT','PAYMENT','DATE','STATUS'].map(h=><th key={h} style={thStyle}>{h}</th>)}
+            {['CUSTOMER','PHONE','EMPLOYEE','PRODUCT','AMOUNT','DEPOSIT','PAYMENT','DATE','STATUS',''].map(h=><th key={h} style={thStyle}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={9} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
-            : records.length===0 ? <tr><td colSpan={9} style={{ padding:60, textAlign:'center', color:C.silver }}>لا توجد بيعات</td></tr>
+            {loading ? <tr><td colSpan={10} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
+            : records.length===0 ? <tr><td colSpan={10} style={{ padding:60, textAlign:'center', color:C.silver }}>لا توجد بيعات</td></tr>
             : records.map(r=>{
               const ss = SALE_STATUSES.find(x=>x.value===r.sale_status)
               const sColor = ss?C[ss.color]:C.silver
@@ -1594,6 +1686,12 @@ function AdminSalesPage({ C, employees, onPendingCountChange }) {
                   <td style={{ ...tdStyle, color:C.silver, fontSize:12 }}>{PAYMENT_METHODS.find(p=>p.value===r.payment_method)?.labelAr||r.payment_method}</td>
                   <td style={{ ...tdStyle, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(r.sale_date)}</td>
                   <td style={{ ...tdStyle }}><span style={{ color:sColor, fontSize:11, background:`${sColor}20`, padding:'3px 10px', borderRadius:20 }}>{ss?.labelAr||r.sale_status}</span></td>
+                  <td style={{ ...tdStyle }}>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <button onClick={()=>setEditRecord(r)} style={{ padding:'4px 12px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, cursor:'pointer' }}>✏️ تعديل</button>
+                      {r.proof_image_url && <a href={r.proof_image_url} target="_blank" rel="noopener noreferrer" style={{ padding:'4px 10px', borderRadius:8, background:C.g15, border:`1px solid ${C.g20}`, color:C.silver, fontSize:12, textDecoration:'none' }}>📷</a>}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
@@ -1602,6 +1700,7 @@ function AdminSalesPage({ C, employees, onPendingCountChange }) {
       </div>
       {showCreate && <CreateSaleModal C={C} employees={employees} isAdmin={true} onClose={()=>setShowCreate(false)} onSuccess={d=>{setShowCreate(false);setSuccessData(d);loadRecords()}} />}
       {successData && <SaleSuccessModal C={C} data={successData} onClose={()=>setSuccessData(null)} />}
+      {editRecord && <EditSaleModal C={C} record={editRecord} onClose={()=>setEditRecord(null)} onSuccess={()=>{ setEditRecord(null); loadRecords() }} />}
     </div>
   )
 }
