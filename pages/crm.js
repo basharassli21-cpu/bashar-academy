@@ -459,6 +459,7 @@ function LeadsPage({ C }) {
   useEffect(()=>{
     fetch('/api/sales/leads-page?tab=openc&limit=1')
       .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
+    alert('DEBUG v3: LeadsPage loaded OK — tabs=' + 4)
   }, [])
 
   useEffect(()=>{ load(tab,search,page) },[tab,search,page])
