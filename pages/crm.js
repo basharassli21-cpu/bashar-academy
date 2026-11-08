@@ -437,6 +437,7 @@ function LeadsPage({ C }) {
   const [search, setSearch]   = useState('')
   const [searchVal, setSearchVal] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const [opencCount, setOpencCount] = useState(0)
   const timer = useRef()
 
   const load = useCallback(async (t, q, pg) => {
@@ -445,11 +446,19 @@ function LeadsPage({ C }) {
       const r = await fetch(`/api/sales/leads-page?tab=${t}&q=${encodeURIComponent(q)}&page=${pg}&limit=30`)
       const d = await r.json()
       setLeads(d.leads||[]); setTotal(d.total||0)
+      // Keep badge count up to date when viewing the openc tab
+      if (t === 'openc') setOpencCount(d.total||0)
     } catch(e) {
       setLeads([]); setTotal(0)
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  // Load OpenC count for badge on mount and after any update
+  useEffect(()=>{
+    fetch('/api/sales/leads-page?tab=openc&limit=1')
+      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
   }, [])
 
   useEffect(()=>{ load(tab,search,page) },[tab,search,page])
@@ -460,10 +469,22 @@ function LeadsPage({ C }) {
     timer.current = setTimeout(()=>{ setSearch(v); setPage(1) }, 400)
   }
 
+  function switchTab(id) {
+    setTab(id); setPage(1); setSearch(''); setSearchVal('')
+  }
+
+  function afterUpdate() {
+    load(tab, search, page)
+    // Refresh OpenC badge
+    fetch('/api/sales/leads-page?tab=openc&limit=1')
+      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
+  }
+
   const tabs = [
-    { id:'fresh', label:'Fresh', icon:'🌱' },
-    { id:'all',   label:'My Leads', icon:'👤' },
-    { id:'followups', label:'Follow-ups', icon:'📅' },
+    { id:'fresh',    label:'Fresh',    icon:'🌱', badge:0 },
+    { id:'openc',    label:'OpenSea',  icon:'♻️', badge:opencCount },
+    { id:'all',      label:'My Leads', icon:'👤', badge:0 },
+    { id:'followups',label:'Follow-ups',icon:'📅',badge:0 },
   ]
   const cols = ['NAME','PHONE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
   const th = { padding:'11px 14px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap' }
@@ -475,12 +496,23 @@ function LeadsPage({ C }) {
         <input value={searchVal} onChange={e=>handleSearch(e.target.value)} placeholder="ابحث بالاسم أو الرقم..."
           style={{ width:'100%', background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'10px 14px', color:C.white, fontSize:14, fontFamily:'inherit', boxSizing:'border-box' }} />
       </div>
+      {tab === 'openc' && (
+        <div style={{ marginBottom:14, background:`${C.purple}12`, border:`1px solid ${C.purple}35`, borderRadius:12, padding:'10px 16px', color:C.purple, fontSize:13, display:'flex', alignItems:'center', gap:8 }}>
+          <span>♻️</span>
+          <span>أرقام سحبتها من OpenC Pool — بمجرد تسجيل أي تواصل معها تنتقل تلقائياً إلى <strong>My Leads</strong></span>
+        </div>
+      )}
       <div style={{ display:'flex', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
-        {tabs.map(t=>(
-          <button key={t.id} onClick={()=>{setTab(t.id);setPage(1)}} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:tab===t.id?C.gold:'transparent', color:tab===t.id?C.navy:C.silver, fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
-            <span>{t.icon}</span><span>{t.label}</span>
-          </button>
-        ))}
+        {tabs.map(t=>{
+          const active = tab===t.id
+          const isOpenc = t.id==='openc'
+          return (
+            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):'transparent', color:active?(isOpenc?'#fff':C.navy):C.silver, fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
+              <span>{t.icon}</span><span>{t.label}</span>
+              {t.badge > 0 && <span style={{ background:active?'rgba(255,255,255,0.3)':C.purple, color:'#fff', borderRadius:20, fontSize:10, fontWeight:700, padding:'1px 7px', marginRight:2 }}>{t.badge}</span>}
+            </button>
+          )
+        })}
       </div>
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -510,7 +542,7 @@ function LeadsPage({ C }) {
           <button onClick={()=>setPage(p=>p+1)} disabled={page>=Math.ceil(total/30)} style={{ padding:'6px 14px', borderRadius:8, background:page>=Math.ceil(total/30)?C.g10:C.g20, border:`1px solid ${C.g20}`, color:page>=Math.ceil(total/30)?C.silver:C.white, cursor:page>=Math.ceil(total/30)?'default':'pointer', fontSize:13 }}>التالي</button>
         </div>
       )}
-      {selectedId && <LeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={()=>load(tab,search,page)} />}
+      {selectedId && <LeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={afterUpdate} />}
     </div>
   )
 }
@@ -1723,15 +1755,18 @@ function EmployeePortal({ C, user }) {
   const [view, setView]       = useState('home')
   const [collapsed, setCollapsed] = useState(false)
   const [followupCount, setFollowupCount] = useState(0)
+  const [opencCount, setOpencCount]       = useState(0)
 
   useEffect(()=>{
     fetch('/api/sales/leads-page?tab=followups&limit=1')
       .then(r=>r.json()).then(d=>setFollowupCount(d.total||0)).catch(()=>{})
+    fetch('/api/sales/leads-page?tab=openc&limit=1')
+      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
   },[])
 
   const navItems = [
     { id:'home',   icon:'🏠', label:'الرئيسية',            badge:0 },
-    { id:'leads',  icon:'🎯', label:'العملاء المحتملون',    badge:followupCount },
+    { id:'leads',  icon:'🎯', label:'العملاء المحتملون',    badge:followupCount + opencCount },
     { id:'openc',  icon:'♻️', label:'OpenC Pool',          badge:0 },
     { id:'sales',  icon:'💰', label:'البيعات',              badge:0 },
   ]
