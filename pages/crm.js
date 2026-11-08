@@ -1755,8 +1755,9 @@ function EmployeePortal({ C, user }) {
   const [view, setView] = useState('home')
 
   useEffect(() => {
-    const goto = localStorage.getItem('crm_goto')
-    if (goto) { localStorage.removeItem('crm_goto'); setView(goto) }
+    const params = new URLSearchParams(window.location.search)
+    const v = params.get('v')
+    if (v) { setView(v); window.history.replaceState({}, '', '/crm') }
   }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [followupCount, setFollowupCount] = useState(0)
@@ -1782,7 +1783,7 @@ function EmployeePortal({ C, user }) {
   return (
     <div dir="rtl" style={{ display:'flex', minHeight:'100vh', background:C.navy, fontFamily:"'Cairo',sans-serif" }}>
       <Sidebar C={C} user={user} view={view} setView={(id) => {
-        if (id === 'leads') { localStorage.setItem('crm_goto', 'leads'); window.location.reload() }
+        if (id === 'leads') { window.location.href = '/crm?v=leads' }
         else setView(id)
       }} onLogout={logout} navItems={navItems} collapsed={collapsed} setCollapsed={setCollapsed} />
       <main style={{ flex:1, marginRight:collapsed?72:240, transition:'margin 0.2s', display:'flex', flexDirection:'column', minHeight:'100vh' }}>
