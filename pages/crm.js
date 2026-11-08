@@ -481,10 +481,10 @@ function LeadsPage({ C }) {
   }
 
   const tabs = [
-    { id:'fresh',    label:'Fresh',    icon:'🌱', badge:0 },
-    { id:'openc',    label:'OpenSea',  icon:'♻️', badge:opencCount },
-    { id:'all',      label:'My Leads', icon:'👤', badge:0 },
-    { id:'followups',label:'Follow-ups',icon:'📅',badge:0 },
+    { id:'fresh',     label:'Fresh',      icon:'🌱',  badge:0 },
+    { id:'openc',     label:'OpenSea',    icon:'🌊',  badge:opencCount },
+    { id:'all',       label:'My Leads',   icon:'👤',  badge:0 },
+    { id:'followups', label:'Follow-ups', icon:'📅',  badge:0 },
   ]
   const cols = ['NAME','PHONE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
   const th = { padding:'11px 14px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap' }
