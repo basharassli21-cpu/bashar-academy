@@ -459,7 +459,6 @@ function LeadsPage({ C }) {
   useEffect(()=>{
     fetch('/api/sales/leads-page?tab=openc&limit=1')
       .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
-    alert('DEBUG v3: LeadsPage loaded OK — tabs=' + 4)
   }, [])
 
   useEffect(()=>{ load(tab,search,page) },[tab,search,page])
@@ -503,20 +502,18 @@ function LeadsPage({ C }) {
           <span>أرقام سحبتها من OpenC Pool — بمجرد تسجيل أي تواصل معها تنتقل تلقائياً إلى <strong>My Leads</strong></span>
         </div>
       )}
-      <div style={{ color:C.white, fontSize:12, marginBottom:4 }}>DEBUG tabs={tabs.length}</div>
       <div style={{ display:'flex', flexDirection:'row', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
         {tabs.map(t=>{
           const active = tab===t.id
           const isOpenc = t.id==='openc'
           return (
-            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:isOpenc&&!active?`2px solid ${C.purple}`:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):(isOpenc?C.purple+'22':'transparent'), color:active?(isOpenc?'#fff':C.navy):(isOpenc?C.purple:C.silver), fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
+            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):'transparent', color:active?(isOpenc?'#fff':C.navy):(isOpenc?C.purple:C.silver), fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
               <span>{t.icon}</span><span>{t.label}</span>
               {t.badge > 0 && <span style={{ background:active?'rgba(255,255,255,0.3)':C.purple, color:'#fff', borderRadius:20, fontSize:10, fontWeight:700, padding:'1px 7px', marginRight:2 }}>{t.badge}</span>}
             </button>
           )
         })}
       </div>
-      <div style={{ color:'red', fontWeight:700, fontSize:13, marginBottom:8 }}>HARDCODED: <button onClick={()=>switchTab('openc')} style={{background:'red',color:'white',padding:'4px 10px'}}>🌊 أرقام البركة HC</button></div>
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>{cols.map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
