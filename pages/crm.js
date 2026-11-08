@@ -1752,13 +1752,12 @@ function AdminImportPage({ C, employees }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function EmployeePortal({ C, user }) {
-  const [view, setView] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const goto = localStorage.getItem('crm_goto')
-      if (goto) { localStorage.removeItem('crm_goto'); return goto }
-    }
-    return 'home'
-  })
+  const [view, setView] = useState('home')
+
+  useEffect(() => {
+    const goto = localStorage.getItem('crm_goto')
+    if (goto) { localStorage.removeItem('crm_goto'); setView(goto) }
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [followupCount, setFollowupCount] = useState(0)
   const [opencCount, setOpencCount]       = useState(0)
