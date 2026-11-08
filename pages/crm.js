@@ -482,7 +482,7 @@ function LeadsPage({ C }) {
 
   const tabs = [
     { id:'fresh',     label:'Fresh',      icon:'🌱',  badge:0 },
-    { id:'openc',     label:'OpenSea',    icon:'🌊',  badge:opencCount },
+    { id:'openc',     label:'بركة OpenC', icon:'🌊',  badge:opencCount },
     { id:'all',       label:'My Leads',   icon:'👤',  badge:0 },
     { id:'followups', label:'Follow-ups', icon:'📅',  badge:0 },
   ]
