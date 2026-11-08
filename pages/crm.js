@@ -502,12 +502,12 @@ function LeadsPage({ C }) {
           <span>أرقام سحبتها من OpenC Pool — بمجرد تسجيل أي تواصل معها تنتقل تلقائياً إلى <strong>My Leads</strong></span>
         </div>
       )}
-      <div style={{ display:'flex', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
+      <div style={{ display:'flex', flexDirection:'row', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
         {tabs.map(t=>{
           const active = tab===t.id
           const isOpenc = t.id==='openc'
           return (
-            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):'transparent', color:active?(isOpenc?'#fff':C.navy):C.silver, fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
+            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:isOpenc&&!active?`2px solid ${C.purple}`:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):(isOpenc?C.purple+'22':'transparent'), color:active?(isOpenc?'#fff':C.navy):(isOpenc?C.purple:C.silver), fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
               <span>{t.icon}</span><span>{t.label}</span>
               {t.badge > 0 && <span style={{ background:active?'rgba(255,255,255,0.3)':C.purple, color:'#fff', borderRadius:20, fontSize:10, fontWeight:700, padding:'1px 7px', marginRight:2 }}>{t.badge}</span>}
             </button>
