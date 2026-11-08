@@ -1848,6 +1848,22 @@ export default function CrmPage({ user }) {
   const { theme } = useTheme()
   const C = theme === 'dark' ? C_DARK : C_LIGHT
 
+  // Auto-reload when a newer build is deployed while the page is open
+  useEffect(() => {
+    const myBuildId = window.__NEXT_DATA__?.buildId
+    if (!myBuildId) return
+    const check = () => {
+      fetch('/crm', { cache: 'no-store', headers: { Accept: 'text/html' } })
+        .then(r => r.text())
+        .then(html => {
+          const m = html.match(/"buildId":"([^"]+)"/)
+          if (m?.[1] && m[1] !== myBuildId) window.location.reload()
+        }).catch(() => {})
+    }
+    window.addEventListener('focus', check)
+    return () => window.removeEventListener('focus', check)
+  }, [])
+
   if (!user) return null
 
   return (
