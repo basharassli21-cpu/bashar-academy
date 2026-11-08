@@ -1848,11 +1848,13 @@ export default function CrmPage({ user }) {
   const { theme } = useTheme()
   const C = theme === 'dark' ? C_DARK : C_LIGHT
 
-  // Auto-reload when a newer build is deployed while the page is open
+  // Auto-reload when a newer build is deployed
+  // Runs on mount (catches stale client-side nav) + when tab becomes visible
   useEffect(() => {
     const myBuildId = window.__NEXT_DATA__?.buildId
     if (!myBuildId) return
     const check = () => {
+      if (document.visibilityState !== 'visible') return
       fetch('/crm', { cache: 'no-store', headers: { Accept: 'text/html' } })
         .then(r => r.text())
         .then(html => {
@@ -1860,8 +1862,9 @@ export default function CrmPage({ user }) {
           if (m?.[1] && m[1] !== myBuildId) window.location.reload()
         }).catch(() => {})
     }
-    window.addEventListener('focus', check)
-    return () => window.removeEventListener('focus', check)
+    check()
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
   }, [])
 
   if (!user) return null
