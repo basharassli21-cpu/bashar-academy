@@ -1752,7 +1752,13 @@ function AdminImportPage({ C, employees }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function EmployeePortal({ C, user }) {
-  const [view, setView]       = useState('home')
+  const [view, setView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const goto = localStorage.getItem('crm_goto')
+      if (goto) { localStorage.removeItem('crm_goto'); return goto }
+    }
+    return 'home'
+  })
   const [collapsed, setCollapsed] = useState(false)
   const [followupCount, setFollowupCount] = useState(0)
   const [opencCount, setOpencCount]       = useState(0)
@@ -1776,7 +1782,10 @@ function EmployeePortal({ C, user }) {
 
   return (
     <div dir="rtl" style={{ display:'flex', minHeight:'100vh', background:C.navy, fontFamily:"'Cairo',sans-serif" }}>
-      <Sidebar C={C} user={user} view={view} setView={setView} onLogout={logout} navItems={navItems} collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar C={C} user={user} view={view} setView={(id) => {
+        if (id === 'leads') { localStorage.setItem('crm_goto', 'leads'); window.location.reload() }
+        else setView(id)
+      }} onLogout={logout} navItems={navItems} collapsed={collapsed} setCollapsed={setCollapsed} />
       <main style={{ flex:1, marginRight:collapsed?72:240, transition:'margin 0.2s', display:'flex', flexDirection:'column', minHeight:'100vh' }}>
         <header style={{ background:C.surface, borderBottom:`1px solid ${C.g20}`, padding:'0 24px', height:60, display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:30 }}>
           <span style={{ color:C.gold, fontWeight:700, fontSize:16 }}>{titles[view]}</span>
@@ -1848,24 +1857,6 @@ export default function CrmPage({ user }) {
   const { theme } = useTheme()
   const C = theme === 'dark' ? C_DARK : C_LIGHT
 
-  // Auto-reload when a newer build is deployed
-  // Runs on mount (catches stale client-side nav) + when tab becomes visible
-  useEffect(() => {
-    const myBuildId = window.__NEXT_DATA__?.buildId
-    if (!myBuildId) return
-    const check = () => {
-      if (document.visibilityState !== 'visible') return
-      fetch('/crm', { cache: 'no-store', headers: { Accept: 'text/html' } })
-        .then(r => r.text())
-        .then(html => {
-          const m = html.match(/"buildId":"([^"]+)"/)
-          if (m?.[1] && m[1] !== myBuildId) window.location.reload()
-        }).catch(() => {})
-    }
-    check()
-    document.addEventListener('visibilitychange', check)
-    return () => document.removeEventListener('visibilitychange', check)
-  }, [])
 
   if (!user) return null
 
