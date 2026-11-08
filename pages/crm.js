@@ -502,6 +502,7 @@ function LeadsPage({ C }) {
           <span>أرقام سحبتها من OpenC Pool — بمجرد تسجيل أي تواصل معها تنتقل تلقائياً إلى <strong>My Leads</strong></span>
         </div>
       )}
+      <div style={{ color:C.white, fontSize:12, marginBottom:4 }}>DEBUG tabs={tabs.length}</div>
       <div style={{ display:'flex', flexDirection:'row', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
         {tabs.map(t=>{
           const active = tab===t.id
@@ -514,6 +515,7 @@ function LeadsPage({ C }) {
           )
         })}
       </div>
+      <div style={{ color:'red', fontWeight:700, fontSize:13, marginBottom:8 }}>HARDCODED: <button onClick={()=>switchTab('openc')} style={{background:'red',color:'white',padding:'4px 10px'}}>🌊 أرقام البركة HC</button></div>
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>{cols.map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
