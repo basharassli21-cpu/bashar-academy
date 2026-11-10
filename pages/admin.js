@@ -1060,8 +1060,8 @@ function SalesTeamTab({ lang }) {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {leads.map((lead, i) => (
-                          <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: C.navy, borderRadius: '8px', padding: '8px 12px', opacity: lead.locked ? 0.5 : 1 }}>
-                            <span style={{ fontSize: '11px', color: C.silver, width: '18px', flexShrink: 0 }}>{lead.locked ? '🔒' : i + 1}</span>
+                          <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: C.navy, borderRadius: '8px', padding: '8px 12px' }}>
+                            <span style={{ fontSize: '11px', color: C.silver, width: '18px', flexShrink: 0 }}>{i + 1}</span>
                             <span style={{ flex: 1, minWidth: '100px', color: C.white, fontSize: '12.5px', fontWeight: '600' }}>{lead.customer_name}</span>
                             <span style={{ color: C.silver, fontSize: '11.5px' }}>{lead.phone}</span>
                             <span style={{

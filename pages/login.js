@@ -139,7 +139,7 @@ export default function LoginPage() {
         router.push('/change-password')
         return
       }
-      router.push(data.user.role === 'admin' ? '/admin' : data.user.role === 'employee' ? '/sales' : '/dashboard')
+      router.push(data.user.role === 'admin' ? '/admin' : data.user.role === 'employee' ? '/crm' : '/dashboard')
     } catch {
       setError(lang === 'ar' ? 'خطأ في الاتصال. حاول مرة ثانية.' : 'Connection error. Try again.')
       setLoading(false)

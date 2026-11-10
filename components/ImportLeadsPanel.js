@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { IMPORT_FIELDS, detectColumnMapping, normalizeStatusValue } from '../lib/import-mapping'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import { IMPORT_FIELDS, detectColumnMapping, normalizeStatusValue, parseManualLine } from '../lib/import-mapping'
 
 const FIELD_LABELS = {
   name:            { ar: 'الاسم',              en: 'Name' },
@@ -81,6 +81,127 @@ const SKIP_REASON_LABEL = {
   blank: { ar: 'صف فارغ', en: 'Blank row' },
   no_phone: { ar: 'رقم هاتف مفقود', en: 'Missing phone' },
   duplicate_in_file: { ar: 'مكرر داخل الملف', en: 'Duplicate within file' },
+}
+
+// Hand-typed numbers for one chosen employee, filed as Fresh or as Open.
+function ManualLeadsForm({ C, lang, employees }) {
+  const [employeeId, setEmployeeId] = useState('')
+  const [source, setSource] = useState('fresh')
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+
+  const ar = lang === 'ar'
+  const { entries, invalidLines } = useMemo(() => {
+    const byPhone = new Map()
+    let invalid = 0
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue
+      const parsed = parseManualLine(line)
+      if (parsed) byPhone.set(parsed.phone, parsed)
+      else invalid++
+    }
+    return { entries: [...byPhone.values()], invalidLines: invalid }
+  }, [text])
+
+  async function submit() {
+    setBusy(true); setError(''); setResult(null)
+    try {
+      const res = await fetch('/api/admin/leads-import/manual', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries, employeeId, source }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || (ar ? 'حدث خطأ' : 'Something went wrong')); return }
+      setResult({ ...data, employeeName: employees.find(e => String(e.id) === String(employeeId))?.name, source })
+      setText('')
+    } catch {
+      setError(ar ? 'خطأ في الاتصال' : 'Connection error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const fieldStyle = { background: C.navy, border: `1px solid ${C.g20}`, borderRadius: '8px', padding: '9px 12px', color: C.white, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }
+  const optionStyle = (active) => ({ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: C.white, cursor: 'pointer', padding: '9px 14px', borderRadius: '10px', border: `1px solid ${active ? C.gold : C.g20}`, background: active ? C.g15 : C.navy })
+  const labelStyle = { color: C.silver, fontSize: '12px', fontWeight: '700', marginBottom: '8px' }
+  const canSubmit = !busy && employeeId && entries.length > 0
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.g20}`, borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <div>
+        <p style={labelStyle}>{ar ? 'الموظف' : 'Employee'}</p>
+        <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} style={{ ...fieldStyle, minWidth: '220px' }}>
+          <option value="">{ar ? 'اختر موظفاً' : 'Select employee'}</option>
+          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <p style={labelStyle}>{ar ? 'نوع الأرقام' : 'Lead type'}</p>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <label style={optionStyle(source === 'fresh')}>
+            <input type="radio" checked={source === 'fresh'} onChange={() => setSource('fresh')} />
+            {ar ? '🌱 Fresh — تظهر عند الموظف في «العملاء المحتملون»' : '🌱 Fresh — goes to the employee\'s Leads'}
+          </label>
+          <label style={optionStyle(source === 'openc')}>
+            <input type="radio" checked={source === 'openc'} onChange={() => setSource('openc')} />
+            {ar ? '♻️ Open — تظهر عند الموظف في «My Open»' : '♻️ Open — goes to the employee\'s My Open'}
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <p style={labelStyle}>{ar ? 'الأرقام — رقم في كل سطر، ويمكن كتابة الاسم بجانبه' : 'Numbers — one per line, optionally with a name'}</p>
+        <textarea
+          value={text} onChange={e => setText(e.target.value)} rows={8} dir="ltr"
+          placeholder={'0791234567\nأحمد محمد 0781234567'}
+          style={{ ...fieldStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.8' }}
+        />
+        <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12.5px' }}>
+          <span style={{ color: C.emerald }}>{ar ? 'أرقام صالحة' : 'Valid'}: <b>{entries.length}</b></span>
+          {invalidLines > 0 && <span style={{ color: C.red }}>{ar ? 'أسطر غير مفهومة' : 'Unreadable lines'}: <b>{invalidLines}</b></span>}
+        </div>
+      </div>
+
+      {error && <p style={{ color: C.red, fontSize: '12.5px' }}>{error}</p>}
+
+      {result && (
+        <div style={{ background: C.g10, border: `1px solid ${C.g20}`, borderRadius: '12px', padding: '14px 16px' }}>
+          <p style={{ color: C.white, fontSize: '13.5px', fontWeight: '700', marginBottom: result.duplicates?.length ? '10px' : 0 }}>
+            {ar
+              ? `✅ تمت إضافة ${result.imported} رقم لـ ${result.employeeName || 'الموظف'} (${result.source === 'openc' ? 'Open' : 'Fresh'})`
+              : `✅ Added ${result.imported} leads to ${result.employeeName || 'the employee'} (${result.source === 'openc' ? 'Open' : 'Fresh'})`}
+            {result.invalid > 0 && <span style={{ color: C.red, fontWeight: '600' }}> · {ar ? `غير صالح: ${result.invalid}` : `Invalid: ${result.invalid}`}</span>}
+          </p>
+          {result.duplicates?.length > 0 && (
+            <>
+              <p style={{ color: C.gold, fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+                {ar ? `لم تُضف ${result.duplicates.length} أرقام لأنها موجودة مسبقاً:` : `${result.duplicates.length} skipped — already in the system:`}
+              </p>
+              <div style={{ maxHeight: '140px', overflowY: 'auto' }}>
+                {result.duplicates.map(d => (
+                  <p key={d.phone} style={{ color: C.silver, fontSize: '12px', marginBottom: '3px' }}>
+                    <span dir="ltr">{d.phone}</span> — {d.employeeName ? (ar ? `عند ${d.employeeName}` : `with ${d.employeeName}`) : (ar ? 'بدون موظف' : 'unassigned')}
+                  </p>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div>
+        <button onClick={submit} disabled={!canSubmit} style={{
+          padding: '11px 28px', borderRadius: '10px', border: 'none', background: C.gold, color: C.navy,
+          fontSize: '13.5px', fontWeight: '800', cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.5,
+        }}>
+          {busy ? (ar ? 'جارٍ الإضافة...' : 'Adding...') : (ar ? `إضافة (${entries.length})` : `Add (${entries.length})`)}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function ImportLeadsPanel({ C, lang, employees }) {
@@ -222,16 +343,20 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
-        {['upload', 'history'].map(v => (
+        {['upload', 'manual', 'history'].map(v => (
           <button key={v} onClick={() => switchSubView(v)} style={{
             padding: '8px 18px', borderRadius: '10px', border: `1px solid ${subView === v ? C.gold : C.g20}`,
             background: subView === v ? C.g15 : 'transparent', color: subView === v ? C.gold : C.silver,
             fontSize: '12.5px', fontWeight: '700', cursor: 'pointer',
-          }}>{v === 'upload' ? (lang === 'ar' ? 'رفع ملف' : 'Upload') : (lang === 'ar' ? 'سجل الاستيراد' : 'History')}</button>
+          }}>{v === 'upload' ? (lang === 'ar' ? 'رفع ملف' : 'Upload')
+            : v === 'manual' ? (lang === 'ar' ? '✍️ إدخال يدوي' : '✍️ Manual entry')
+            : (lang === 'ar' ? 'سجل الاستيراد' : 'History')}</button>
         ))}
       </div>
 
-      {subView === 'history' ? (
+      {subView === 'manual' ? (
+        <ManualLeadsForm C={C} lang={lang} employees={employees} />
+      ) : subView === 'history' ? (
         historyLoading ? (
           <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
         ) : history.length === 0 ? (

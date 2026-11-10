@@ -1050,7 +1050,7 @@ export async function getServerSideProps({ req }) {
     const session = verifyToken(token)
     if (session?.username) {
       const dest = session.role === 'admin' ? '/admin'
-        : session.role === 'employee' ? '/sales'
+        : session.role === 'employee' ? '/crm'
         : '/dashboard'
       return { redirect: { destination: dest, permanent: false } }
     }

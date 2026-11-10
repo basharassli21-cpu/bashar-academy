@@ -50,6 +50,7 @@ const STATUS_META = {
   cancelled:      { ar:'ألغى الفكرة',    color:'red'     },
 }
 const STATUS_ORDER = ['new','contacted','interested','unreachable','not_interested','closed_sale','cancelled']
+const CLOSED_STATUSES = ['closed_sale','cancelled','not_interested']
 const NOTE_TYPES = [
   { value:'call',     labelAr:'📞 مكالمة' },
   { value:'whatsapp', labelAr:'💬 واتساب' },
@@ -82,6 +83,14 @@ function fmtMoney(n) {
 }
 function monthName(m) {
   return ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][m-1] || m
+}
+
+// ─── Shared: SourceBadge ──────────────────────────────────────────────────────
+// Where a lead came from: uploaded fresh, or claimed from the OpenC pool.
+function SourceBadge({ C, source }) {
+  const open = source === 'openc'
+  const color = open ? C.purple : C.gold
+  return <span style={{ color, fontSize:11, background:`${color}20`, padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap' }}>{open ? '♻️ Open' : '🌱 Fresh'}</span>
 }
 
 // ─── Shared: Sidebar ──────────────────────────────────────────────────────────
@@ -259,6 +268,7 @@ function HomeDashboard({ C, employeeName }) {
               <div key={f.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:C.g15, borderRadius:10 }}>
                 <div style={{ width:8, height:8, borderRadius:'50%', background:sc(f.status,C), flexShrink:0 }} />
                 <span style={{ color:C.white, fontSize:13, fontWeight:600, flex:1 }}>{f.customer_name}</span>
+                <SourceBadge C={C} source={f.source} />
                 <span style={{ color:C.silver, fontSize:12 }}>{f.phone}</span>
                 <span style={{ color:sc(f.status,C), fontSize:11, background:`${sc(f.status,C)}20`, padding:'2px 8px', borderRadius:20 }}>{STATUS_META[f.status]?.ar}</span>
                 <span style={{ color:C.orange, fontSize:11 }}>{fmtDate(f.next_followup_date)}</span>
@@ -331,29 +341,43 @@ function LeadDetailPanel({ C, leadId, onClose, onUpdated }) {
   const [nextDate, setNextDate]     = useState('')
   const [busy, setBusy]         = useState(false)
   const [err, setErr]           = useState('')
+  const [saved, setSaved]       = useState('')
+  const [today, setToday]       = useState('')
+
+  function show(d) {
+    setLead(d.lead); setStatus(d.lead?.status||''); setNextDate(d.lead?.next_followup_date||''); setToday(d.today||'')
+  }
 
   useEffect(() => {
     if (!leadId) return
     setLoading(true)
     fetch(`/api/sales/lead-detail?id=${leadId}`)
-      .then(r=>r.json()).then(d=>{ setLead(d.lead); setStatus(d.lead?.status||''); setNextDate(d.lead?.next_followup_date||''); setLoading(false) })
+      .then(r=>r.json()).then(d=>{ show(d); setLoading(false) })
       .catch(()=>setLoading(false))
   }, [leadId])
 
   async function save() {
-    setErr(''); setBusy(true)
-    const body = { status, noteType, callStatus, duration:duration?parseInt(duration):undefined, note:note.trim()||undefined, nextFollowupDate:nextDate||undefined }
-    const r = await fetch(`/api/sales/leads/${leadId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
-    const d = await r.json()
-    if (!r.ok) { setErr(d.error||'خطأ'); setBusy(false); return }
-    setNote(''); setDuration('')
-    setLead(prev=>({ ...prev, status, next_followup_date:nextDate, notes:[d.lead?.notes?.[0],...(prev?.notes||[])].filter(Boolean) }))
-    setBusy(false)
-    if (onUpdated) onUpdated()
+    setErr(''); setSaved(''); setBusy(true)
+    const isCall = noteType==='call'
+    const body = { status, noteType, callStatus:isCall?callStatus:undefined, duration:isCall&&duration?parseInt(duration):undefined, note:note.trim()||undefined, nextFollowupDate:nextDate||null }
+    try {
+      const r = await fetch(`/api/sales/leads/${leadId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+      const d = await r.json()
+      if (!r.ok) { setErr(d.error||'خطأ'); return }
+      show(d); setNote(''); setDuration('')
+      const parked = d.lead.next_followup_date > d.today && !CLOSED_STATUSES.includes(d.lead.status)
+      setSaved(parked ? `✓ تم الحفظ — سيظهر الرقم في المتابعات يوم ${fmtDate(d.lead.next_followup_date)}` : '✓ تم الحفظ')
+      if (onUpdated) onUpdated()
+    } catch {
+      setErr('خطأ في الاتصال')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const noteIcons = { call:'📞', whatsapp:'💬', meeting:'🤝', note:'📝' }
   const sel = { width:'100%', background:C.g10, border:`1px solid ${C.g20}`, borderRadius:8, padding:'8px 10px', color:C.white, fontSize:13, fontFamily:'inherit' }
+  const due = lead?.next_followup_date && lead.next_followup_date <= today && !CLOSED_STATUSES.includes(lead.status)
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex' }} onClick={onClose}>
@@ -371,12 +395,13 @@ function LeadDetailPanel({ C, leadId, onClose, onUpdated }) {
         {loading ? <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:C.silver }}>جارٍ التحميل...</div>
         : lead ? (<>
           <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.g15}`, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
+            {[['المصدر',<SourceBadge C={C} source={lead.source} />],['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
               <div key={l}><p style={{ color:C.silver, fontSize:11, marginBottom:3 }}>{l}</p><p style={{ color:C.white, fontSize:13 }}>{v}</p></div>
             ))}
           </div>
           <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.g15}`, display:'flex', flexDirection:'column', gap:10 }}>
             <p style={{ color:C.gold, fontWeight:700, fontSize:13 }}>تسجيل نشاط</p>
+            {due && <div style={{ color:C.orange, fontSize:12, padding:'6px 10px', background:`${C.orange}15`, borderRadius:8 }}>📅 هذا الرقم مستحق للمتابعة — بعد التواصل حدّد موعداً جديداً، أو أزل الموعد ليخرج من المتابعات.</div>}
             {err && <div style={{ color:C.red, fontSize:12, padding:'6px 10px', background:`${C.red}15`, borderRadius:8 }}>{err}</div>}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:4 }}>نوع النشاط</label>
@@ -392,10 +417,15 @@ function LeadDetailPanel({ C, leadId, onClose, onUpdated }) {
                   <input type="number" value={duration} onChange={e=>setDuration(e.target.value)} min="0" style={{ ...sel }} /></div>
               </div>
             )}
-            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:4 }}>موعد المتابعة</label>
-              <input type="date" value={nextDate} onChange={e=>setNextDate(e.target.value)} style={{ ...sel, boxSizing:'border-box' }} /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:4 }}>موعد المتابعة القادم</label>
+              <div style={{ display:'flex', gap:8 }}>
+                <input type="date" value={nextDate} min={today||undefined} onChange={e=>setNextDate(e.target.value)} style={{ ...sel, boxSizing:'border-box' }} />
+                {nextDate && <button type="button" onClick={()=>setNextDate('')} title="بدون موعد متابعة" style={{ flexShrink:0, padding:'0 12px', borderRadius:8, background:'none', border:`1px solid ${C.g20}`, color:C.silver, cursor:'pointer', fontSize:12, fontFamily:'inherit', whiteSpace:'nowrap' }}>✕ بدون موعد</button>}
+              </div>
+              <p style={{ color:C.silver, fontSize:11, marginTop:5 }}>عند تحديد موعد يختفي الرقم من قائمتك، ويظهر في Follow-ups يوم الموعد.</p></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:4 }}>ملاحظة</label>
               <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{ ...sel, resize:'vertical', boxSizing:'border-box', direction:'rtl' }} placeholder="أضف ملاحظة..." /></div>
+            {saved && <div style={{ color:C.emerald, fontSize:12, padding:'6px 10px', background:`${C.emerald}15`, borderRadius:8 }}>{saved}</div>}
             <button onClick={save} disabled={busy} style={{ width:'100%', padding:10, borderRadius:10, background:busy?C.g15:C.gold, border:'none', color:busy?C.silver:C.navy, fontSize:13, fontWeight:700, cursor:busy?'not-allowed':'pointer' }}>
               {busy?'⏳ جارٍ الحفظ...':'💾 حفظ النشاط'}
             </button>
@@ -428,40 +458,53 @@ function LeadDetailPanel({ C, leadId, onClose, onUpdated }) {
 }
 
 // ─── EMPLOYEE: Leads Page ─────────────────────────────────────────────────────
-function LeadsPage({ C }) {
+// One page, two uses: the employee's uploaded leads (source "fresh") and the
+// leads they claimed from the OpenC pool (source "openc", shown as My Open).
+const LEAD_TABS = {
+  fresh: [
+    { id:'fresh',     label:'Fresh',      icon:'🌱' },
+    { id:'all',       label:'My Leads',   icon:'👤' },
+    { id:'followups', label:'Follow-ups', icon:'📅' },
+  ],
+  openc: [
+    { id:'fresh',     label:'New',        icon:'✨' },
+    { id:'all',       label:'My Open',    icon:'♻️' },
+    { id:'followups', label:'Follow-ups', icon:'📅' },
+  ],
+}
+
+function LeadsPage({ C, source, counts, onChanged }) {
   const [tab, setTab]         = useState('fresh')
   const [leads, setLeads]     = useState([])
   const [total, setTotal]     = useState(0)
+  const [today, setToday]     = useState('')
   const [page, setPage]       = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
   const [searchVal, setSearchVal] = useState('')
   const [selectedId, setSelectedId] = useState(null)
-  const [opencCount, setOpencCount] = useState(0)
   const timer = useRef()
+  const latest = useRef(0)
 
+  // A slow response for a tab the user already left must not overwrite the list
   const load = useCallback(async (t, q, pg) => {
+    const request = ++latest.current
     setLoading(true)
     try {
-      const r = await fetch(`/api/sales/leads-page?tab=${t}&q=${encodeURIComponent(q)}&page=${pg}&limit=30`)
+      const r = await fetch(`/api/sales/leads-page?source=${source}&tab=${t}&q=${encodeURIComponent(q)}&page=${pg}&limit=30`)
       const d = await r.json()
-      setLeads(d.leads||[]); setTotal(d.total||0)
-      // Keep badge count up to date when viewing the openc tab
-      if (t === 'openc') setOpencCount(d.total||0)
+      if (request !== latest.current) return
+      setLeads(d.leads||[]); setTotal(d.total||0); setToday(d.today||'')
     } catch(e) {
+      if (request !== latest.current) return
       setLeads([]); setTotal(0)
     } finally {
-      setLoading(false)
+      if (request === latest.current) setLoading(false)
     }
-  }, [])
-
-  // Load OpenC count for badge on mount and after any update
-  useEffect(()=>{
-    fetch('/api/sales/leads-page?tab=openc&limit=1')
-      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
-  }, [])
+  }, [source])
 
   useEffect(()=>{ load(tab,search,page) },[tab,search,page])
+  useEffect(()=>{ onChanged() },[])
 
   function handleSearch(v) {
     setSearchVal(v)
@@ -475,20 +518,25 @@ function LeadsPage({ C }) {
 
   function afterUpdate() {
     load(tab, search, page)
-    // Refresh OpenC badge
-    fetch('/api/sales/leads-page?tab=openc&limit=1')
-      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
+    onChanged()
   }
 
-  const tabs = [
-    { id:'fresh',     label:'Fresh',      icon:'🌱',  badge:0 },
-    { id:'openc',     label:'بركة OpenC', icon:'🌊',  badge:opencCount },
-    { id:'all',       label:'My Leads',   icon:'👤',  badge:0 },
-    { id:'followups', label:'Follow-ups', icon:'📅',  badge:0 },
-  ]
-  const cols = ['NAME','PHONE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
+  function followupCell(lead) {
+    const date = lead.next_followup_date
+    if (!date) return <span style={{ color:C.silver }}>—</span>
+    if (!today || CLOSED_STATUSES.includes(lead.status)) return <span style={{ color:C.silver }}>{fmtDate(date)}</span>
+    if (date > today) return <span style={{ color:C.silver }}>⏳ {fmtDate(date)}</span>
+    if (date === today) return <span style={{ color:C.orange, fontWeight:700 }}>اليوم</span>
+    return <span style={{ color:C.red }}>{fmtDate(date)} · متأخر</span>
+  }
+
+  const open = source==='openc'
+  const accent = open ? C.purple : C.gold
+  const badges = { fresh:counts?.fresh||0, followups:counts?.due||0 }
+  const cols = ['NAME','PHONE','SOURCE','CREATED','STATUS','LAST CALL','FOLLOW-UP']
   const th = { padding:'11px 14px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap' }
   const td = { padding:'11px 14px', fontSize:13 }
+  const emptyText = search ? 'لا توجد نتائج' : tab==='followups' ? 'لا توجد متابعات مستحقة اليوم' : tab==='fresh' ? 'لا توجد أرقام جديدة' : 'لا توجد نتائج'
 
   return (
     <div dir="rtl">
@@ -496,40 +544,44 @@ function LeadsPage({ C }) {
         <input value={searchVal} onChange={e=>handleSearch(e.target.value)} placeholder="ابحث بالاسم أو الرقم..."
           style={{ width:'100%', background:C.g10, border:`1px solid ${C.g20}`, borderRadius:10, padding:'10px 14px', color:C.white, fontSize:14, fontFamily:'inherit', boxSizing:'border-box' }} />
       </div>
-      {tab === 'openc' && (
+      {open && (
         <div style={{ marginBottom:14, background:`${C.purple}12`, border:`1px solid ${C.purple}35`, borderRadius:12, padding:'10px 16px', color:C.purple, fontSize:13, display:'flex', alignItems:'center', gap:8 }}>
           <span>♻️</span>
-          <span>أرقام سحبتها من OpenC Pool — بمجرد تسجيل أي تواصل معها تنتقل تلقائياً إلى <strong>My Leads</strong></span>
+          <span>الأرقام التي سحبتها من OpenC Pool — منفصلة عن «العملاء المحتملون».</span>
         </div>
       )}
       <div style={{ display:'flex', flexDirection:'row', gap:4, marginBottom:16, background:C.g10, borderRadius:12, padding:4, width:'fit-content' }}>
-        {tabs.map(t=>{
+        {LEAD_TABS[source].map(t=>{
           const active = tab===t.id
-          const isOpenc = t.id==='openc'
+          const badge = badges[t.id] || 0
           return (
-            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:active?(isOpenc?C.purple:C.gold):'transparent', color:active?(isOpenc?'#fff':C.navy):(isOpenc?C.purple:C.silver), fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6, position:'relative' }}>
+            <button key={t.id} onClick={()=>switchTab(t.id)} style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', background:active?accent:'transparent', color:active?(open?'#fff':C.navy):C.silver, fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
               <span>{t.icon}</span><span>{t.label}</span>
-              {t.badge > 0 && <span style={{ background:active?'rgba(255,255,255,0.3)':C.purple, color:'#fff', borderRadius:20, fontSize:10, fontWeight:700, padding:'1px 7px', marginRight:2 }}>{t.badge}</span>}
+              {badge > 0 && <span style={{ background:active?'rgba(255,255,255,0.3)':(t.id==='followups'?C.red:accent), color:active||t.id==='followups'||open?'#fff':C.navy, borderRadius:20, fontSize:10, fontWeight:700, padding:'1px 7px', marginRight:2 }}>{badge}</span>}
             </button>
           )
         })}
       </div>
+      {!search && tab!=='followups' && counts?.parked > 0 && (
+        <p style={{ color:C.silver, fontSize:12, marginBottom:12 }}>⏳ {counts.parked} رقم بانتظار موعد متابعته — يظهر في Follow-ups يوم الموعد، ويمكن إيجاده بالبحث.</p>
+      )}
       <div style={{ background:C.g10, border:`1px solid ${C.g20}`, borderRadius:16, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ background:C.g15 }}>{cols.map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={cols.length} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
-            : leads.length===0 ? <tr><td colSpan={cols.length} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
+            : leads.length===0 ? <tr><td colSpan={cols.length} style={{ padding:50, textAlign:'center', color:C.silver }}>{emptyText}</td></tr>
             : leads.map(lead=>(
               <tr key={lead.id} onClick={()=>setSelectedId(lead.id)} style={{ borderTop:`1px solid ${C.g15}`, cursor:'pointer' }}
                 onMouseEnter={e=>e.currentTarget.style.background=C.g10}
                 onMouseLeave={e=>e.currentTarget.style.background=''}>
                 <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
                 <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
+                <td style={{ ...td }}><SourceBadge C={C} source={lead.source} /></td>
                 <td style={{ ...td, color:C.silver, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
                 <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
                 <td style={{ ...td, color:C.silver, whiteSpace:'nowrap' }}>{fmtDate(lead.last_contact_date)}</td>
-                <td style={{ ...td, color:lead.next_followup_date?C.orange:C.silver, whiteSpace:'nowrap' }}>{fmtDate(lead.next_followup_date)}</td>
+                <td style={{ ...td, whiteSpace:'nowrap' }}>{followupCell(lead)}</td>
               </tr>
             ))}
           </tbody>
@@ -1045,7 +1097,7 @@ function AdminLeadDetailPanel({ C, leadId, onClose, onUpdated, employees }) {
 
   async function save() {
     setErr(''); setBusy(true)
-    const body = { status, note:note.trim()||undefined, noteType, nextFollowupDate:nextDate||undefined, assignEmployeeId:assignTo?parseInt(assignTo):null }
+    const body = { status, note:note.trim()||undefined, noteType, nextFollowupDate:nextDate||null, assignEmployeeId:assignTo?parseInt(assignTo):null }
     const r = await fetch(`/api/crm/leads/${leadId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     const d = await r.json()
     if (!r.ok) { setErr(d.error||'خطأ'); setBusy(false); return }
@@ -1072,7 +1124,7 @@ function AdminLeadDetailPanel({ C, leadId, onClose, onUpdated, employees }) {
         {loading ? <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:C.silver }}>جارٍ التحميل...</div>
         : lead ? (<>
           <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.g15}`, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
+            {[['المصدر',<SourceBadge C={C} source={lead.source} />],['تاريخ الإضافة',fmtDate(lead.created_at)],['آخر تواصل',fmtDate(lead.last_contact_date)],['موعد المتابعة',fmtDate(lead.next_followup_date)]].map(([l,v])=>(
               <div key={l}><p style={{ color:C.silver, fontSize:11, marginBottom:3 }}>{l}</p><p style={{ color:C.white, fontSize:13 }}>{v}</p></div>
             ))}
           </div>
@@ -1285,6 +1337,7 @@ function AdminLeadsPage({ C, employees }) {
   const [searchVal, setSearchVal] = useState('')
   const [empFilter, setEmpFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [showTransfer, setShowTransfer] = useState(false)
   const [selectedLeads, setSelectedLeads] = useState(new Set())
@@ -1292,13 +1345,14 @@ function AdminLeadsPage({ C, employees }) {
   const timer = useRef()
   const LIMIT = 40
 
-  const load = useCallback(async (q, eid, st, pg) => {
+  const load = useCallback(async (q, eid, st, src, pg) => {
     setLoading(true)
     setSelectedLeads(new Set())
     try {
       const params = new URLSearchParams({ q, page:pg, limit:LIMIT })
       if (eid) params.set('employeeId', eid)
       if (st) params.set('status', st)
+      if (src) params.set('source', src)
       const r = await fetch(`/api/crm/leads?${params}`)
       const d = await r.json()
       setLeads(d.leads||[]); setTotal(d.total||0)
@@ -1310,7 +1364,8 @@ function AdminLeadsPage({ C, employees }) {
     }
   },[])
 
-  useEffect(()=>{ load(search, empFilter, statusFilter, page) },[search, empFilter, statusFilter, page])
+  const reload = () => load(search, empFilter, statusFilter, sourceFilter, page)
+  useEffect(()=>{ reload() },[search, empFilter, statusFilter, sourceFilter, page])
 
   function handleSearch(v) {
     setSearchVal(v)
@@ -1337,6 +1392,11 @@ function AdminLeadsPage({ C, employees }) {
         <select value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}} style={sel}>
           <option value="">كل الحالات</option>
           {STATUS_ORDER.map(s=><option key={s} value={s}>{STATUS_META[s]?.ar}</option>)}
+        </select>
+        <select value={sourceFilter} onChange={e=>{setSourceFilter(e.target.value);setPage(1)}} style={sel}>
+          <option value="">كل المصادر</option>
+          <option value="fresh">🌱 Fresh</option>
+          <option value="openc">♻️ Open</option>
         </select>
         <div style={{ background:C.g15, border:`1px solid ${C.g30}`, borderRadius:8, padding:'8px 14px', color:C.gold, fontSize:13, fontWeight:700 }}>{total.toLocaleString()} lead</div>
         <button onClick={()=>setShowTransfer(true)} style={{ padding:'8px 16px', borderRadius:8, background:'none', border:`1px solid ${C.purple}44`, color:C.purple, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🔄 نقل ليدز</button>
@@ -1365,12 +1425,12 @@ function AdminLeadsPage({ C, employees }) {
                 style={{ cursor:'pointer', accentColor:C.purple, width:15, height:15 }}
               />
             </th>
-            {['NAME','PHONE','الموظف','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
+            {['NAME','PHONE','SOURCE','الموظف','CREATED','STATUS','FOLLOW-UP'].map(h=><th key={h} style={th}>{h}</th>)}
             <th style={{ ...th, width:40 }} />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={8} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
-            : leads.length===0 ? <tr><td colSpan={8} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
+            {loading ? <tr><td colSpan={9} style={{ padding:50, textAlign:'center', color:C.silver }}>جارٍ التحميل...</td></tr>
+            : leads.length===0 ? <tr><td colSpan={9} style={{ padding:50, textAlign:'center', color:C.silver }}>لا توجد نتائج</td></tr>
             : leads.map(lead=>{
               const isSel = selectedLeads.has(lead.id)
               return (
@@ -1382,6 +1442,7 @@ function AdminLeadsPage({ C, employees }) {
                   </td>
                   <td style={{ ...td, color:C.white, fontWeight:600 }}>{lead.customer_name}</td>
                   <td style={{ ...td, color:C.silver }} dir="ltr">{lead.phone}</td>
+                  <td style={{ ...td }}><SourceBadge C={C} source={lead.source} /></td>
                   <td style={{ ...td, color:C.gold, fontSize:12 }}>{lead.employee_name||<span style={{ color:C.silver }}>—</span>}</td>
                   <td style={{ ...td, color:C.silver, fontSize:12, whiteSpace:'nowrap' }}>{fmtDate(lead.created_at)}</td>
                   <td style={{ ...td }}><span style={{ color:sc(lead.status,C), fontSize:11, background:`${sc(lead.status,C)}20`, padding:'3px 10px', borderRadius:20 }}>{STATUS_META[lead.status]?.ar}</span></td>
@@ -1410,9 +1471,9 @@ function AdminLeadsPage({ C, employees }) {
         </div>
       )}
 
-      {showTransfer && <TransferLeadsModal C={C} employees={employees} onClose={()=>setShowTransfer(false)} onDone={()=>{ setShowTransfer(false); load(search,empFilter,statusFilter,page) }} />}
-      {showTransferSelected && <TransferSelectedModal C={C} employees={employees} leadIds={[...selectedLeads]} onClose={()=>setShowTransferSelected(false)} onDone={()=>{ setShowTransferSelected(false); setSelectedLeads(new Set()); load(search,empFilter,statusFilter,page) }} />}
-      {selectedId && <AdminLeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={()=>load(search,empFilter,statusFilter,page)} employees={employees} />}
+      {showTransfer && <TransferLeadsModal C={C} employees={employees} onClose={()=>setShowTransfer(false)} onDone={()=>{ setShowTransfer(false); reload() }} />}
+      {showTransferSelected && <TransferSelectedModal C={C} employees={employees} leadIds={[...selectedLeads]} onClose={()=>setShowTransferSelected(false)} onDone={()=>{ setShowTransferSelected(false); setSelectedLeads(new Set()); reload() }} />}
+      {selectedId && <AdminLeadDetailPanel C={C} leadId={selectedId} onClose={()=>setSelectedId(null)} onUpdated={reload} employees={employees} />}
     </div>
   )
 }
@@ -1533,11 +1594,11 @@ function AdminEmployeesPage({ C, onEmployeesChange }) {
 }
 
 // ─── ADMIN: OpenC Management ──────────────────────────────────────────────────
-function AdminOpenCPage({ C }) {
+function AdminOpenCPage({ C, employees }) {
   return (
     <div dir="rtl">
       <h1 style={{ color:C.white, fontWeight:900, fontSize:18, marginBottom:20 }}>♻️ إدارة OpenC Pool</h1>
-      <OpenCPool C={C} lang="ar" role="admin" />
+      <OpenCPool C={C} lang="ar" role="admin" employees={employees} />
     </div>
   )
 }
@@ -1752,40 +1813,30 @@ function AdminImportPage({ C, employees }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function EmployeePortal({ C, user }) {
-  const [view, setView] = useState('home')
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const v = params.get('v')
-    if (v) { setView(v); window.history.replaceState({}, '', '/crm') }
-  }, [])
+  const [view, setView]       = useState('home')
   const [collapsed, setCollapsed] = useState(false)
-  const [followupCount, setFollowupCount] = useState(0)
-  const [opencCount, setOpencCount]       = useState(0)
+  const [counts, setCounts]   = useState(null)
 
-  useEffect(()=>{
-    fetch('/api/sales/leads-page?tab=followups&limit=1')
-      .then(r=>r.json()).then(d=>setFollowupCount(d.total||0)).catch(()=>{})
-    fetch('/api/sales/leads-page?tab=openc&limit=1')
-      .then(r=>r.json()).then(d=>setOpencCount(d.total||0)).catch(()=>{})
-  },[])
+  const refreshCounts = useCallback(() => {
+    fetch('/api/sales/lead-counts')
+      .then(r=>r.json()).then(d=>setCounts(d.counts||null)).catch(()=>{})
+  }, [])
+  useEffect(()=>{ refreshCounts() },[])
 
   const navItems = [
     { id:'home',   icon:'🏠', label:'الرئيسية',            badge:0 },
-    { id:'leads',  icon:'🎯', label:'العملاء المحتملون',    badge:followupCount + opencCount },
+    { id:'leads',  icon:'🎯', label:'العملاء المحتملون',    badge:counts?.fresh.due || 0 },
+    { id:'myopen', icon:'📥', label:'My Open',             badge:(counts?.openc.fresh || 0) + (counts?.openc.due || 0) },
     { id:'openc',  icon:'♻️', label:'OpenC Pool',          badge:0 },
     { id:'sales',  icon:'💰', label:'البيعات',              badge:0 },
   ]
-  const titles = { home:'الرئيسية', leads:'العملاء المحتملون', openc:'OpenC Pool', sales:'البيعات' }
+  const titles = { home:'الرئيسية', leads:'العملاء المحتملون', myopen:'My Open', openc:'OpenC Pool', sales:'البيعات' }
 
   async function logout() { await fetch('/api/auth/logout',{method:'POST'}); window.location.href='/' }
 
   return (
     <div dir="rtl" style={{ display:'flex', minHeight:'100vh', background:C.navy, fontFamily:"'Cairo',sans-serif" }}>
-      <Sidebar C={C} user={user} view={view} setView={(id) => {
-        if (id === 'leads') { window.location.href = '/crm?v=leads' }
-        else setView(id)
-      }} onLogout={logout} navItems={navItems} collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar C={C} user={user} view={view} setView={setView} onLogout={logout} navItems={navItems} collapsed={collapsed} setCollapsed={setCollapsed} />
       <main style={{ flex:1, marginRight:collapsed?72:240, transition:'margin 0.2s', display:'flex', flexDirection:'column', minHeight:'100vh' }}>
         <header style={{ background:C.surface, borderBottom:`1px solid ${C.g20}`, padding:'0 24px', height:60, display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:30 }}>
           <span style={{ color:C.gold, fontWeight:700, fontSize:16 }}>{titles[view]}</span>
@@ -1795,10 +1846,11 @@ function EmployeePortal({ C, user }) {
           </div>
         </header>
         <div style={{ padding:24, flex:1 }}>
-          {view==='home'  && <HomeDashboard C={C} employeeName={user.name} />}
-          {view==='leads' && <LeadsPage C={C} />}
-          {view==='openc' && <OpenCPool C={C} lang="ar" role="employee" currentEmployee={user} />}
-          {view==='sales' && <SalesPage C={C} />}
+          {view==='home'   && <HomeDashboard C={C} employeeName={user.name} />}
+          {view==='leads'  && <LeadsPage key="fresh" C={C} source="fresh" counts={counts?.fresh} onChanged={refreshCounts} />}
+          {view==='myopen' && <LeadsPage key="openc" C={C} source="openc" counts={counts?.openc} onChanged={refreshCounts} />}
+          {view==='openc'  && <OpenCPool C={C} lang="ar" role="employee" currentEmployee={user} onClaimed={refreshCounts} />}
+          {view==='sales'  && <SalesPage C={C} />}
         </div>
       </main>
     </div>
@@ -1843,7 +1895,7 @@ function AdminPortal({ C, user }) {
           {view==='dashboard' && <AdminDashboard C={C} />}
           {view==='leads'     && <AdminLeadsPage C={C} employees={employees} />}
           {view==='employees' && <AdminEmployeesPage C={C} onEmployeesChange={setEmployees} />}
-          {view==='openc'     && <AdminOpenCPage C={C} />}
+          {view==='openc'     && <AdminOpenCPage C={C} employees={employees} />}
           {view==='sales'     && <AdminSalesPage C={C} employees={employees} onPendingCountChange={setPendingCount} />}
           {view==='import'    && <AdminImportPage C={C} employees={employees} />}
         </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
-// ─── OpenC (Open Calls Pool) — shared between pages/sales.js (role="employee")
-// and pages/admin.js (role="admin"). Takes the caller's theme/lang so it never
+// ─── OpenC (Open Calls Pool) — shared by the employee and admin portals
+// (role="employee" / role="admin"). Takes the caller's theme/lang so it never
 // needs its own palette or auth context.
 
 const STATUS_META = {
@@ -35,7 +35,7 @@ function StatBox({ C, value, label, color }) {
   )
 }
 
-export default function OpenCPool({ C, lang, role, currentEmployee, employees }) {
+export default function OpenCPool({ C, lang, role, currentEmployee, employees, onClaimed }) {
   const [leads, setLeads] = useState([])
   const [stats, setStats] = useState({ openCount: 0, assignedCount: 0, convertedCount: 0 })
   const [loading, setLoading] = useState(true)
@@ -43,8 +43,10 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees })
   const [pickEmployee, setPickEmployee] = useState({})
   const [message, setMessage] = useState(null)
 
-  const fetchPool = useCallback(async () => {
-    const res = await fetch('/api/openc')
+  // The pool response is browser-cached for a few seconds; after a claim that
+  // cached copy would still list the lead that was just taken.
+  const fetchPool = useCallback(async (afterClaim) => {
+    const res = await fetch('/api/openc', afterClaim ? { cache: 'reload' } : undefined)
     const data = await res.json()
     setLeads(data.leads || [])
     setStats(data.stats || { openCount: 0, assignedCount: 0, convertedCount: 0 })
@@ -72,12 +74,14 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees })
       const data = await res.json()
       if (!res.ok) {
         setMessage({ type: 'error', text: data.error || (lang === 'ar' ? 'حدث خطأ' : 'Something went wrong') })
-        await fetchPool()
+        await fetchPool(true)
         return
       }
-      setMessage({ type: 'success', text: lang === 'ar' ? `تم سحب "${opencLead.customer_name}" بنجاح` : `"${opencLead.customer_name}" claimed successfully` })
+      const where = role === 'employee' ? (lang === 'ar' ? ' — تجده في My Open' : ' — find it in My Open') : ''
+      setMessage({ type: 'success', text: (lang === 'ar' ? `تم سحب "${opencLead.customer_name}" بنجاح` : `"${opencLead.customer_name}" claimed successfully`) + where })
       setPickEmployee(p => { const n = { ...p }; delete n[opencLead.id]; return n })
-      await fetchPool()
+      if (onClaimed) onClaimed()
+      await fetchPool(true)
     } finally {
       setBusyId(null)
     }

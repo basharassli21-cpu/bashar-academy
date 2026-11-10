@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // /sales was an older copy of the sales portal; /crm is the only one now
+  async redirects() {
+    return [{ source: '/sales', destination: '/crm', permanent: false }]
+  },
   async headers() {
     return [
       {

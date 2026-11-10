@@ -21,6 +21,12 @@ async function handler(req, res) {
     const [row] = await sql`SELECT * FROM lead_imports WHERE id = ${iid}`
     if (!row) return res.status(404).json({ error: 'السجل غير موجود' })
 
+    // A hand-entered "Open" lead owns a pool row that exists only for it
+    await sql`
+      DELETE FROM openc_leads
+      WHERE id IN (SELECT claimed_from_openc_id FROM leads WHERE import_id = ${iid} AND claimed_from_openc_id IS NOT NULL)
+    `
+
     // Delete leads linked by import_id (new imports)
     const linked = await sql`DELETE FROM leads WHERE import_id = ${iid} RETURNING id`
 

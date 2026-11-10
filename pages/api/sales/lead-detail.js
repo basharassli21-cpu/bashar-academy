@@ -1,5 +1,5 @@
 import { requireAuth } from '../../../lib/auth'
-import { getEmployeeByUsername, getLeadWithNotes } from '../../../lib/sales-db'
+import { getEmployeeByUsername, getLeadWithNotes, todayInJordan } from '../../../lib/sales-db'
 
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
@@ -14,7 +14,7 @@ async function handler(req, res) {
   const lead = await getLeadWithNotes(parseInt(id), employee.id)
   if (!lead) return res.status(404).json({ error: 'العميل غير موجود' })
 
-  return res.status(200).json({ lead })
+  return res.status(200).json({ lead, today: todayInJordan() })
 }
 
 export default requireAuth(handler)

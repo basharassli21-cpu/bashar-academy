@@ -1,4 +1,5 @@
 import { requireAuth } from '../../../../lib/auth'
+import { normalizeLead } from '../../../../lib/sales-db'
 import { neon } from '@neondatabase/serverless'
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL)
@@ -25,7 +26,7 @@ async function handler(req, res) {
       `,
     ])
     if (!leadRows[0]) return res.status(404).json({ error: 'العميل غير موجود' })
-    return res.status(200).json({ lead: { ...leadRows[0], notes } })
+    return res.status(200).json({ lead: { ...normalizeLead(leadRows[0]), notes } })
   }
 
   // ── PATCH: update status / assign employee / add note ─────────────────
@@ -51,7 +52,7 @@ async function handler(req, res) {
       sql`SELECT l.*, e.name AS employee_name FROM leads l LEFT JOIN employees e ON e.id = l.employee_id WHERE l.id = ${id} LIMIT 1`,
       sql`SELECT ln.* FROM lead_notes ln WHERE ln.lead_id = ${id} ORDER BY ln.created_at DESC LIMIT 50`,
     ])
-    return res.status(200).json({ lead: { ...leadRows[0], notes } })
+    return res.status(200).json({ lead: { ...normalizeLead(leadRows[0]), notes } })
   }
 
   // ── DELETE ────────────────────────────────────────────────────────────
