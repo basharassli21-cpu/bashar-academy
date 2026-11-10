@@ -7,14 +7,16 @@
 // Dry run (default, changes nothing):  node scripts/clear-default-followup-dates.js
 // Apply:                               node scripts/clear-default-followup-dates.js --apply
 //
-// The ids of the cleared leads are recorded in admin_audit_log
-// (action = 'clear_default_followup_dates'). To undo, set those leads back to
-// the last day of their creation month:
+// Before clearing, the ids of the affected leads are written to
+// scripts/backups/cleared-default-followup-dates-<timestamp>.json. To undo, set
+// those leads back to the last day of their creation month:
 //   UPDATE leads SET next_followup_date =
 //     (date_trunc('month', created_at AT TIME ZONE 'UTC') + interval '1 month' - interval '1 day')::date
-//   WHERE id = ANY(<ids from the audit row>)
+//   WHERE id = ANY(<leadIds from the backup file>)
 
 require('dotenv').config({ path: '.env.local' })
+const fs = require('fs')
+const path = require('path')
 const { neon } = require('@neondatabase/serverless')
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL)
@@ -35,26 +37,23 @@ async function run() {
   console.log(`Leads with a follow-up date that will be kept:  ${kept[0].n - rows.length}`)
 
   if (rows.length === 0) { console.log('Nothing to clear.'); return }
-
-  const [{ audit }] = await sql`SELECT to_regclass('public.admin_audit_log') IS NOT NULL AS audit`
-  if (!audit) throw new Error('admin_audit_log is missing (run scripts/migrate-improvements.js) — refusing to clear dates without a record of which leads were touched')
-
   if (!apply) { console.log('\nDry run — nothing changed. Re-run with --apply to clear them.'); return }
 
   const ids = rows.map(r => r.id)
-  const [, cleared] = await sql.transaction([
-    sql`
-      INSERT INTO admin_audit_log (actor_username, actor_role, action, target_type, details)
-      VALUES ('script', 'admin', 'clear_default_followup_dates', 'lead', ${JSON.stringify({ leadIds: ids })}::jsonb)
-    `,
-    sql`
-      UPDATE leads SET next_followup_date = NULL
-      WHERE id = ANY(${ids}::int[])
-        AND next_followup_date = (date_trunc('month', created_at AT TIME ZONE 'UTC') + interval '1 month' - interval '1 day')::date
-      RETURNING id
-    `,
-  ])
-  console.log(`\nCleared ${cleared.length} automatic follow-up dates (ids recorded in admin_audit_log).`)
+  const clearedAt = new Date().toISOString()
+  const backupDir = path.join(__dirname, 'backups')
+  const backupFile = path.join(backupDir, `cleared-default-followup-dates-${clearedAt.replace(/[:.]/g, '-')}.json`)
+  fs.mkdirSync(backupDir, { recursive: true })
+  fs.writeFileSync(backupFile, JSON.stringify({ clearedAt, leadIds: ids }) + '\n')
+
+  const cleared = await sql`
+    UPDATE leads SET next_followup_date = NULL
+    WHERE id = ANY(${ids}::int[])
+      AND next_followup_date = (date_trunc('month', created_at AT TIME ZONE 'UTC') + interval '1 month' - interval '1 day')::date
+    RETURNING id
+  `
+  console.log(`\nCleared ${cleared.length} automatic follow-up dates.`)
+  console.log(`Affected lead ids saved to ${path.relative(process.cwd(), backupFile)}`)
 }
 
 run().catch(err => { console.error(err); process.exit(1) })
