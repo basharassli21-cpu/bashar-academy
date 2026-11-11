@@ -3,8 +3,9 @@ import { hashPassword } from '../../../lib/db'
 import {
   createSaleRecord, getSaleRecords, getSaleRecordById,
   getEmployeeByUsername, normalizeJordanPhone, getSaleRecordByDuplicate,
-  approveSaleRecord, rejectSaleRecord, getPendingSaleRecords,
+  approveSaleRecord, rejectSaleRecord, getPendingSaleRecords, resolveSaleAmounts,
 } from '../../../lib/sales-db'
+import { recordSaleInFinance } from '../../../lib/sale-finance'
 import { getUser, createUser } from '../../../lib/users-store'
 
 // Normalize a Jordanian phone to the local format 0XXXXXXXXX
@@ -101,9 +102,13 @@ async function handler(req, res) {
     if (!packageName) return res.status(400).json({ error: 'الباقة مطلوبة' })
     if (!proofImageUrl) return res.status(400).json({ error: 'صورة الإثبات مطلوبة' })
 
+    const amounts = resolveSaleAmounts({ amountPaid, deposit })
+    if (!amounts.amountPaid && saleStatus !== 'cancelled') return res.status(400).json({ error: 'مبلغ البيعة مطلوب' })
+
     const record = await updateSaleRecord(parseInt(id), employeeId, {
       studentName: studentName.trim(), studentPhone: studentPhone.trim(),
-      packageName, notes, proofImageUrl, saleStatus, amountPaid, deposit, paymentMethod,
+      packageName, notes, proofImageUrl, saleStatus, paymentMethod,
+      amountPaid: amounts.amountPaid ?? '', deposit: amounts.deposit ?? '',
     })
     if (!record) return res.status(404).json({ error: 'السجل غير موجود أو لا تملك صلاحية تعديله' })
     return res.status(200).json({ record })
@@ -121,6 +126,9 @@ async function handler(req, res) {
 
     const validPackages = ['elite', 'professional', 'starter']
     if (!validPackages.includes(packageName)) return res.status(400).json({ error: 'باقة غير صالحة' })
+
+    const amounts = resolveSaleAmounts({ amountPaid, deposit })
+    if (!amounts.amountPaid && saleStatus !== 'cancelled') return res.status(400).json({ error: 'مبلغ البيعة مطلوب' })
 
     const normalized = cleanPhone(studentPhone)
     if (!normalized) return res.status(400).json({ error: 'رقم الهاتف غير صالح — يجب أن يكون أردنياً (077/078/079)' })
@@ -152,8 +160,8 @@ async function handler(req, res) {
       const record = await createSaleRecord({
         employeeId, studentName, studentPhone, packageName, notes, proofImageUrl,
         studentUsername: null, studentAccountCreated: false, studentAccountExisting: false,
-        amountPaid: amountPaid ? parseFloat(amountPaid) : null,
-        deposit: deposit ? parseFloat(deposit) : null,
+        amountPaid: amounts.amountPaid,
+        deposit: amounts.deposit,
         paymentMethod: paymentMethod || 'bank_transfer',
         saleStatus: saleStatus || 'paid',
         approvalStatus: 'pending',
@@ -169,8 +177,8 @@ async function handler(req, res) {
       studentUsername: accountResult.username,
       studentAccountCreated: accountResult.created,
       studentAccountExisting: accountResult.existing,
-      amountPaid: amountPaid ? parseFloat(amountPaid) : null,
-      deposit: deposit ? parseFloat(deposit) : null,
+      amountPaid: amounts.amountPaid,
+      deposit: amounts.deposit,
       paymentMethod: paymentMethod || 'bank_transfer',
       saleStatus: saleStatus || 'paid',
       approvalStatus: 'approved',
@@ -178,29 +186,7 @@ async function handler(req, res) {
 
     // Auto-sync to finance (best-effort)
     try {
-      const { createSale: createFinSale } = await import('../../../lib/finance-db')
-      const PAY_MAP = { bank_transfer:'bank', cash:'cash', cliq:'bank', other:'manual' }
-      const PKG_NAME = { elite:'Elite — الباقة الكاملة', professional:'Professional — الباقة المتوسطة', starter:'Starter — باقة التنفيذ' }
-      const total   = amountPaid  ? parseFloat(amountPaid)  : 0
-      const dep     = deposit     ? parseFloat(deposit)     : 0
-      const status  = saleStatus === 'cancelled' ? 'cancelled'
-                    : saleStatus === 'paid'       ? 'paid'
-                    : dep > 0                     ? 'partial' : 'pending'
-      await createFinSale({
-        customerName:  studentName.trim(),
-        customerPhone: normalized,
-        employeeId,
-        productType:   'course',
-        productName:   PKG_NAME[packageName] || packageName,
-        total,
-        amountPaid:    dep || undefined,
-        paymentMethod: PAY_MAP[paymentMethod] || 'bank',
-        paymentStatus: status,
-        currency:      'JOD',
-        source:        'crm',
-        notes:         notes || null,
-        saleDate:      today,
-      }, req.user.username)
+      await recordSaleInFinance(record, req.user.username)
     } catch (fe) {
       console.error('[sale POST] finance sync failed:', fe.message)
     }

@@ -1,6 +1,7 @@
 import { requireAuth } from '../../../../lib/auth'
 import { hashPassword } from '../../../../lib/db'
 import { approveSaleRecord, rejectSaleRecord, getSaleRecordById, normalizeJordanPhone } from '../../../../lib/sales-db'
+import { recordSaleInFinance } from '../../../../lib/sale-finance'
 import { getUser, createUser } from '../../../../lib/users-store'
 import { neon } from '@neondatabase/serverless'
 
@@ -63,29 +64,7 @@ async function handler(req, res) {
 
     // Finance sync (best-effort)
     try {
-      const { createSale: createFinSale } = await import('../../../../lib/finance-db')
-      const PAY_MAP = { bank_transfer:'bank', cash:'cash', cliq:'bank', other:'manual' }
-      const PKG_NAME = { elite:'Elite — الباقة الكاملة', professional:'Professional — الباقة المتوسطة', starter:'Starter — باقة التنفيذ' }
-      const total  = sale.amount_paid  ? parseFloat(sale.amount_paid)  : 0
-      const dep    = sale.deposit      ? parseFloat(sale.deposit)      : 0
-      const status = sale.sale_status === 'cancelled' ? 'cancelled'
-                   : sale.sale_status === 'paid'       ? 'paid'
-                   : dep > 0                           ? 'partial' : 'pending'
-      await createFinSale({
-        customerName:  sale.student_name.trim(),
-        customerPhone: normalized,
-        employeeId:    sale.employee_id,
-        productType:   'course',
-        productName:   PKG_NAME[sale.package_name] || sale.package_name,
-        total,
-        amountPaid:    dep || undefined,
-        paymentMethod: PAY_MAP[sale.payment_method] || 'bank',
-        paymentStatus: status,
-        currency:      'JOD',
-        source:        'crm',
-        notes:         sale.notes || null,
-        saleDate:      sale.sale_date || new Date().toISOString().split('T')[0],
-      }, req.user.username)
+      await recordSaleInFinance(record, req.user.username)
     } catch (fe) {
       console.error('[approve] finance sync failed:', fe.message)
     }

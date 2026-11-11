@@ -619,6 +619,7 @@ function CreateSaleModal({ C, onClose, onSuccess, employees, isAdmin }) {
     if (!f.studentName.trim()) return setErr('اسم الطالب مطلوب')
     if (!f.studentPhone.trim()) return setErr('رقم الهاتف مطلوب')
     if (!f.packageName) return setErr('اختر الباقة')
+    if (!f.amountPaid && !f.deposit && f.saleStatus !== 'cancelled') return setErr('أدخل مبلغ البيعة')
     if (isAdmin && !f.employeeId) return setErr('اختر الموظف')
     if (!proofFile) return setErr('صورة إثبات البيعة مطلوبة')
     setUploading(true)
@@ -671,7 +672,7 @@ function CreateSaleModal({ C, onClose, onSuccess, employees, isAdmin }) {
             </div>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD) *</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>العربون (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.deposit} onChange={e=>setF({...f,deposit:e.target.value})} /></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>طريقة الدفع</label>
               <select style={{ ...inp, appearance:'none' }} value={f.paymentMethod} onChange={e=>setF({...f,paymentMethod:e.target.value})}>
@@ -786,6 +787,7 @@ function EditSaleModal({ C, record, onClose, onSuccess }) {
     if (!f.studentName.trim()) return setErr('اسم الطالب مطلوب')
     if (!f.studentPhone.trim()) return setErr('رقم الهاتف مطلوب')
     if (!f.packageName) return setErr('اختر الباقة')
+    if (!f.amountPaid && !f.deposit && f.saleStatus !== 'cancelled') return setErr('أدخل مبلغ البيعة')
     setUploading(true)
     try {
       let proofImageUrl = record.proof_image_url
@@ -828,7 +830,7 @@ function EditSaleModal({ C, record, onClose, onSuccess }) {
             </select>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
+            <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>المبلغ (JOD) *</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.amountPaid} onChange={e=>setF({...f,amountPaid:e.target.value})} /></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>العربون (JOD)</label><input type="number" style={{ ...inp, direction:'ltr' }} min="0" step="0.01" value={f.deposit} onChange={e=>setF({...f,deposit:e.target.value})} /></div>
             <div><label style={{ color:C.silver, fontSize:11, display:'block', marginBottom:5 }}>طريقة الدفع</label>
               <select style={{ ...inp, appearance:'none' }} value={f.paymentMethod} onChange={e=>setF({...f,paymentMethod:e.target.value})}>
