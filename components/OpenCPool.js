@@ -8,17 +8,21 @@ const STATUS_META = {
   new:            { ar: 'جديد',          en: 'New',            key: 'silver'  },
   contacted:      { ar: 'تم التواصل',     en: 'Contacted',      key: 'gold'    },
   interested:     { ar: 'مهتم',           en: 'Interested',     key: 'emerald' },
+  unreachable:    { ar: 'لا يرد',         en: 'Unreachable',    key: 'purple'  },
   not_interested: { ar: 'غير مهتم',       en: 'Not Interested', key: 'red'     },
   closed_sale:    { ar: 'تم البيع',       en: 'Closed Sale',    key: 'emerald' },
   cancelled:      { ar: 'ألغى الفكرة',    en: 'Cancelled',      key: 'red'     },
 }
+// The pool can hold thousands of leads; they are listed a page at a time.
+const PAGE_SIZE = 100
+
 function statusLabel(s, lang) {
   const m = STATUS_META[s]
   if (!m) return s || '—'
   return lang === 'ar' ? m.ar : m.en
 }
 function statusColor(s, C) {
-  return { silver: C.silver, gold: C.gold, emerald: C.emerald, red: C.red }[STATUS_META[s]?.key] || C.silver
+  return { silver: C.silver, gold: C.gold, emerald: C.emerald, red: C.red, purple: C.purple }[STATUS_META[s]?.key] || C.silver
 }
 function fmtDate(value, lang) {
   if (!value) return '—'
@@ -42,6 +46,7 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees, o
   const [busyId, setBusyId] = useState(null)
   const [pickEmployee, setPickEmployee] = useState({})
   const [message, setMessage] = useState(null)
+  const [shown, setShown] = useState(PAGE_SIZE)
 
   // The pool response is browser-cached for a few seconds; after a claim that
   // cached copy would still list the lead that was just taken.
@@ -55,7 +60,10 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees, o
 
   useEffect(() => { fetchPool() }, [fetchPool])
 
-  const visibleLeads = role === 'employee' ? leads.filter(l => l.status === 'open') : leads
+  // Employees only see what can still be claimed; the admin sees those first,
+  // then the leads that were already taken.
+  const open = leads.filter(l => l.status === 'open')
+  const visibleLeads = role === 'employee' ? open : [...open, ...leads.filter(l => l.status !== 'open')]
 
   function employeeName(id) {
     if (!id) return null
@@ -119,7 +127,7 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees, o
         <p style={{ color: C.silver, fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>{lang === 'ar' ? 'لا يوجد عملاء محتملون في المجمع حالياً' : 'No leads in the pool right now'}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {visibleLeads.map(lead => {
+          {visibleLeads.slice(0, shown).map(lead => {
             const isAssigned = lead.status === 'assigned'
             return (
               <div key={lead.id} style={{
@@ -186,6 +194,14 @@ export default function OpenCPool({ C, lang, role, currentEmployee, employees, o
               </div>
             )
           })}
+          {visibleLeads.length > shown && (
+            <button onClick={() => setShown(n => n + PAGE_SIZE)} style={{
+              padding: '11px', borderRadius: '12px', border: `1px solid ${C.g20}`, background: C.g10,
+              color: C.gold, fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              {lang === 'ar' ? `عرض المزيد (${visibleLeads.length - shown} متبقي)` : `Show more (${visibleLeads.length - shown} left)`}
+            </button>
+          )}
         </div>
       )}
     </div>
