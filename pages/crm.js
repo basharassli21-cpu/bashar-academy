@@ -1605,6 +1605,162 @@ function AdminOpenCPage({ C, employees }) {
   )
 }
 
+// ─── ADMIN: Daily calls per employee ──────────────────────────────────────────
+function jordanToday() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Amman' }).format(new Date())
+}
+function shiftDay(day, delta) {
+  const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
+}
+function dayLabel(day) {
+  return new Date(day + 'T12:00:00Z').toLocaleDateString('ar-JO', { weekday:'short', day:'numeric', month:'numeric', timeZone:'UTC' })
+}
+const CALL_STATUS_LABEL = { answered:'رد', no_answer:'لم يرد', busy:'مشغول', failed:'فشل' }
+const NOTE_TYPE_LABEL = { call:'📞 مكالمة', whatsapp:'💬 واتساب', meeting:'🤝 اجتماع' }
+
+function AdminCallsPage({ C }) {
+  const today = jordanToday()
+  const [date, setDate]         = useState(today)
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [openEmp, setOpenEmp]   = useState(null)
+  const [detail, setDetail]     = useState(null)
+  const [showIdle, setShowIdle] = useState(false)
+
+  useEffect(()=>{
+    setLoading(true); setOpenEmp(null); setDetail(null)
+    fetch(`/api/crm/calls?date=${date}`).then(r=>r.json()).then(d=>{ setData(d); setLoading(false) }).catch(()=>setLoading(false))
+  },[date])
+
+  function toggle(emp) {
+    if (openEmp === emp.id) { setOpenEmp(null); setDetail(null); return }
+    setOpenEmp(emp.id); setDetail(null)
+    fetch(`/api/crm/calls?date=${date}&employeeId=${emp.id}`).then(r=>r.json()).then(d=>setDetail(d.calls||[])).catch(()=>setDetail([]))
+  }
+
+  const emps = data?.employees || []
+  const active = emps.filter(e => e.calls || e.whatsapp || e.meetings)
+  const idle   = emps.filter(e => !(e.calls || e.whatsapp || e.meetings))
+  const totals = active.reduce((t,e)=>({ calls:t.calls+e.calls, answered:t.answered+e.answered, whatsapp:t.whatsapp+e.whatsapp, leads:t.leads+e.leads_touched }), { calls:0, answered:0, whatsapp:0, leads:0 })
+  const trendDays = Array.from({ length:7 }, (_,i)=>shiftDay(today, i-6))
+  const trendMap = {}
+  for (const r of data?.trend || []) trendMap[`${r.employee_id}|${r.day}`] = r.calls
+  const trendEmps = emps.filter(e => trendDays.some(d => trendMap[`${e.id}|${d}`]))
+  const maxCell = Math.max(1, ...Object.values(trendMap))
+
+  const card = { background:C.surface, border:`1px solid ${C.g20}`, borderRadius:14 }
+  const th = { padding:'9px 12px', color:C.silver, fontSize:11, fontWeight:700, textAlign:'right', whiteSpace:'nowrap' }
+  const td = { padding:'11px 12px', fontSize:13, color:C.white, whiteSpace:'nowrap' }
+  const btn = { background:C.g10, border:`1px solid ${C.g20}`, color:C.white, borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:13, fontFamily:'inherit' }
+
+  return (
+    <div dir="rtl">
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:20 }}>
+        <h1 style={{ color:C.white, fontWeight:900, fontSize:18, margin:0 }}>📞 المكالمات اليومية</h1>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <button style={btn} onClick={()=>setDate(shiftDay(date,-1))}>→ اليوم السابق</button>
+          <input type="date" value={date} max={today} onChange={e=>e.target.value && setDate(e.target.value)} style={btn} />
+          <button style={{ ...btn, opacity: date>=today ? 0.4 : 1 }} disabled={date>=today} onClick={()=>setDate(shiftDay(date,1))}>اليوم التالي ←</button>
+          {date !== today && <button style={{ ...btn, color:C.gold }} onClick={()=>setDate(today)}>اليوم</button>}
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:12, marginBottom:20 }}>
+        <StatCard C={C} label="إجمالي المكالمات" value={totals.calls} icon="📞" />
+        <StatCard C={C} label="ردّوا" value={totals.answered} sub={totals.calls ? `${Math.round(totals.answered/totals.calls*100)}% من المكالمات` : ''} icon="✅" />
+        <StatCard C={C} label="رسائل واتساب" value={totals.whatsapp} icon="💬" />
+        <StatCard C={C} label="موظفين اشتغلوا" value={`${active.length} / ${emps.length}`} sub={`${totals.leads} عميل تم التواصل معه`} icon="👥" />
+      </div>
+
+      <div style={{ ...card, overflowX:'auto', marginBottom:20 }}>
+        <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.g20}`, color:C.white, fontWeight:700, fontSize:14 }}>
+          {dayLabel(date)} — اضغط على الموظف لتشوف مكالماته
+        </div>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead><tr style={{ background:C.g10 }}>
+            {['الموظف','المكالمات','رد','لم يرد','مشغول/فشل','بدون نتيجة','واتساب','الدقائق','عملاء','أول نشاط','آخر نشاط'].map(h=><th key={h} style={th}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {loading && <tr><td colSpan={11} style={{ ...td, textAlign:'center', color:C.silver, padding:24 }}>جارِ التحميل…</td></tr>}
+            {!loading && active.length===0 && <tr><td colSpan={11} style={{ ...td, textAlign:'center', color:C.silver, padding:24 }}>ما في ولا مكالمة مسجّلة بهاليوم</td></tr>}
+            {!loading && active.map(e=>[
+              <tr key={`r${e.id}`} onClick={()=>toggle(e)} style={{ cursor:'pointer', borderTop:`1px solid ${C.g20}`, background: openEmp===e.id ? C.g15 : 'transparent' }}>
+                <td style={{ ...td, fontWeight:700 }}>{openEmp===e.id ? '▾' : '◂'} {e.name}</td>
+                <td style={{ ...td, color:C.gold, fontWeight:900, fontSize:15 }}>{e.calls}</td>
+                <td style={{ ...td, color:C.emerald }}>{e.answered}</td>
+                <td style={{ ...td, color:C.purple }}>{e.no_answer}</td>
+                <td style={{ ...td, color:C.orange }}>{e.busy_failed}</td>
+                <td style={{ ...td, color:C.silver }}>{e.unspecified}</td>
+                <td style={td}>{e.whatsapp}</td>
+                <td style={td}>{e.minutes || '—'}</td>
+                <td style={td}>{e.leads_touched}</td>
+                <td style={{ ...td, color:C.silver }}>{fmtTime(e.first_at)}</td>
+                <td style={{ ...td, color:C.silver }}>{fmtTime(e.last_at)}</td>
+              </tr>,
+              openEmp===e.id && (
+                <tr key={`d${e.id}`}><td colSpan={11} style={{ padding:'4px 12px 16px', background:C.g10 }}>
+                  {!detail ? <div style={{ color:C.silver, fontSize:13, padding:12 }}>جارِ التحميل…</div> : (
+                    <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                      <thead><tr>{['الوقت','النوع','العميل','الرقم','النتيجة','الدقائق','حالة العميل','ملاحظة'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                      <tbody>{detail.map(c=>(
+                        <tr key={c.id} style={{ borderTop:`1px solid ${C.g20}` }}>
+                          <td style={{ ...td, color:C.silver }}>{fmtTime(c.created_at)}</td>
+                          <td style={td}>{NOTE_TYPE_LABEL[c.note_type] || c.note_type}</td>
+                          <td style={td}>{c.customer_name || '—'} {c.claimed_from_openc_id ? <SourceBadge C={C} source="openc" /> : null}</td>
+                          <td style={{ ...td, direction:'ltr', textAlign:'right' }}>{c.phone}</td>
+                          <td style={{ ...td, color: c.call_status==='answered' ? C.emerald : c.call_status ? C.orange : C.silver }}>{c.note_type==='call' ? (CALL_STATUS_LABEL[c.call_status] || '—') : '—'}</td>
+                          <td style={td}>{c.duration_minutes ?? '—'}</td>
+                          <td style={{ ...td, color:sc(c.status_at_time, C) }}>{STATUS_META[c.status_at_time]?.ar || '—'}</td>
+                          <td style={{ ...td, whiteSpace:'normal', color:C.silver, minWidth:180, maxWidth:320 }}>{c.text || ''}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  )}
+                </td></tr>
+              ),
+            ])}
+          </tbody>
+        </table>
+        {!loading && idle.length>0 && (
+          <div style={{ padding:'10px 16px', borderTop:`1px solid ${C.g20}`, fontSize:12, color:C.silver }}>
+            <span style={{ cursor:'pointer', color:C.orange }} onClick={()=>setShowIdle(!showIdle)}>⚠️ {idle.length} موظف بدون أي نشاط بهاليوم {showIdle ? '▴' : '▾'}</span>
+            {showIdle && <div style={{ marginTop:8, lineHeight:2 }}>{idle.map(e=>e.name).join(' · ')}</div>}
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...card, overflowX:'auto' }}>
+        <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.g20}`, color:C.white, fontWeight:700, fontSize:14 }}>📈 المكالمات آخر 7 أيام — اضغط على اليوم لتفتحه</div>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead><tr style={{ background:C.g10 }}>
+            <th style={th}>الموظف</th>
+            {trendDays.map(d=><th key={d} onClick={()=>setDate(d)} style={{ ...th, textAlign:'center', cursor:'pointer', color: d===date ? C.gold : C.silver }}>{dayLabel(d)}</th>)}
+            <th style={{ ...th, textAlign:'center' }}>المجموع</th>
+          </tr></thead>
+          <tbody>
+            {trendEmps.length===0 && <tr><td colSpan={9} style={{ ...td, textAlign:'center', color:C.silver, padding:24 }}>{loading ? 'جارِ التحميل…' : 'لا يوجد مكالمات'}</td></tr>}
+            {trendEmps.map(e=>{
+              const vals = trendDays.map(d=>trendMap[`${e.id}|${d}`] || 0)
+              return (
+                <tr key={e.id} style={{ borderTop:`1px solid ${C.g20}` }}>
+                  <td style={{ ...td, fontWeight:700 }}>{e.name}</td>
+                  {vals.map((v,i)=>(
+                    <td key={i} onClick={()=>setDate(trendDays[i])} style={{ ...td, textAlign:'center', cursor:'pointer', color: v ? C.white : C.silver,
+                      background: v ? `rgba(74,222,128,${(0.08 + 0.42 * v / maxCell).toFixed(2)})` : 'transparent' }}>{v || '·'}</td>
+                  ))}
+                  <td style={{ ...td, textAlign:'center', color:C.gold, fontWeight:900 }}>{vals.reduce((a,b)=>a+b,0)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ color:C.silver, fontSize:11, marginTop:10 }}>المكالمة تنحسب للموظف اللي سجّلها حتى لو انتقل العميل لموظف ثاني بعدين. الأيام بتوقيت الأردن.</p>
+    </div>
+  )
+}
+
 // ─── ADMIN: All Sales ─────────────────────────────────────────────────────────
 function AdminSalesPage({ C, employees, onPendingCountChange }) {
   const [records, setRecords]       = useState([])
@@ -1874,11 +2030,12 @@ function AdminPortal({ C, user }) {
     { id:'dashboard',  icon:'📊', label:'لوحة التحكم',         badge:0 },
     { id:'leads',      icon:'🎯', label:'إدارة Leads',          badge:0 },
     { id:'employees',  icon:'👥', label:'الموظفون',              badge:0 },
+    { id:'calls',      icon:'📞', label:'المكالمات اليومية',     badge:0 },
     { id:'openc',      icon:'♻️', label:'OpenC Pool',           badge:0 },
     { id:'sales',      icon:'💰', label:'جميع البيعات',          badge:pendingCount },
     { id:'import',     icon:'📥', label:'استيراد Leads',         badge:0 },
   ]
-  const titles = { dashboard:'لوحة تحكم الشركة', leads:'إدارة العملاء المحتملين', employees:'الموظفون', openc:'OpenC Pool', sales:'جميع البيعات', import:'استيراد Leads' }
+  const titles = { dashboard:'لوحة تحكم الشركة', leads:'إدارة العملاء المحتملين', employees:'الموظفون', calls:'المكالمات اليومية', openc:'OpenC Pool', sales:'جميع البيعات', import:'استيراد Leads' }
 
   async function logout() { await fetch('/api/auth/logout',{method:'POST'}); window.location.href='/' }
 
@@ -1897,6 +2054,7 @@ function AdminPortal({ C, user }) {
           {view==='dashboard' && <AdminDashboard C={C} />}
           {view==='leads'     && <AdminLeadsPage C={C} employees={employees} />}
           {view==='employees' && <AdminEmployeesPage C={C} onEmployeesChange={setEmployees} />}
+          {view==='calls'     && <AdminCallsPage C={C} />}
           {view==='openc'     && <AdminOpenCPage C={C} employees={employees} />}
           {view==='sales'     && <AdminSalesPage C={C} employees={employees} onPendingCountChange={setPendingCount} />}
           {view==='import'    && <AdminImportPage C={C} employees={employees} />}
