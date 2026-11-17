@@ -8,7 +8,7 @@ async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'صلاحيات غير كافية' })
 
-  const { filename, rows, duplicateStrategy, assignmentMode, employeeId } = req.body || {}
+  const { filename, rows, duplicateStrategy, assignmentMode, employeeId, employeeIds } = req.body || {}
   if (!filename || !Array.isArray(rows) || rows.length === 0) {
     return res.status(400).json({ error: 'لا يوجد بيانات لاستيرادها' })
   }
@@ -24,10 +24,22 @@ async function handler(req, res) {
     if (!employee) return res.status(400).json({ error: 'الموظف غير موجود' })
   }
 
+  let rrEmployeeIds = null
+  if (assignmentMode === 'round_robin' && employeeIds != null) {
+    const ids = [...new Set((Array.isArray(employeeIds) ? employeeIds : []).map(Number))]
+    if (ids.length === 0 || ids.some(id => !Number.isInteger(id) || id <= 0)) {
+      return res.status(400).json({ error: 'يرجى اختيار موظف واحد على الأقل' })
+    }
+    const found = await Promise.all(ids.map(id => getEmployeeById(id)))
+    if (found.some(e => !e)) return res.status(400).json({ error: 'موظف غير موجود' })
+    rrEmployeeIds = ids
+  }
+
   try {
     const summary = await bulkImportLeads({
       rows, duplicateStrategy, assignmentMode,
       employeeId: employeeId ? Number(employeeId) : null,
+      employeeIds: rrEmployeeIds,
       filename, uploadedBy: req.user.username,
     })
     return res.status(200).json(summary)

@@ -220,6 +220,13 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
   const [duplicateStrategy, setDuplicateStrategy] = useState('update')
   const [assignmentMode, setAssignmentMode] = useState('round_robin')
   const [employeeId, setEmployeeId] = useState('')
+  // Round robin targets — null means every employee (the default).
+  const [rrIds, setRrIds] = useState(null)
+  const rrSelected = rrIds ? employees.filter(e => rrIds.includes(e.id)) : employees
+  function toggleRr(id) {
+    const cur = rrIds || employees.map(e => e.id)
+    setRrIds(cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id])
+  }
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
   const [importResult, setImportResult] = useState(null)
@@ -314,6 +321,7 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
           duplicateStrategy,
           assignmentMode,
           employeeId: assignmentMode === 'employee' ? employeeId : null,
+          employeeIds: assignmentMode === 'round_robin' ? rrSelected.map(e => e.id) : null,
         }),
       })
       const data = await res.json()
@@ -523,7 +531,7 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
               <label style={radioLabelStyle}>
                 <input type="radio" checked={assignmentMode === 'round_robin'} onChange={() => setAssignmentMode('round_robin')} />
-                {lang === 'ar' ? `توزيع بالتساوي على الموظفين (${employees.length})` : `Round robin across employees (${employees.length})`}
+                {lang === 'ar' ? `توزيع بالتساوي على موظفين أختارهم (${rrSelected.length})` : `Round robin across selected employees (${rrSelected.length})`}
               </label>
               <label style={radioLabelStyle}>
                 <input type="radio" checked={assignmentMode === 'employee'} onChange={() => setAssignmentMode('employee')} />
@@ -534,6 +542,31 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
                 {lang === 'ar' ? 'إرسال إلى OpenC' : 'Send to OpenC'}
               </label>
             </div>
+            {assignmentMode === 'round_robin' && (
+              <div style={{ border: `1px solid ${C.g20}`, borderRadius: '10px', padding: '10px 12px' }}>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '8px', fontSize: '12px' }}>
+                  <span style={{ color: C.silver }}>{lang === 'ar' ? 'اختار الموظفين اللي بدك توزع عليهم:' : 'Pick the employees to share the leads:'}</span>
+                  <button type="button" onClick={() => setRrIds(null)} style={{ background: 'none', border: 'none', color: C.gold, cursor: 'pointer', fontSize: '12px', fontFamily: 'inherit', padding: 0 }}>{lang === 'ar' ? 'الكل' : 'All'}</button>
+                  <button type="button" onClick={() => setRrIds([])} style={{ background: 'none', border: 'none', color: C.silver, cursor: 'pointer', fontSize: '12px', fontFamily: 'inherit', padding: 0 }}>{lang === 'ar' ? 'ولا حدا' : 'None'}</button>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {employees.map(emp => {
+                    const on = rrSelected.some(e => e.id === emp.id)
+                    return (
+                      <label key={emp.id} style={{ ...radioLabelStyle, borderColor: on ? C.gold : undefined }}>
+                        <input type="checkbox" checked={on} onChange={() => toggleRr(emp.id)} />
+                        {emp.name}
+                      </label>
+                    )
+                  })}
+                </div>
+                {rrSelected.length > 0 && newCount > 0 && (
+                  <p style={{ color: C.silver, fontSize: '11.5px', marginTop: '8px' }}>
+                    {lang === 'ar' ? `كل موظف بياخذ تقريباً ${Math.ceil(newCount / rrSelected.length)} عميل` : `~${Math.ceil(newCount / rrSelected.length)} leads each`}
+                  </p>
+                )}
+              </div>
+            )}
             {assignmentMode === 'employee' && (
               <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={selectStyle}>
                 <option value="">{lang === 'ar' ? 'اختر موظفاً' : 'Select employee'}</option>
@@ -546,7 +579,7 @@ export default function ImportLeadsPanel({ C, lang, employees }) {
 
           <button
             onClick={handleImport}
-            disabled={importing || rows.length === 0 || (assignmentMode === 'employee' && !employeeId) || (assignmentMode === 'round_robin' && employees.length === 0)}
+            disabled={importing || rows.length === 0 || (assignmentMode === 'employee' && !employeeId) || (assignmentMode === 'round_robin' && rrSelected.length === 0)}
             style={{
               padding: '11px 28px', borderRadius: '10px', border: 'none', background: C.gold, color: C.navy,
               fontSize: '13.5px', fontWeight: '800', cursor: 'pointer', opacity: importing ? 0.6 : 1,

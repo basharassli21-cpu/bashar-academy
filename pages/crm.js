@@ -1507,19 +1507,18 @@ function AdminEmployeesPage({ C, onEmployeesChange }) {
   }
 
   async function del(id, name) {
-    if (!confirm(`⚠️ حذف ${name} من النظام؟
-
-• ما رح يقدر يسجّل دخول بعد هيك.
-• عملاؤه (غير المبيعات المغلقة) بيرجعوا للأوبين سي.
-• إذا إله مبيعات، بتضل محفوظة بالمالية والتقارير.
-
-ما في تراجع.`)) return
+    const warn = [
+      `⚠️ حذف ${name} من النظام؟`, '',
+      '• ما رح يقدر يسجّل دخول بعد هيك.',
+      '• عملاؤه (غير المبيعات المغلقة) بيرجعوا للأوبين سي.',
+      '• إذا إله مبيعات، بتضل محفوظة بالمالية والتقارير.', '',
+      'ما في تراجع.',
+    ].join('\n')
+    if (!confirm(warn)) return
     const r = await fetch(`/api/admin/employees?id=${id}`, { method:'DELETE' })
     const d = await r.json().catch(()=>({}))
     if (!r.ok) { alert(d.error || 'فشل الحذف'); return }
-    alert(`✅ تم حذف ${d.name}
-${d.movedToOpenC} عميل رجع للأوبين سي${d.archived ? '
-مبيعاته محفوظة بالمالية' : ''}`)
+    alert([`✅ تم حذف ${d.name}`, `${d.movedToOpenC} عميل رجع للأوبين سي`, d.archived ? 'مبيعاته محفوظة بالمالية' : ''].filter(Boolean).join('\n'))
     await load()
   }
 
