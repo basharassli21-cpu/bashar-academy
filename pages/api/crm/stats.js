@@ -23,7 +23,7 @@ async function handler(req, res) {
   ] = await Promise.all([
     sql`SELECT COUNT(*)::int AS n FROM leads`,
     sql`SELECT status, COUNT(*)::int AS n FROM leads GROUP BY status ORDER BY n DESC`,
-    sql`SELECT COUNT(*)::int AS n FROM employees`,
+    sql`SELECT COUNT(*)::int AS n FROM employees WHERE deleted_at IS NULL`,
     sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='open')::int AS open FROM openc_leads`,
     sql`SELECT COALESCE(SUM(amount_paid),0)::numeric AS rev FROM sale_records WHERE sale_date = ${today} AND sale_status != 'cancelled'`,
     sql`SELECT COALESCE(SUM(amount_paid),0)::numeric AS rev FROM sale_records WHERE EXTRACT(YEAR FROM sale_date)=${y} AND EXTRACT(MONTH FROM sale_date)=${m} AND sale_status != 'cancelled'`,
@@ -40,6 +40,7 @@ async function handler(req, res) {
       LEFT JOIN leads l ON l.employee_id = e.id
       LEFT JOIN sale_records sr ON sr.employee_id = e.id
       LEFT JOIN call_logs cl ON cl.employee_id = e.id
+      WHERE e.deleted_at IS NULL
       GROUP BY e.id ORDER BY rev_month DESC
     `,
     sql`SELECT sr.student_name, sr.amount_paid, sr.sale_date, sr.package_name, e.name AS employee_name FROM sale_records sr LEFT JOIN employees e ON e.id = sr.employee_id ORDER BY sr.created_at DESC LIMIT 10`,

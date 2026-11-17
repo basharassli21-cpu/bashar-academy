@@ -66,11 +66,17 @@ async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const { id } = req.body || {}
-    if (!id) return res.status(400).json({ error: 'missing id' })
-    writeAuditLog(req.user.username, 'delete_employee', Number(id), {})
-    await deleteEmployee(id)
-    return res.status(200).json({ success: true })
+    const id = Number(req.query.id || req.body?.id)
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'missing id' })
+    try {
+      const result = await deleteEmployee(id)
+      if (!result) return res.status(404).json({ error: 'الموظف غير موجود' })
+      writeAuditLog(req.user.username, 'delete_employee', id, result)
+      return res.status(200).json({ success: true, ...result })
+    } catch (err) {
+      console.error('delete employee failed', err)
+      return res.status(500).json({ error: 'فشل حذف الموظف، ما تغيّر إشي' })
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' })

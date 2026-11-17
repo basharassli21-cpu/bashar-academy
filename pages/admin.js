@@ -942,8 +942,9 @@ function SalesTeamTab({ lang }) {
   }
 
   async function deleteEmployeeRow(id) {
-    if (!confirm(lang === 'ar' ? 'حذف هذا الموظف؟ سيتم حذف جميع عملائه المحتملين أيضاً.' : 'Delete this employee? All their leads will be deleted too.')) return
-    await fetch('/api/admin/employees', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    if (!confirm(lang === 'ar' ? 'حذف هذا الموظف من النظام؟ عملاؤه بيرجعوا للأوبين سي، ومبيعاته بتضل محفوظة بالمالية.' : 'Remove this employee? Their leads go back to OpenC; their sales stay in finance.')) return
+    const res = await fetch(`/api/admin/employees?id=${id}`, { method: 'DELETE' })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Error') }
     fetchEmployees()
   }
 
